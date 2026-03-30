@@ -10,21 +10,29 @@ from typing import List
 import uuid
 from datetime import datetime, timezone
 
-# Import generate route
+# Import core configuration
+from core.config import config
+
+# Import routes
 from routes.generate import router as generate_router
+from routes.stories import router as stories_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', config.MONGO_URL)
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', config.DB_NAME)]
 
-# Create the main app without a prefix
-app = FastAPI()
+# Create the main app
+app = FastAPI(
+    title="StoryMe API",
+    description="Production-ready storybook generation API with storage abstraction",
+    version="2.0.0"
+)
 
-# Create a router with the /api prefix
+# Create a router with the /api prefix for legacy endpoints
 api_router = APIRouter(prefix="/api")
 
 
@@ -68,26 +76,45 @@ async def get_status_checks():
     
     return status_checks
 
-# Include the router in the main app
-app.include_router(api_router)
-
-# Include generate router (already has /api prefix)
-app.include_router(generate_router)
+# Include routers
+app.include_router(api_router)  # Legacy /api endpoints
+app.include_router(generate_router)  # /api/generate
+app.include_router(stories_router)  # /api/stories
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, config.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Log startup information
+@app.on_event("startup")
+async def startup_event():
+    logger.info("="*70)
+    logger.info("StoryMe API Starting")
+    logger.info("="*70)
+    logger.info(f"Storage Type: {config.STORAGE_TYPE}")
+    logger.info(f"Storage Info: {config.get_storage_info()}")
+    
+    # Import and log story registry info
+    from services.story_service import story_registry
+    logger.info(f"Stories Loaded: {story_registry.get_story_count()}")
+    
+    # Verify templates for all stories
+    for story_meta in story_registry.list_stories():
+        verification = story_registry.verify_story_templates(story_meta.story_id)
+        logger.info(f"  - {story_meta.story_id}: {verification['verified']}/{verification['total_pages']} templates found")
+    
+    logger.info("="*70)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
