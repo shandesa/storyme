@@ -106,12 +106,21 @@ async def generate_storybook(
         
         logger.info(f"PDF generated successfully: {pdf_path}")
         
-        # Return PDF file
-        return FileResponse(
+        # Get PDF file size for logging
+        pdf_size = Path(pdf_path).stat().st_size
+        logger.info(f"PDF size: {pdf_size} bytes ({pdf_size / 1024:.2f} KB)")
+        
+        # Return PDF file with proper headers
+        response = FileResponse(
             path=pdf_path,
             filename=pdf_filename,
             media_type='application/pdf'
         )
+        
+        logger.info(f"Returning PDF: {pdf_filename}")
+        logger.info(f"Response headers: media_type=application/pdf, filename={pdf_filename}")
+        
+        return response
     
     except Exception as e:
         logger.error(f"Error generating storybook: {e}")
