@@ -130,13 +130,25 @@ async def generate_storybook(
                 (page.face_placement.width, page.face_placement.height)
             )
             
-            # Compose page (paste face onto template)
+            # Compose page (paste face onto template + overlay name)
             output_filename = f"output/{uuid.uuid4().hex}_{page.page_number}.png"
+            
+            # Calculate name position (for page 1, overlay on the {name} placeholder)
+            # Page 1 has text at approximately (384, 460) based on template analysis
+            name_position = None
+            if page.page_number == 1:
+                # Position for overlaying name on "{name}" in the template
+                template_width = 1536  # Known from template analysis
+                template_height = 1024
+                name_position = (int(template_width * 0.25), int(template_height * 0.45))
+            
             composed_image_path = image_service.compose_page(
                 page.image_path,
                 face_img,
                 (page.face_placement.x, page.face_placement.y),
-                output_filename
+                output_filename,
+                child_name=name if name_position else None,
+                name_position=name_position
             )
             
             pages_data.append({

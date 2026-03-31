@@ -50,7 +50,7 @@ class StoryRegistry:
                 Page(
                     page_number=1,
                     text="One sunny morning, {name} walked into a beautiful forest filled with soft light and gentle sounds.\\n\\nEverything felt magical… as if the forest was waiting just for {name}.",
-                    face_placement=FacePlacement(x=220, y=180, width=160, height=160),
+                    face_placement=FacePlacement(x=851, y=247, width=268, height=270),
                     image_path="templates/stories/forest_of_smiles/page1.png"
                 ),
                 Page(

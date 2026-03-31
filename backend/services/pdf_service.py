@@ -91,20 +91,11 @@ class PDFService:
             
             # Story pages
             for i, page_data in enumerate(pages_data, 1):
-                # Page number
-                content.append(Paragraph(f"Page {i}", page_number_style))
-                
-                # Image
+                # Image (template already contains text and personalized name)
                 if page_data.get('image_path') and Path(page_data['image_path']).exists():
-                    img = RLImage(page_data['image_path'], width=5*inch, height=5*inch)
+                    # Use full page width for the template image
+                    img = RLImage(page_data['image_path'], width=7.5*inch, height=5*inch)
                     content.append(img)
-                    content.append(Spacer(1, 0.3 * inch))
-                
-                # Story text with name replacement
-                text = page_data['text'].replace('{name}', child_name)
-                # Handle line breaks
-                text = text.replace('\n', '<br/>')
-                content.append(Paragraph(text, story_text_style))
                 
                 # Page break except for last page
                 if i < len(pages_data):
