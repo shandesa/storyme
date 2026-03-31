@@ -53,12 +53,11 @@ StoryMe is a web application that allows parents to upload a child's photo and e
 - Added `angle` field to FacePlacement model for face rotation support
 - Added `NamePlacement`, `FaceCircle`, `NameTextRegion` models
 - OpenCV inpainting to fill white face circle with neighboring pixels
-- Advanced face compositing: face sized to 88% of circle, feathered circular mask, pasted over inpainted background
-- Multiple name_text_regions per page for replacing ALL baked-in `{name}` text
-- Inpainting-based text replacement: removes original text, renders actual name with auto-sized font
-- Updated story_service.py with precise coordinates for all 10 pages
+- Advanced face compositing: tight face crop (10% padding), feathered oval mask (8% blur), 92% circle fill
+- Full-line text replacement: inpaints entire text line, re-renders with {name} replaced
+- Auto font sizing based on line height for natural text matching
 - Saved reusable face personalization prompt to `/app/prompts/`
-- All tests passing (100% backend + frontend)
+- All tests passing
 
 ## Image Input Recommendations
 For best results, users should upload:

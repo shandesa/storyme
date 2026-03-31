@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -80,6 +81,11 @@ async def get_status_checks():
 app.include_router(api_router)  # Legacy /api endpoints
 app.include_router(generate_router)  # /api/generate
 app.include_router(stories_router)  # /api/stories
+
+# Serve static files (for debug/preview)
+static_dir = ROOT_DIR / "static"
+static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 app.add_middleware(
     CORSMiddleware,

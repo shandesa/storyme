@@ -50,8 +50,10 @@ class StoryRegistry:
                     image_path="templates/stories/forest_of_smiles/page1.png",
                     face_circle=FaceCircle(cx=985, cy=382, radius=135),
                     name_text_regions=[
-                        NameTextRegion(x1=146, y1=118, x2=259, y2=147),
-                        NameTextRegion(x1=277, y1=185, x2=394, y2=210),
+                        NameTextRegion(x1=146, y1=110, x2=676, y2=150,
+                                       line_text="{name} and the Forest of Smiles"),
+                        NameTextRegion(x1=197, y1=172, x2=616, y2=208,
+                                       line_text='"Hello {name}! Welcome to'),
                     ],
                     name_placement=NamePlacement(x=335, y=197, font_size=28, color=(134, 105, 54)),
                 ),

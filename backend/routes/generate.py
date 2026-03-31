@@ -98,7 +98,10 @@ async def generate_storybook(
             # Baked-in {name} text regions (list)
             text_regions = None
             if page.name_text_regions:
-                text_regions = [(r.x1, r.y1, r.x2, r.y2) for r in page.name_text_regions]
+                text_regions = [
+                    (r.x1, r.y1, r.x2, r.y2, r.line_text) if r.line_text else (r.x1, r.y1, r.x2, r.y2)
+                    for r in page.name_text_regions
+                ]
 
             composed = image_service.compose_page(
                 page.image_path,

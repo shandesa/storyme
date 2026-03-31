@@ -33,11 +33,12 @@ class FaceCircle(BaseModel):
 
 
 class NameTextRegion(BaseModel):
-    """Bounding box of baked-in {name} text on the template that needs replacing."""
+    """Bounding box of a text line containing {name} on the template."""
     x1: int = Field(..., description="Left X")
     y1: int = Field(..., description="Top Y")
     x2: int = Field(..., description="Right X")
     y2: int = Field(..., description="Bottom Y")
+    line_text: str = Field(default="", description="Full text of the line, with {name} placeholder")
 
 
 class Page(BaseModel):
