@@ -59,9 +59,12 @@ StoryMe is a web application that allows parents to upload a child's photo and e
 - S3 storage is stubbed (not implemented)
 - No ML-based stylization yet (Pixar-like effect exists in pipeline but not integrated)
 
+## Testing Status (2026-03-31)
+- Backend: 100% (15/15 tests passed) - see /app/test_reports/iteration_2.json
+- Frontend: 100% (all UI flows working)
+- All features verified: PDF generation, face detection, fallback, name overlay, validation
+
 ## Pending Tasks
-- P0: Test with real face photos to verify detection accuracy
-- P0: Verify face position and name text rendering on all 10 pages visually
 - P2: Replace placeholder templates (pages 2-10) with real illustrations
 - P2: Implement actual S3 storage
 - P2: Add ML-based face stylization
