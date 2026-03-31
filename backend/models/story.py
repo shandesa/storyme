@@ -4,7 +4,7 @@ Defines the structure for stories and pages.
 Used throughout the application for type safety and validation.
 """
 
-from typing import List
+from typing import List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 
@@ -14,6 +14,15 @@ class FacePlacement(BaseModel):
     y: int = Field(..., description="Y coordinate for face placement")
     width: int = Field(..., description="Face width in pixels")
     height: int = Field(..., description="Face height in pixels")
+    angle: float = Field(default=0.0, description="Rotation angle in degrees (counter-clockwise)")
+
+
+class NamePlacement(BaseModel):
+    """Defines where to place the child's name text on a page template."""
+    x: int = Field(..., description="X center coordinate for name text")
+    y: int = Field(..., description="Y center coordinate for name text")
+    font_size: int = Field(default=48, description="Font size for the name")
+    color: Tuple[int, int, int] = Field(default=(51, 51, 51), description="RGB text color")
 
 
 class Page(BaseModel):
@@ -22,6 +31,7 @@ class Page(BaseModel):
     text: str = Field(..., description="Story text for this page")
     face_placement: FacePlacement = Field(..., description="Face placement coordinates")
     image_path: str = Field(..., description="Relative path to template image")
+    name_placement: Optional[NamePlacement] = Field(default=None, description="Name text placement")
     
     class Config:
         frozen = False

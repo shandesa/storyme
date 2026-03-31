@@ -84,7 +84,7 @@ TEST_CHILD_NAMES = [
 # ============================================================================
 # PDF file size expectations (in KB)
 MIN_PDF_SIZE_KB = 50  # Minimum expected PDF size
-MAX_PDF_SIZE_KB = 5000  # Maximum expected PDF size
+MAX_PDF_SIZE_KB = 6000  # Maximum expected PDF size (increased for high-res page1)
 
 # API response timeout (seconds)
 API_TIMEOUT = 30
