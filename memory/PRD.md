@@ -10,10 +10,11 @@ Build "StoryMe", a simple but well-structured MVP web application that allows a 
 1. Upload child's photo (JPG/PNG/WEBP, max 5MB)
 2. Enter child's name
 3. Generate 10-page personalized storybook PDF
-4. Face detection and extraction using OpenCV
-5. Face composited onto story template pages with correct orientation
-6. Child's name overlaid on each page at designated positions
-7. PDF download with all 10 pages
+4. Face detection and extraction using OpenCV Haar Cascades
+5. Face composited onto story template pages inside white circle placeholder
+6. White circle area inpainted with neighboring pixels for seamless blending
+7. Baked-in `{name}` text on templates replaced with actual child's name
+8. PDF download with all 10 pages
 
 ## Architecture
 - Frontend: React + Shadcn UI
@@ -28,11 +29,16 @@ Build "StoryMe", a simple but well-structured MVP web application that allows a 
 - [x] Story registry with page coordinates (Session 1, updated Session 2)
 - [x] OpenCV face detection integrated into image_service.py (Session 2)
 - [x] Face rotation support via angle field (Session 2)
-- [x] NamePlacement model with per-page coordinates (Session 2)
-- [x] PDF generation with face + name compositing (Session 2)
+- [x] OpenCV inpainting for white circle blending (Session 2)
+- [x] Advanced face compositing: sized to 88% circle, feathered mask (Session 2)
+- [x] Multiple NameTextRegion support per page (Session 2)
+- [x] Inpainting-based {name} text replacement with auto-sized font (Session 2)
+- [x] Reusable face personalization prompt saved (Session 2)
+- [x] Full test coverage (backend + frontend, 3 iterations) (Session 2)
 
 ## Backlog
-- P0: Visual verification of face/name placement across all pages
+- P1: Verify lower text block on page 1 for additional {name} occurrences
 - P2: Replace placeholder templates (pages 2-10) with real illustrations
 - P2: Implement S3 storage backend
 - P2: ML-based face stylization (Pixar-like cartoon effect)
+- P2: Add more story themes beyond "Forest of Smiles"

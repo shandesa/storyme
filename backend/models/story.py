@@ -25,6 +25,21 @@ class NamePlacement(BaseModel):
     color: Tuple[int, int, int] = Field(default=(51, 51, 51), description="RGB text color")
 
 
+class FaceCircle(BaseModel):
+    """Describes the white placeholder circle on the template for face insertion."""
+    cx: int = Field(..., description="Center X of the circle")
+    cy: int = Field(..., description="Center Y of the circle")
+    radius: int = Field(..., description="Radius of the circle")
+
+
+class NameTextRegion(BaseModel):
+    """Bounding box of baked-in {name} text on the template that needs replacing."""
+    x1: int = Field(..., description="Left X")
+    y1: int = Field(..., description="Top Y")
+    x2: int = Field(..., description="Right X")
+    y2: int = Field(..., description="Bottom Y")
+
+
 class Page(BaseModel):
     """Represents a single page in a story."""
     page_number: int = Field(..., description="Page number (1-indexed)")
@@ -32,6 +47,8 @@ class Page(BaseModel):
     face_placement: FacePlacement = Field(..., description="Face placement coordinates")
     image_path: str = Field(..., description="Relative path to template image")
     name_placement: Optional[NamePlacement] = Field(default=None, description="Name text placement")
+    face_circle: Optional[FaceCircle] = Field(default=None, description="White circle on template")
+    name_text_regions: Optional[List[NameTextRegion]] = Field(default=None, description="List of baked-in {name} text boxes")
     
     class Config:
         frozen = False

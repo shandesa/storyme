@@ -5,7 +5,10 @@ Uses storage abstraction to load page templates.
 """
 
 from typing import List, Optional
-from models.story import Story, Page, FacePlacement, NamePlacement, StoryMetadata
+from models.story import (
+    Story, Page, FacePlacement, NamePlacement,
+    StoryMetadata, FaceCircle, NameTextRegion,
+)
 from core.storage import storage
 import logging
 
@@ -25,9 +28,13 @@ class StoryRegistry:
         # ================================================================
         # Story 1: Forest of Smiles
         # ================================================================
-        # Page 1 is a high-res 1536x1024 illustrated template.
-        # Pages 2-10 are solid-color 612x792 backgrounds.
-        # Face and name coordinates are tuned per page dimensions.
+        # Page 1: 1536x1024 illustrated template with:
+        #   - White face circle at center=(985,382), radius=135
+        #   - Baked-in "{name}" text at ~(y=186-210, x=270-410)
+        #   - Character looking slightly down-left, brown hair, yellow shirt
+        #   - Text color: dark brown ~RGB(134, 105, 54)
+        #
+        # Pages 2-10: 612x792 solid-color backgrounds.
         # ================================================================
 
         forest_story = Story(
@@ -39,9 +46,14 @@ class StoryRegistry:
                 Page(
                     page_number=1,
                     text="One sunny morning, {name} walked into a beautiful forest filled with soft light and gentle sounds.\n\nEverything felt magical... as if the forest was waiting just for {name}.",
-                    face_placement=FacePlacement(x=851, y=247, width=180, height=180, angle=0.0),
+                    face_placement=FacePlacement(x=850, y=247, width=270, height=270, angle=0.0),
                     image_path="templates/stories/forest_of_smiles/page1.png",
-                    name_placement=NamePlacement(x=768, y=920, font_size=52, color=(51, 51, 51)),
+                    face_circle=FaceCircle(cx=985, cy=382, radius=135),
+                    name_text_regions=[
+                        NameTextRegion(x1=146, y1=118, x2=259, y2=147),
+                        NameTextRegion(x1=277, y1=185, x2=394, y2=210),
+                    ],
+                    name_placement=NamePlacement(x=335, y=197, font_size=28, color=(134, 105, 54)),
                 ),
                 Page(
                     page_number=2,
@@ -120,13 +132,11 @@ class StoryRegistry:
         for story in self._stories:
             if story.story_id == story_id:
                 return story
-        logger.warning(f"Story not found by ID: {story_id}")
         return None
 
     def get_story_by_index(self, index: int) -> Optional[Story]:
         if 0 <= index < len(self._stories):
             return self._stories[index]
-        logger.warning(f"Story not found by index: {index}")
         return None
 
     def list_stories(self) -> List[StoryMetadata]:
@@ -137,10 +147,6 @@ class StoryRegistry:
 
     def get_stories_by_age_group(self, age_group: str) -> List[Story]:
         return [s for s in self._stories if s.age_group == age_group]
-
-    # ================================================================
-    # Template Path Resolution
-    # ================================================================
 
     def get_page_template_path(self, story_id: str, page_number: int) -> Optional[str]:
         story = self.get_story_by_id(story_id)

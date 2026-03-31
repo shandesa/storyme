@@ -1,12 +1,8 @@
 """Generate Storybook API Route
 
-Handles storybook generation with support for:
-- Story selection by ID or index
-- Image upload and face extraction (OpenCV)
-- PDF generation
-- Storage abstraction for S3 compatibility
-
 POST /api/generate
+Accepts multipart form with name, image, optional story_id/story_index.
+Returns personalized PDF.
 """
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -25,7 +21,6 @@ from core.config import config
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["generate"])
-
 pdf_service = PDFService(str(config.OUTPUT_DIR))
 
 
@@ -36,9 +31,6 @@ async def generate_storybook(
     story_id: Optional[str] = Form(None),
     story_index: Optional[int] = Form(None),
 ):
-    """Generate personalized storybook PDF."""
-
-    # Validation
     if not name or name.strip() == "":
         raise HTTPException(status_code=400, detail="Child's name is required")
     if not image:
@@ -64,32 +56,30 @@ async def generate_storybook(
         if not story:
             raise HTTPException(status_code=500, detail="No stories available")
 
-    logger.info(f"Selected story: {story.story_id}")
+    logger.info(f"Generating storybook for '{name}', story={story.story_id}")
 
     uploaded_file_path = None
-
     try:
-        # Save uploaded image
-        file_extension = Path(image.filename).suffix
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        uploaded_file_path = f"uploads/{unique_filename}"
+        # Save upload
+        ext = Path(image.filename).suffix
+        uploaded_file_path = f"uploads/{uuid.uuid4()}{ext}"
         storage.save_file(image.file, uploaded_file_path)
-        logger.info(f"Uploaded file saved: {uploaded_file_path}")
 
-        # Process each page
         pages_data = []
 
         for page in story.pages:
-            # Extract face with rotation
+            fp = page.face_placement
+
+            # Extract face
             face_img = image_service.extract_face(
                 uploaded_file_path,
-                (page.face_placement.width, page.face_placement.height),
-                angle=page.face_placement.angle,
+                (fp.width, fp.height),
+                angle=fp.angle,
             )
 
-            output_filename = f"output/{uuid.uuid4().hex}_{page.page_number}.png"
+            out_path = f"output/{uuid.uuid4().hex}_{page.page_number}.png"
 
-            # Name placement from the story registry
+            # Name placement
             name_pos = None
             name_font_size = 48
             name_color = (51, 51, 51)
@@ -98,18 +88,33 @@ async def generate_storybook(
                 name_font_size = page.name_placement.font_size
                 name_color = page.name_placement.color
 
-            composed_image_path = image_service.compose_page(
+            # Face circle (for advanced compositing on illustrated templates)
+            circle_center = None
+            circle_radius = None
+            if page.face_circle:
+                circle_center = (page.face_circle.cx, page.face_circle.cy)
+                circle_radius = page.face_circle.radius
+
+            # Baked-in {name} text regions (list)
+            text_regions = None
+            if page.name_text_regions:
+                text_regions = [(r.x1, r.y1, r.x2, r.y2) for r in page.name_text_regions]
+
+            composed = image_service.compose_page(
                 page.image_path,
                 face_img,
-                (page.face_placement.x, page.face_placement.y),
-                output_filename,
-                child_name=name if name_pos else None,
+                (fp.x, fp.y),
+                out_path,
+                child_name=name,
                 name_position=name_pos,
                 name_font_size=name_font_size,
                 name_color=name_color,
+                face_circle_center=circle_center,
+                face_circle_radius=circle_radius,
+                name_text_regions=text_regions,
             )
 
-            pages_data.append({"text": page.text, "image_path": composed_image_path})
+            pages_data.append({"text": page.text, "image_path": composed})
 
         # Generate PDF
         pdf_filename = f"{name.replace(' ', '_')}_{uuid.uuid4().hex[:8]}.pdf"
@@ -122,11 +127,7 @@ async def generate_storybook(
 
         logger.info(f"PDF generated: {pdf_path} ({Path(pdf_path).stat().st_size} bytes)")
 
-        return FileResponse(
-            path=pdf_path,
-            filename=pdf_filename,
-            media_type="application/pdf",
-        )
+        return FileResponse(path=pdf_path, filename=pdf_filename, media_type="application/pdf")
 
     except Exception as e:
         logger.error(f"Error generating storybook: {e}", exc_info=True)
@@ -136,5 +137,5 @@ async def generate_storybook(
         if uploaded_file_path:
             try:
                 storage.delete_file(uploaded_file_path)
-            except Exception as e:
-                logger.warning(f"Failed to cleanup uploaded file: {e}")
+            except Exception:
+                pass
