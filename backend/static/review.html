@@ -2,19 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>StoryMe Pipeline Review</title>
+<title>StoryMe Pipeline Review — Real Photo Test</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #1a1a2e; color: #eee; font-family: system-ui; padding: 20px; }
   h1 { text-align: center; margin-bottom: 10px; font-size: 24px; color: #e0e0ff; }
   .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; margin-bottom: 20px; }
   .card { background: #16213e; border-radius: 12px; padding: 16px; border: 1px solid #333; }
   .card h2 { font-size: 16px; margin-bottom: 4px; color: #a0c4ff; }
   .card p { font-size: 12px; color: #888; margin-bottom: 10px; }
   .card img { width: 100%; border-radius: 8px; cursor: pointer; }
   .card img:hover { transform: scale(1.02); transition: 0.2s; }
   .full { grid-column: 1 / -1; }
+  .badge { display: inline-block; background: #ffd700; color: #1a1a2e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px; }
   .info { background: #0f3460; border-radius: 12px; padding: 20px; margin-top: 20px; max-width: 1400px; margin: 20px auto; }
   .info h3 { color: #a0c4ff; margin-bottom: 8px; }
   .info ul { padding-left: 20px; }
@@ -23,44 +25,52 @@
 </style>
 </head>
 <body>
-<h1>StoryMe ML Pipeline Review</h1>
+<h1>StoryMe ML Pipeline Review <span class="badge">REAL PHOTO</span></h1>
 <p class="subtitle">MediaPipe + BiSeNet + AnimeGANv2 + seamlessClone</p>
+
+<div class="grid3">
+  <div class="card">
+    <h2>1. Input Photo (Real)</h2>
+    <p>The uploaded child's photo</p>
+    <img src="/api/review/image/real_face_input.jpg" alt="Input face" onclick="window.open(this.src)">
+  </div>
+  <div class="card">
+    <h2>2. AnimeGANv2 Stylized Face</h2>
+    <p>Cartoon/anime transformation of the real photo</p>
+    <img src="/api/review/image/real_face_stylized.png" alt="Stylized" onclick="window.open(this.src)">
+  </div>
+  <div class="card">
+    <h2>3. BiSeNet Segmentation Mask</h2>
+    <p>Face region mask (skin, brows, eyes, nose, lips)</p>
+    <img src="/api/review/image/real_face_mask.png" alt="Mask" onclick="window.open(this.src)">
+  </div>
+</div>
 
 <div class="grid">
   <div class="card">
-    <h2>1. Input Face Photo</h2>
-    <p>The test photo used (tiny synthetic face from previous debug session)</p>
-    <img src="/api/review/image/test_face_input.jpg" alt="Input face" onclick="window.open(this.src)">
-  </div>
-  <div class="card">
-    <h2>2. Original Template (Page 1)</h2>
-    <p>The illustrated template with white circle placeholder</p>
+    <h2>4. Original Template (Page 1)</h2>
+    <p>Illustrated template with white circle placeholder</p>
     <img src="/api/review/image/template_original.png" alt="Template" onclick="window.open(this.src)">
   </div>
-  <div class="card full">
-    <h2>3. Pipeline Output (AnimeGANv2 Stylized + Blended)</h2>
-    <p>Face detected → segmented → cartoon-stylized → Poisson-blended into template</p>
-    <img src="/api/review/image/pipeline_result.png" alt="Pipeline result" onclick="window.open(this.src)">
+  <div class="card">
+    <h2>5. Final Output (Blended)</h2>
+    <p>Stylized face Poisson-blended into the template</p>
+    <img src="/api/review/image/real_pipeline_result.png" alt="Result" onclick="window.open(this.src)">
   </div>
 </div>
 
 <div class="info">
-  <h3>What the pipeline does (step by step):</h3>
+  <h3>Pipeline Steps Applied:</h3>
   <ul>
-    <li><span class="highlight">Step 1 — MediaPipe Face Detection:</span> Finds the face bounding box and 6 landmarks (eyes, nose, ears, mouth) — replaces Haar Cascades</li>
-    <li><span class="highlight">Step 2 — Face Crop + Preprocessing:</span> Crops with configurable padding, applies CLAHE brightness normalization, bilateral smoothing</li>
-    <li><span class="highlight">Step 3 — BiSeNet Face Segmentation:</span> Neural network segments skin, brows, eyes, nose, lips into a precise mask (19-class model) — replaces circular crop</li>
-    <li><span class="highlight">Step 4 — AnimeGANv2 Stylization:</span> Transforms the real photo into an anime/cartoon style (Pixar-like effect)</li>
-    <li><span class="highlight">Step 5 — Template Inpainting:</span> Fills the white circle placeholder with surrounding pixel colors using Telea inpainting</li>
-    <li><span class="highlight">Step 6 — Poisson Blending (seamlessClone):</span> Blends the stylized face into the inpainted area with gradient-domain fusion — no harsh edges</li>
-    <li><span class="highlight">Step 7 — Name Rendering:</span> Renders the child's name with white outline for readability</li>
+    <li><span class="highlight">Step 1:</span> MediaPipe face detection (close-up photo, used center-crop fallback)</li>
+    <li><span class="highlight">Step 2:</span> CLAHE brightness normalization + bilateral smoothing</li>
+    <li><span class="highlight">Step 3:</span> BiSeNet 19-class face segmentation (19.6% face mask coverage)</li>
+    <li><span class="highlight">Step 4:</span> AnimeGANv2 cartoon stylization (face_paint_512_v2 model)</li>
+    <li><span class="highlight">Step 5:</span> White circle inpainting (Telea algorithm)</li>
+    <li><span class="highlight">Step 6:</span> Poisson blending (cv2.seamlessClone) into template</li>
+    <li><span class="highlight">Step 7:</span> Name "Shan" rendered with white outline</li>
   </ul>
-  <h3 style="margin-top:16px;">Important note about the test image:</h3>
-  <ul>
-    <li>The test was run with a <span class="highlight">tiny 50×50 synthetic test face</span> generated via code, not a real child photo</li>
-    <li>With a real photo, the AnimeGANv2 stylization + BiSeNet segmentation will produce significantly better results</li>
-    <li>Click any image to view it full-size in a new tab</li>
-  </ul>
+  <p style="margin-top:12px;color:#aaa;font-size:13px;">Click any image to view full-size. Compare input (1) vs stylized (2) to judge the AnimeGANv2 quality.</p>
 </div>
 </body>
 </html>
