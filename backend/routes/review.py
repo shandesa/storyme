@@ -17,6 +17,14 @@ async def review_page():
     return HTMLResponse(content="<h1>No review page found</h1>", status_code=404)
 
 
+@router.get("/review/pose")
+async def pose_review_page():
+    html_path = STATIC_DIR / "pose_review.html"
+    if html_path.exists():
+        return HTMLResponse(content=html_path.read_text())
+    return HTMLResponse(content="<h1>No pose review page found</h1>", status_code=404)
+
+
 @router.get("/review/image/{filename}")
 async def review_image(filename: str):
     file_path = STATIC_DIR / filename
