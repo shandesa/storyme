@@ -1,0 +1,44 @@
+This folder - playground is for experiment purpose.
+
+python face_blend.py \
+  --template template.png \
+  --face face.png \
+  --output result.png
+
+
+  playground
+    references (folder)
+        story1 (folder)
+        story2 (folder)
+        story3 (folder)
+    templates (folder)
+        story1 (folder)
+        story2 (folder)
+        story3 (folder)
+    user_face (folder)
+        user1 (folder)
+        user2 (folder)
+        user3(folder)
+    generated(folder)
+        user1 (folder)
+            story1(folder)
+                scene_01.png
+                scene_02.png
+                scene_03.png
+            story2(folder)
+                scene_01.png
+                scene_02.png
+                scene_03.png
+    face_blend.py
+    README
+    requirements.txt
+
+
+
+
+How to run:
+
+One story
+    python face_blend.py --user 'nikshay' --story 'forrest_of_smiles'
+All stories
+    python face_blend.py --user user1 --story all
