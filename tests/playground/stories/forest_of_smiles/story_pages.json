@@ -1,0 +1,178 @@
+{
+  "title": "Avi - The Helpful Jungle Guardian and the Forest of Smiles",
+  "total_pages": 16,
+  "image_resolution": "1024x1024",
+  "global_settings": {
+    "style": "Soft Pixar-style children’s storybook illustration",
+    "color_palette": "Soft pastel (lush greens, warm yellows, soft blues)",
+    "lighting": "Warm cinematic lighting with gentle glow",
+    "main_character": {
+      "name": "Avi",
+      "age": "4-6",
+      "gender": "male"
+    }
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "title": "PAGE 1",
+      "lines": [
+        "Avi stepped into a quiet jungle, soft and green.",
+        "Why does everything feel a little sad?"
+      ],
+      "characters": ["Avi"],
+      "face_config": { "x": 430, "y": 220, "w": 170, "h": 190 }
+    },
+    {
+      "page_number": 2,
+      "title": "PAGE 2",
+      "lines": [
+        "A little monkey sat alone on a branch.",
+        "My bananas are gone and I feel so hungry."
+      ],
+      "characters": ["Avi", "Monkey"],
+      "face_config": { "x": 420, "y": 260, "w": 160, "h": 180 }
+    },
+    {
+      "page_number": 3,
+      "title": "PAGE 3",
+      "lines": [
+        "Avi searched gently through leaves and trees.",
+        "Don’t worry, I will help you find them."
+      ],
+      "characters": ["Avi", "Monkey"],
+      "face_config": { "x": 440, "y": 300, "w": 150, "h": 170 }
+    },
+    {
+      "page_number": 4,
+      "title": "PAGE 4",
+      "lines": [
+        "The monkey hugged Avi with a big smile.",
+        "Thank you! You made me happy again."
+      ],
+      "characters": ["Avi", "Monkey"],
+      "face_config": { "x": 420, "y": 240, "w": 170, "h": 190 }
+    },
+    {
+      "page_number": 5,
+      "title": "PAGE 5",
+      "lines": [
+        "A big elephant stood near the river.",
+        "My feet hurt and I cannot walk properly."
+      ],
+      "characters": ["Avi", "Elephant"],
+      "face_config": { "x": 410, "y": 260, "w": 165, "h": 185 }
+    },
+    {
+      "page_number": 6,
+      "title": "PAGE 6",
+      "lines": [
+        "Avi washed her feet with cool water.",
+        "I am here to help you feel better."
+      ],
+      "characters": ["Avi", "Elephant"],
+      "face_config": { "x": 450, "y": 300, "w": 150, "h": 170 }
+    },
+    {
+      "page_number": 7,
+      "title": "PAGE 7",
+      "lines": [
+        "The elephant lifted her trunk happily.",
+        "You helped me feel strong again!"
+      ],
+      "characters": ["Avi", "Elephant"],
+      "face_config": { "x": 420, "y": 240, "w": 170, "h": 190 }
+    },
+    {
+      "page_number": 8,
+      "title": "PAGE 8",
+      "lines": [
+        "A small bird looked at her fallen nest.",
+        "My home is gone, I feel so sad."
+      ],
+      "characters": ["Avi", "Bird"],
+      "face_config": { "x": 430, "y": 320, "w": 150, "h": 170 }
+    },
+    {
+      "page_number": 9,
+      "title": "PAGE 9",
+      "lines": [
+        "Avi carefully placed the nest back.",
+        "Your home is safe again."
+      ],
+      "characters": ["Avi", "Bird"],
+      "face_config": { "x": 450, "y": 260, "w": 150, "h": 170 }
+    },
+    {
+      "page_number": 10,
+      "title": "PAGE 10",
+      "lines": [
+        "The bird sang happily again.",
+        "You brought my smile back!"
+      ],
+      "characters": ["Avi", "Bird"],
+      "face_config": { "x": 420, "y": 230, "w": 170, "h": 190 }
+    },
+    {
+      "page_number": 11,
+      "title": "PAGE 11",
+      "lines": [
+        "A big tree stood quiet and dull.",
+        "No one smiles anymore."
+      ],
+      "characters": ["Avi", "Tree"],
+      "face_config": { "x": 430, "y": 250, "w": 165, "h": 185 }
+    },
+    {
+      "page_number": 12,
+      "title": "PAGE 12",
+      "lines": [
+        "Avi gently touched the tree.",
+        "Let us bring smiles back together."
+      ],
+      "characters": ["Avi", "Tree"],
+      "face_config": { "x": 460, "y": 280, "w": 150, "h": 170 }
+    },
+    {
+      "page_number": 13,
+      "title": "PAGE 13",
+      "lines": [
+        "The tree glowed with bright leaves.",
+        "I feel alive again!"
+      ],
+      "characters": ["Avi", "Tree"],
+      "face_config": { "x": 420, "y": 230, "w": 170, "h": 190 }
+    },
+    {
+      "page_number": 14,
+      "title": "PAGE 14",
+      "lines": [
+        "Avi called all his friends together.",
+        "Let us all smile together."
+      ],
+      "characters": ["Avi", "Monkey", "Elephant", "Bird"],
+      "face_config": { "x": 430, "y": 250, "w": 165, "h": 185 }
+    },
+    {
+      "page_number": 15,
+      "title": "PAGE 15",
+      "lines": [
+        "Animals laughed and danced happily.",
+        "The jungle felt warm again."
+      ],
+      "characters": ["Avi", "Monkey", "Elephant", "Bird"],
+      "face_config": { "x": 440, "y": 240, "w": 170, "h": 190 }
+    },
+    {
+      "page_number": 16,
+      "title": "PAGE 16",
+      "lines": [
+        "The jungle glowed with happiness.",
+        "Avi stood with smiling friends.",
+        "Kindness made the forest shine."
+      ],
+      "characters": ["Avi", "Monkey", "Elephant", "Bird", "Tree"],
+      "face_config": { "x": 430, "y": 220, "w": 180, "h": 200 }
+    }
+  ]
+}

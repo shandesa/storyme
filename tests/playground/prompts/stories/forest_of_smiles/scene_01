@@ -1,0 +1,72 @@
+Soft Pixar-style children’s storybook illustration.
+
+Scene:
+A peaceful early evening forest scene with warm golden-orange sunset light filling the sky. A large tree branch extends from the left side into the middle of the frame. A young child is sitting comfortably on the branch near the center of the image. A playful monkey is hanging upside down from the branch by its tail, slightly to the left of the child, happily eating a banana. The forest stretches softly into the background with layered trees and glowing dusk light.
+
+Style:
+- Soft pastel color palette with warm sunset tones (golden, orange, soft pink)
+- Warm cinematic lighting from top-right with evening glow
+- Gentle shadows, no harsh contrast
+- Smooth gradients, high detail
+- Calm, cozy, magical storybook tone
+
+Character:
+- Gender-neutral child (age 4–6)
+- Wearing a light yellow t-shirt and beige shorts
+- Sitting on the tree branch
+- Positioned slightly left of center but close to middle
+- Body facing forward
+- Face fully front-facing (IMPORTANT)
+- Head slightly tilted (~10 degrees)
+- Relaxed posture, hands resting on the branch
+
+Face Area (IMPORTANT):
+- Face must be clearly visible and moderately large
+- Clean, smooth, flat skin-colored area
+- No facial features
+- No shadows or highlights
+- No hair covering face
+
+Composition:
+- Tree branch runs diagonally from left toward center
+- Child positioned near center-left (~40–45%)
+- Monkey hanging upside down on left side of branch
+- Medium shot (not too zoomed out)
+- Eye-level camera
+
+Text Space:
+- Right side (40–50%) clean and softly blurred forest
+- Warm gradient sky and trees
+- No objects or characters in text area
+- Suitable for adding child’s name and story text
+
+Lighting:
+- Warm sunset light from top-right
+- Soft glow across scene
+- Face evenly lit despite evening tone
+
+Interaction Control:
+- Monkey stays left side, not overlapping child’s face
+- Banana and motion confined to left area
+- No elements crossing into text space
+
+Avoid:
+- Dark shadows on face
+- Monkey too close to face
+- Overcrowded branches near right side
+- Side profile or downward-facing head
+
+
+Also give the exact coordinate for the face position , 
+where the empty face is there in following format : 
+face_config = 
+{ "scene_01.png": 
+    { <=== this is name of the image 
+        "x": 720, 
+        "y": 280, 
+        "w": 180, 
+        "h": 220 
+    } 
+} 
+
+Will give this to another program to put the kids face nicely on this generated image template and create beautiful blend.

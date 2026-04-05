@@ -1,0 +1,105 @@
+{
+  "story_id": "forest_of_smiles",
+  "title": "{name} and the Forest of Smiles",
+  "total_pages": 16,
+  "image_size": "1024x1024",
+  "common_prompt_template": "Soft Pixar-style children's storybook illustration.\n\nStyle:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field\n- Soft shadows, no harsh contrast\n- Smooth gradients, high detail\n- Calm, magical, emotionally warm storytelling tone\n\nMain Character:\n- Young child (age 4-6)\n- Short, natural dark hair (NOT tall or spiky)\n- Wearing a light yellow t-shirt and beige shorts\n- Soft rounded proportions, expressive body language\n\nFace Area (CRITICAL):\n- Face must have a clean, smooth, flat SKIN-COLORED oval area\n- Absolutely NO facial features (no eyes, no nose, no mouth, no eyebrows)\n- NO shadows, highlights, or texture on the face oval\n- The face oval must be a uniform warm skin tone (#E8C4A0)\n- Hair frames the face naturally but does NOT cover any part of the oval\n- Face oval size must be approximately 16-18% of image width\n- The oval should be vertically centered on the head\n\nComposition Rules:\n- Child always clearly visible in every page\n- Child positioned center or slightly left (40-50% from left)\n- Right side reserved for text overlay (30-50% empty or softly blurred)\n- No objects overlapping the face oval area\n- No clutter in the text area on the right\n\nLighting:\n- Warm soft directional light from top-right or ambient jungle glow\n- Face area must be evenly and brightly lit - no shadows on face\n\nAvoid:\n- Side profile face views\n- Child looking down or away from camera\n- Dark shadows falling on the face area\n- Overcrowded compositions\n- Any facial features whatsoever in the face oval",
+  "pages": [
+    {
+      "page_number": 1,
+      "scene_prompt": "Scene:\nA calm jungle entrance with tall green trees and soft morning light filtering through leaves. The forest feels slightly quiet and still. The child stands near center, looking around curiously.\n\nComposition:\n- Child center-left (~45%)\n- Standing upright, body facing forward\n- Medium shot showing full body\n\nBackground:\n- Layered jungle depth with soft mist\n- Right side clean with blurred greenery for text",
+      "story_lines": ["{name} stepped into a quiet jungle, soft and green.", "\"Why does everything feel a little sad?\""],
+      "face_config": {"x": 430, "y": 220, "w": 170, "h": 190}
+    },
+    {
+      "page_number": 2,
+      "scene_prompt": "Scene:\nA small monkey sits alone on a tree branch looking sad with droopy eyes. The child stands below, looking up with concern and empathy.\n\nComposition:\n- Child bottom center-left\n- Monkey upper-left on a thick branch\n- Slight upward camera angle\n\nMood:\n- Gentle sadness, empathetic\n\nText Space:\n- Right side clean forest gradient for text",
+      "story_lines": ["A little monkey sat alone on a branch.", "\"My bananas are gone and I feel so hungry.\""],
+      "face_config": {"x": 420, "y": 260, "w": 160, "h": 180}
+    },
+    {
+      "page_number": 3,
+      "scene_prompt": "Scene:\nChild searching gently through bushes and leaves to help the monkey find bananas. The child is bending slightly, parting leaves carefully.\n\nComposition:\n- Child center, actively searching through greenery\n- Monkey watching from upper-left on a branch\n- Warm dappled light through canopy",
+      "story_lines": ["{name} searched gently through leaves and trees.", "\"Don't worry, I will help you find them.\""],
+      "face_config": {"x": 440, "y": 300, "w": 150, "h": 170}
+    },
+    {
+      "page_number": 4,
+      "scene_prompt": "Scene:\nThe monkey is happily holding a bunch of yellow bananas beside the child. Both look joyful. The monkey is hugging the child with gratitude.\n\nComposition:\n- Child center-left, standing tall\n- Monkey to the left, close to the child, holding bananas\n- Warm golden light, celebratory mood",
+      "story_lines": ["The monkey hugged {name} with a big smile.", "\"Thank you! You made me happy again.\""],
+      "face_config": {"x": 420, "y": 240, "w": 170, "h": 190}
+    },
+    {
+      "page_number": 5,
+      "scene_prompt": "Scene:\nA big gentle elephant stands near a sparkling river looking uncomfortable, lifting one foot. The child stands nearby looking concerned.\n\nComposition:\n- Child center-left, looking at the elephant\n- Elephant to the right, large and gentle\n- River in the background with soft reflections",
+      "story_lines": ["A big elephant stood near the river.", "\"My feet hurt and I cannot walk properly.\""],
+      "face_config": {"x": 410, "y": 260, "w": 165, "h": 185}
+    },
+    {
+      "page_number": 6,
+      "scene_prompt": "Scene:\nChild kneeling by the river, gently washing the elephant's foot with cool sparkling water. A caring, tender moment.\n\nComposition:\n- Close interaction, child center kneeling\n- Elephant's large foot visible\n- Soft water splashes and warm light",
+      "story_lines": ["{name} washed her feet with cool water.", "\"I am here to help you feel better.\""],
+      "face_config": {"x": 450, "y": 300, "w": 150, "h": 170}
+    },
+    {
+      "page_number": 7,
+      "scene_prompt": "Scene:\nThe elephant happily lifts its trunk high in the air, trumpeting with joy. The child stands beside, looking up with delight.\n\nComposition:\n- Child center-left, looking up happily\n- Elephant to the right, trunk raised high\n- Magical sparkles in the air",
+      "story_lines": ["The elephant lifted her trunk happily.", "\"You helped me feel strong again!\""],
+      "face_config": {"x": 420, "y": 240, "w": 170, "h": 190}
+    },
+    {
+      "page_number": 8,
+      "scene_prompt": "Scene:\nA small colorful bird sits sadly next to its fallen nest on the ground. The child kneels nearby, looking at the bird with compassion.\n\nComposition:\n- Child center-left, kneeling down\n- Small bird and broken nest in foreground\n- Soft filtered forest light",
+      "story_lines": ["A small bird looked at her fallen nest.", "\"My home is gone, I feel so sad.\""],
+      "face_config": {"x": 430, "y": 320, "w": 150, "h": 170}
+    },
+    {
+      "page_number": 9,
+      "scene_prompt": "Scene:\nChild carefully placing the small nest back onto a low tree branch. The child faces forward, stretching arms in front to place the nest. The branch is in front of the child's chest.\n\nComposition:\n- Child center, facing forward\n- Branch at chest height in front of child\n- Bird watching nearby with hope",
+      "story_lines": ["{name} carefully placed the nest back.", "\"Your home is safe again.\""],
+      "face_config": {"x": 450, "y": 260, "w": 150, "h": 170}
+    },
+    {
+      "page_number": 10,
+      "scene_prompt": "Scene:\nThe bird flies happily above the child, singing with musical notes in the air. The child looks up joyfully.\n\nComposition:\n- Child center-left, looking up with joy\n- Bird flying above with spread wings\n- Musical notes and sparkles in the air",
+      "story_lines": ["The bird sang happily again.", "\"You brought my smile back!\""],
+      "face_config": {"x": 420, "y": 230, "w": 170, "h": 190}
+    },
+    {
+      "page_number": 11,
+      "scene_prompt": "Scene:\nA large ancient tree stands quiet and dull with drooping brown-green leaves. It looks sad and lifeless. The child approaches it with curiosity.\n\nComposition:\n- Child center-left, walking toward the tree\n- Large tree dominates the right side\n- Muted colors suggesting sadness",
+      "story_lines": ["A big tree stood quiet and dull.", "\"No one smiles anymore.\""],
+      "face_config": {"x": 430, "y": 250, "w": 165, "h": 185}
+    },
+    {
+      "page_number": 12,
+      "scene_prompt": "Scene:\nChild gently touching the old tree's trunk with one hand. A faint warm glow begins to emanate from where the child touches.\n\nComposition:\n- Child center, reaching out to touch the trunk\n- Subtle golden glow at the touch point\n- Warm emotional lighting",
+      "story_lines": ["{name} gently touched the tree.", "\"Let us bring smiles back together.\""],
+      "face_config": {"x": 460, "y": 280, "w": 150, "h": 170}
+    },
+    {
+      "page_number": 13,
+      "scene_prompt": "Scene:\nThe tree glows brilliantly with fresh vibrant green leaves and golden light. It has come alive with magic. Child faces forward looking at the viewer with the glowing tree on their right.\n\nComposition:\n- Child center-left, facing forward\n- Glowing tree on the right side\n- Magical particles and fresh leaves floating",
+      "story_lines": ["The tree glowed with bright leaves.", "\"I feel alive again!\""],
+      "face_config": {"x": 420, "y": 230, "w": 170, "h": 190}
+    },
+    {
+      "page_number": 14,
+      "scene_prompt": "Scene:\nChild standing in a clearing with open arms, calling all the animal friends together. The jungle around is warm and inviting.\n\nComposition:\n- Child center, arms spread wide in welcome\n- Open clearing with warm golden light\n- Paths leading from different directions",
+      "story_lines": ["{name} called all friends together.", "\"Let us all smile together.\""],
+      "face_config": {"x": 430, "y": 250, "w": 165, "h": 185}
+    },
+    {
+      "page_number": 15,
+      "scene_prompt": "Scene:\nAll animals (monkey, elephant, bird) gathered happily around the child. Everyone looks joyful. The jungle is vibrant and alive.\n\nComposition:\n- Child center, surrounded by animals\n- Monkey on a nearby branch, elephant behind, bird flying above\n- Warm celebration mood with golden light",
+      "story_lines": ["Animals laughed and danced happily.", "The jungle felt warm again."],
+      "face_config": {"x": 440, "y": 240, "w": 170, "h": 190}
+    },
+    {
+      "page_number": 16,
+      "scene_prompt": "Scene:\nMagical glowing jungle final hero scene. The entire forest shines with golden-green magical light. All animals surround the child in a warm group.\n\nComposition:\n- Child center, standing proudly\n- All animals arranged around in a semicircle\n- Magical glow illuminating everything\n- Grand, heartwarming finale atmosphere",
+      "story_lines": ["The jungle glowed with happiness.", "{name} stood with smiling friends.", "Kindness made the forest shine."],
+      "face_config": {"x": 430, "y": 220, "w": 180, "h": 200}
+    }
+  ]
+}
