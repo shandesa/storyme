@@ -1,24 +1,15 @@
 {
   "title": "Avi - The Helpful Jungle Guardian and the Forest of Smiles",
   "total_pages": 16,
+  "image_resolution": "1024x1024",
   "global_settings": {
     "style": "Soft Pixar-style children’s storybook illustration",
     "color_palette": "Soft pastel (lush greens, warm yellows, soft blues)",
     "lighting": "Warm cinematic lighting with gentle glow",
-    "theme_progression": ["sadness", "help", "happiness", "togetherness"],
     "main_character": {
       "name": "Avi",
       "age": "4-6",
-      "gender": "male",
-      "appearance": "short natural hair, light yellow t-shirt, beige shorts",
-      "face_rules": {
-        "front_facing": true,
-        "tilt": "5-10 degrees",
-        "no_features": true,
-        "no_shadows": true,
-        "no_hair_cover": true,
-        "consistent_size": true
-      }
+      "gender": "male"
     }
   },
   "pages": [
@@ -30,12 +21,7 @@
         "Why does everything feel a little sad?"
       ],
       "characters": ["Avi"],
-      "scene_type": "introduction",
-      "emotion": "curiosity",
-      "setting": "jungle entrance",
-      "lighting": "soft morning warm light",
-      "composition": "child center-left, open right space",
-      "notes": "establish mood and environment"
+      "face_config": { "x": 430, "y": 220, "w": 170, "h": 190 }
     },
     {
       "page_number": 2,
@@ -45,12 +31,7 @@
         "My bananas are gone and I feel so hungry."
       ],
       "characters": ["Avi", "Monkey"],
-      "scene_type": "problem",
-      "emotion": "sadness",
-      "setting": "tree branch",
-      "lighting": "soft jungle light",
-      "composition": "child below, monkey upper-left",
-      "notes": "introduce first problem"
+      "face_config": { "x": 420, "y": 260, "w": 160, "h": 180 }
     },
     {
       "page_number": 3,
@@ -60,12 +41,7 @@
         "Don’t worry, I will help you find them."
       ],
       "characters": ["Avi", "Monkey"],
-      "scene_type": "help",
-      "emotion": "care",
-      "setting": "jungle bushes",
-      "lighting": "slightly brighter warm light",
-      "composition": "child center searching",
-      "notes": "active helping scene"
+      "face_config": { "x": 440, "y": 300, "w": 150, "h": 170 }
     },
     {
       "page_number": 4,
@@ -75,12 +51,7 @@
         "Thank you! You made me happy again."
       ],
       "characters": ["Avi", "Monkey"],
-      "scene_type": "resolution",
-      "emotion": "happiness",
-      "setting": "tree area",
-      "lighting": "warmer glow",
-      "composition": "child center-left, monkey beside",
-      "notes": "first emotional payoff"
+      "face_config": { "x": 420, "y": 240, "w": 170, "h": 190 }
     },
     {
       "page_number": 5,
@@ -90,12 +61,7 @@
         "My feet hurt and I cannot walk properly."
       ],
       "characters": ["Avi", "Elephant"],
-      "scene_type": "problem",
-      "emotion": "sadness",
-      "setting": "riverbank",
-      "lighting": "soft reflective light",
-      "composition": "child left, elephant right",
-      "notes": "introduce second problem"
+      "face_config": { "x": 410, "y": 260, "w": 165, "h": 185 }
     },
     {
       "page_number": 6,
@@ -105,12 +71,7 @@
         "I am here to help you feel better."
       ],
       "characters": ["Avi", "Elephant"],
-      "scene_type": "help",
-      "emotion": "compassion",
-      "setting": "river",
-      "lighting": "soft water reflections",
-      "composition": "close interaction",
-      "notes": "caregiving moment"
+      "face_config": { "x": 450, "y": 300, "w": 150, "h": 170 }
     },
     {
       "page_number": 7,
@@ -120,12 +81,7 @@
         "You helped me feel strong again!"
       ],
       "characters": ["Avi", "Elephant"],
-      "scene_type": "resolution",
-      "emotion": "joy",
-      "setting": "riverbank",
-      "lighting": "brighter warm tones",
-      "composition": "child beside elephant",
-      "notes": "second emotional payoff"
+      "face_config": { "x": 420, "y": 240, "w": 170, "h": 190 }
     },
     {
       "page_number": 8,
@@ -135,12 +91,7 @@
         "My home is gone, I feel so sad."
       ],
       "characters": ["Avi", "Bird"],
-      "scene_type": "problem",
-      "emotion": "sadness",
-      "setting": "ground near tree",
-      "lighting": "soft diffused light",
-      "composition": "child kneeling",
-      "notes": "introduce third problem"
+      "face_config": { "x": 430, "y": 320, "w": 150, "h": 170 }
     },
     {
       "page_number": 9,
@@ -150,12 +101,7 @@
         "Your home is safe again."
       ],
       "characters": ["Avi", "Bird"],
-      "scene_type": "help",
-      "emotion": "care",
-      "setting": "tree trunk",
-      "lighting": "slightly brighter",
-      "composition": "child reaching upward",
-      "notes": "gentle action"
+      "face_config": { "x": 450, "y": 260, "w": 150, "h": 170 }
     },
     {
       "page_number": 10,
@@ -165,12 +111,7 @@
         "You brought my smile back!"
       ],
       "characters": ["Avi", "Bird"],
-      "scene_type": "resolution",
-      "emotion": "happiness",
-      "setting": "tree",
-      "lighting": "light sparkle effect",
-      "composition": "child looking up",
-      "notes": "third emotional payoff"
+      "face_config": { "x": 420, "y": 230, "w": 170, "h": 190 }
     },
     {
       "page_number": 11,
@@ -180,12 +121,7 @@
         "No one smiles anymore."
       ],
       "characters": ["Avi", "Tree"],
-      "scene_type": "problem",
-      "emotion": "emptiness",
-      "setting": "central jungle",
-      "lighting": "muted greens",
-      "composition": "child looking up",
-      "notes": "final emotional challenge"
+      "face_config": { "x": 430, "y": 250, "w": 165, "h": 185 }
     },
     {
       "page_number": 12,
@@ -195,12 +131,7 @@
         "Let us bring smiles back together."
       ],
       "characters": ["Avi", "Tree"],
-      "scene_type": "help",
-      "emotion": "hope",
-      "setting": "tree base",
-      "lighting": "glow emerging",
-      "composition": "child center touching tree",
-      "notes": "turning point"
+      "face_config": { "x": 460, "y": 280, "w": 150, "h": 170 }
     },
     {
       "page_number": 13,
@@ -210,12 +141,7 @@
         "I feel alive again!"
       ],
       "characters": ["Avi", "Tree"],
-      "scene_type": "resolution",
-      "emotion": "renewal",
-      "setting": "glowing tree",
-      "lighting": "bright magical glow",
-      "composition": "child beside tree",
-      "notes": "major transformation"
+      "face_config": { "x": 420, "y": 230, "w": 170, "h": 190 }
     },
     {
       "page_number": 14,
@@ -225,12 +151,7 @@
         "Let us all smile together."
       ],
       "characters": ["Avi", "Monkey", "Elephant", "Bird"],
-      "scene_type": "gathering",
-      "emotion": "invitation",
-      "setting": "open jungle",
-      "lighting": "warm golden light",
-      "composition": "child center, animals approaching",
-      "notes": "group transition"
+      "face_config": { "x": 430, "y": 250, "w": 165, "h": 185 }
     },
     {
       "page_number": 15,
@@ -240,12 +161,7 @@
         "The jungle felt warm again."
       ],
       "characters": ["Avi", "Monkey", "Elephant", "Bird"],
-      "scene_type": "celebration",
-      "emotion": "joy",
-      "setting": "jungle clearing",
-      "lighting": "glowing environment",
-      "composition": "group around child",
-      "notes": "pre-final joy"
+      "face_config": { "x": 440, "y": 240, "w": 170, "h": 190 }
     },
     {
       "page_number": 16,
@@ -256,12 +172,7 @@
         "Kindness made the forest shine."
       ],
       "characters": ["Avi", "Monkey", "Elephant", "Bird", "Tree"],
-      "scene_type": "finale",
-      "emotion": "fulfillment",
-      "setting": "magical jungle",
-      "lighting": "golden magical glow",
-      "composition": "child center, animals surrounding",
-      "notes": "hero moment, strongest visual"
+      "face_config": { "x": 430, "y": 220, "w": 180, "h": 200 }
     }
   ]
 }
