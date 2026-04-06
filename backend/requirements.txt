@@ -87,7 +87,6 @@ playwright==1.58.0
 pluggy==1.6.0
 propcache==0.4.1
 proto-plus==1.27.1
-protobuf
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycodestyle==2.14.0
