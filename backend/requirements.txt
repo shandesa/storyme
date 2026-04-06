@@ -131,8 +131,6 @@ sympy==1.14.0
 tenacity==9.1.4
 tiktoken==0.12.0
 tokenizers==0.22.2
-torch==2.11.0+cpu
-torchvision==0.26.0+cpu
 tqdm==4.67.3
 typer==0.24.1
 typing-inspection==0.4.2
