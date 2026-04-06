@@ -1,0 +1,60 @@
+StoryMe Frontend Refactor Backlog
+
+1. API Layer Refactor
+- Create centralized api client (api.js or api.ts)
+- Remove all usage of environment आधारित base URLs
+- Use relative paths (/api/...) aligned with Azure Static Web Apps
+- Standardize all endpoints: /api/v2/stories, /api/v2/generate etc
+
+2. Retry Logic
+- Implement retry wrapper (max 3 retries)
+- Retry only on network errors and 5xx responses
+- Add exponential backoff (e.g. 500ms, 1s, 2s)
+- Avoid retry on 4xx (client errors)
+
+3. Error Handling
+- Centralize error parsing
+- Standard error object: { message, code, retryable }
+- Show user-friendly messages in UI
+- Log raw errors for debugging
+
+4. Loading States
+- Global loading indicator (API in-flight)
+- Component-level loading (story generation, fetch stories)
+- Disable buttons during API calls
+- Add skeleton loaders for story list
+
+5. Suggested API Client Structure
+
+export const apiFetch = async (path, options = {}) => {
+  const MAX_RETRIES = 3;
+  let attempt = 0;
+
+  while (attempt < MAX_RETRIES) {
+    try {
+      const res = await fetch(`/api${path}`, options);
+
+      if (!res.ok) {
+        if (res.status >= 500) throw new Error("Server error");
+        return await res.json();
+      }
+
+      return await res.json();
+    } catch (err) {
+      attempt++;
+      if (attempt >= MAX_RETRIES) throw err;
+      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+    }
+  }
+};
+
+6. Work Required
+- Refactor all fetch calls to apiFetch
+- Remove env आधारित API base usage
+- Add UI states (loading/error)
+- Test flows: story list, story generation
+
+7. Outcome
+- No undefined API bugs
+- Resilient frontend
+- Production-ready API layer
