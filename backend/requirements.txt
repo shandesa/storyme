@@ -13,5 +13,6 @@ reportlab
 
 azure-storage-blob
 
+
 # optional (only if used)
 opencv-python-headless
