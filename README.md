@@ -441,4 +441,4 @@ For questions or issues:
 
 ---
 
-**Built with clean architecture principles for production deployment.**
+**Built with clean architecture principles for a production deployment.**
