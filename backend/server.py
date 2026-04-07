@@ -19,6 +19,7 @@ from routes.generate import router as generate_router
 from routes.stories import router as stories_router
 from routes.review import router as review_router
 from routes.generate_v2 import router as generate_v2_router
+from routes.auth import router as auth_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -80,11 +81,12 @@ async def get_status_checks():
     return status_checks
 
 # Include routers
-app.include_router(api_router)  # Legacy /api endpoints
-app.include_router(generate_router)  # /api/generate
-app.include_router(stories_router)  # /api/stories
-app.include_router(review_router)  # /api/review
-app.include_router(generate_v2_router)  # /api/v2/*
+app.include_router(api_router)         # Legacy /api endpoints
+app.include_router(generate_router)    # /api/generate
+app.include_router(stories_router)     # /api/stories
+app.include_router(review_router)      # /api/review
+app.include_router(generate_v2_router) # /api/v2/*
+app.include_router(auth_router)        # /api/auth/*
 
 # Serve static files (for debug/preview)
 static_dir = ROOT_DIR / "static"
