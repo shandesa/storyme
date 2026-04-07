@@ -1,13 +1,14 @@
 /**
  * Auth API client for StoryMe
  *
- * Uses the same REACT_APP_BACKEND_URL as api.js so calls go directly to the
- * deployed Azure App Service backend — NOT through Azure Static Web Apps.
+ * Calls go directly to the Azure App Service backend using REACT_APP_BACKEND_URL.
+ * Azure SWA has no API functions (api_location is empty) so relative /api/* paths
+ * return 405 Method Not Allowed.
  *
- * Why: Azure SWA has no API functions configured (api_location is empty in
- * the workflow). Calling a relative /api/* path on the SWA returns 405
- * Method Not Allowed. The backend lives at a separate URL and must be called
- * with its full origin.
+ * credentials: "omit" — the auth API returns JSON (not cookies/sessions).
+ * Cross-origin cookie sharing is unnecessary here and was causing CORS preflight
+ * failures because browsers reject Access-Control-Allow-Origin: * when
+ * Access-Control-Allow-Credentials: true is also present.
  *
  * Simulated OTP: the backend returns the generated OTP in the response body
  * so the UI can surface it in a toast for demo / development purposes.
@@ -16,7 +17,9 @@
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL ?? "";
 const AUTH_BASE   = `${BACKEND_URL}/api/auth`;
 
-const TIMEOUT_MS = 10_000;
+// Azure App Service B1 can take up to 20-25s on a cold start.
+// 30s gives enough headroom without blocking the user too long.
+const TIMEOUT_MS = 30_000;
 
 /**
  * POST wrapper — returns { data } on success, { error, status, message } on failure.
@@ -28,7 +31,10 @@ async function post(path, body) {
     const res = await fetch(`${AUTH_BASE}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      // "omit" — no cookies needed for a JSON auth API.
+      // Using "include" cross-origin forces the browser to reject wildcard CORS
+      // responses, and we have no session cookies to send anyway.
+      credentials: "omit",
       signal: controller.signal,
       body: JSON.stringify(body),
     });
@@ -39,24 +45,32 @@ async function post(path, body) {
     try {
       data = await res.json();
     } catch {
-      /* empty body */
+      /* empty body — some error responses have no JSON payload */
     }
 
     if (!res.ok) {
       return {
         error: true,
         status: res.status,
-        message: data?.detail || data?.message || "Request failed",
+        message: data?.detail || data?.message || `Request failed (${res.status})`,
       };
     }
 
     return { data };
   } catch (err) {
     clearTimeout(tid);
+    if (err.name === "AbortError") {
+      return {
+        error: true,
+        status: 0,
+        message:
+          "Request timed out — the server may be starting up. Please try again in a moment.",
+      };
+    }
     return {
       error: true,
       status: 0,
-      message: err.name === "AbortError" ? "Request timed out" : "Network error",
+      message: "Network error — check your connection and try again.",
     };
   }
 }
