@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Loader2, Upload, BookOpen, Sparkles, ChevronRight, X, Download, RefreshCw } from "lucide-react";
+import Login from "../../app/frontend/src/pages/Login";
+import Home from "../../app/frontend/src/pages/pages/Home";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api/v2`;
@@ -365,6 +367,7 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
           <Route path="/" element={<Home />} />
         </Routes>
       </BrowserRouter>
