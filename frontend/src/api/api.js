@@ -1,90 +1,66 @@
-// Centralized API client for StoryMe frontend
-// ✅ Azure Static Web Apps compatible (/api/*)
-// ✅ No env dependency
-// ✅ Retry + timeout + safe JSON handling
-
-const API_PREFIX = "/api";
-const MAX_RETRIES = 3;
-const TIMEOUT = 8000;
-
 /**
- * Generic API fetch wrapper
+ * Story / backend API client.
+ *
+ * Uses the deployed backend URL from REACT_APP_BACKEND_URL.
+ * Auth calls live in src/api/auth.js (relative /api/auth/* paths).
  */
-export const apiFetch = async (path, options = {}) => {
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL ?? "";
+const API_BASE    = `${BACKEND_URL}/api/v2`;
+
+const MAX_RETRIES = 3;
+const TIMEOUT_MS  = 8_000;
+
+// ─── generic fetch wrapper ────────────────────────────────────────────────────
+
+export async function apiFetch(path, options = {}) {
   let attempt = 0;
 
   while (attempt < MAX_RETRIES) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+    const tid = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const response = await fetch(`${API_PREFIX}${path}`, {
+      const res = await fetch(`${API_BASE}${path}`, {
         headers: {
           "Content-Type": "application/json",
-          ...(options.headers || {})
+          ...(options.headers ?? {}),
         },
-        credentials: "include", // future-safe (auth/session)
+        credentials: "include",
         signal: controller.signal,
-        ...options
+        ...options,
       });
 
-      clearTimeout(timeoutId);
+      clearTimeout(tid);
 
-      // Safe JSON parsing
       let data = null;
-      try {
-        data = await response.json();
-      } catch {
-        data = null;
-      }
+      try { data = await res.json(); } catch { /* empty */ }
 
-      // Handle non-OK responses
-      if (!response.ok) {
-        if (response.status >= 500) {
-          throw new Error(`Server error (${response.status})`);
-        }
-
-        return {
-          error: true,
-          status: response.status,
-          message: data?.message || "Request failed"
-        };
+      if (!res.ok) {
+        if (res.status >= 500) throw new Error(`Server error (${res.status})`);
+        return { error: true, status: res.status, message: data?.message ?? "Request failed" };
       }
 
       return data;
 
-    } catch (error) {
-      clearTimeout(timeoutId);
+    } catch (err) {
+      clearTimeout(tid);
       attempt++;
 
       if (attempt >= MAX_RETRIES) {
-        console.error("API failed:", path, error.message);
-
-        return {
-          error: true,
-          message: error.message || "Network error"
-        };
+        console.error("API request failed:", path, err.message);
+        return { error: true, message: err.message ?? "Network error" };
       }
 
-      // Exponential backoff
-      await new Promise(resolve =>
-        setTimeout(resolve, 500 * Math.pow(2, attempt))
-      );
+      // Exponential back-off
+      await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
     }
   }
-};
+}
 
-/**
- * Story APIs
- */
+// ─── Story API ────────────────────────────────────────────────────────────────
+
 export const StoryAPI = {
-  // Fetch all stories
-  getStories: () => apiFetch("/v2/stories"),
-
-  // Generate story
-  generateStory: (payload) =>
-    apiFetch("/v2/stories", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
+  /** List all available stories. */
+  getStories: () => apiFetch("/stories"),
 };
