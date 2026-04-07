@@ -1,16 +1,20 @@
 /**
  * Auth API client for StoryMe
  *
- * All calls are relative (/api/auth/...) so they work with:
- *   - Azure Static Web Apps proxy
- *   - local dev proxy (setupProxy.js / craco devServer proxy)
+ * Uses the same REACT_APP_BACKEND_URL as api.js so calls go directly to the
+ * deployed Azure App Service backend — NOT through Azure Static Web Apps.
  *
- * Simulated OTP: the backend logs the OTP to stdout.
- * In development the server returns it in the response body (otp field)
- * so the UI can surface it to the tester.
+ * Why: Azure SWA has no API functions configured (api_location is empty in
+ * the workflow). Calling a relative /api/* path on the SWA returns 405
+ * Method Not Allowed. The backend lives at a separate URL and must be called
+ * with its full origin.
+ *
+ * Simulated OTP: the backend returns the generated OTP in the response body
+ * so the UI can surface it in a toast for demo / development purposes.
  */
 
-const AUTH_BASE = "/api/auth";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL ?? "";
+const AUTH_BASE   = `${BACKEND_URL}/api/auth`;
 
 const TIMEOUT_MS = 10_000;
 
