@@ -1,18 +1,32 @@
+# Web framework
 fastapi
-uvicorn
+uvicorn[standard]
+
+# Data validation
 pydantic
+
+# Environment
 python-dotenv
+
+# HTTP client
 httpx
 
+# AI / ML
 openai
 google-generativeai
 
+# Image processing
 pillow
-python-multipart
+opencv-python-headless
+
+# Document generation
 reportlab
 
+# File upload
+python-multipart
+
+# Cloud storage
 azure-storage-blob
 
-
-# optional (only if used)
-opencv-python-headless
+# Async MongoDB driver — imported by server.py at startup
+motor
