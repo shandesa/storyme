@@ -25,14 +25,6 @@ jobs:
           source antenv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Start Azure Web App
-        run: |
-          az webapp start \
-          --name storyme-backend-d4bxg3afcdbreebt \
-          --resource-group <your-resource-group> 
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
     
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
