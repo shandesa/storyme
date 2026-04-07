@@ -26,7 +26,7 @@ export async function apiFetch(path, options = {}) {
           "Content-Type": "application/json",
           ...(options.headers ?? {}),
         },
-        credentials: "include",
+        credentials: "omit",   // cross-origin JSON API — no cookies needed
         signal: controller.signal,
         ...options,
       });
