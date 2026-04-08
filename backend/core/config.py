@@ -47,12 +47,12 @@ class Config:
     # in Azure App Service → Configuration → Application settings.
     #
     # Example:
-    #   CORS_ORIGINS=https://gray-moss-04c4be41e.7.azurestaticapps.net,http://localhost:3000
+    #   CORS_ORIGINS=https://gray-moss-04c4be41e7.azurestaticapps.net,http://localhost:3000
     #
     # The frontend uses credentials:"omit" so allow_credentials=False,
     # which means allow_origins=["*"] is valid per the CORS spec.
     _default_origins = ",".join([
-        "https://gray-moss-04c4be41e.7.azurestaticapps.net",  # Azure SWA (production)
+        "https://gray-moss-04c4be41e7.azurestaticapps.net",   # Azure SWA (production)
         "http://localhost:3000",                                # local frontend dev
         "http://127.0.0.1:3000",
     ])
