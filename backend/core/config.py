@@ -45,14 +45,8 @@ class Config:
     # Default to wildcard — safe because allow_credentials=False (no cookies).
     # Per the CORS spec, allow_origins=["*"] + allow_credentials=False is
     # fully valid and browsers accept it without restriction.
-    #
-    # This means NO per-environment origin management is required. Any
-    # frontend (local dev, staging, production SWA) can reach the API
-    # without any Azure portal reconfiguration.
-    #
-    # To restrict to specific origins, set the env var in Azure App Service
-    # → Configuration → Application settings:
-    #   CORS_ORIGINS=https://gray-moss-04c4be41e7.azurestaticapps.net,http://localhost:3000
+    # Override with a comma-separated list via the CORS_ORIGINS env var in
+    # Azure App Service → Configuration → Application settings if needed.
     CORS_ORIGINS: list = os.getenv('CORS_ORIGINS', '*').split(',')
 
     # =========================================================================
