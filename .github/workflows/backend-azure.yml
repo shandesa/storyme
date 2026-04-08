@@ -25,13 +25,12 @@ jobs:
           source antenv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-    
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: storyme-backend
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: backend
-          # Tells Azure App Service which command to run after the ZIP is deployed.
-          # Without this, Azure uses its default detection which may not start uvicorn.
-          startup-command: "bash /home/site/wwwroot/startup.sh"
+          # NOTE: startup-command is NOT valid with publish-profile auth.
+          # Startup is declared via backend/Procfile which Azure reads automatically.
