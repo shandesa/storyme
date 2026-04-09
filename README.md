@@ -28,7 +28,6 @@ StoryMe is a production-ready application that generates personalized PDF storyb
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-
 ## Repository Structure
 
 ```
