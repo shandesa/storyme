@@ -43,8 +43,9 @@ class RegisterRequest(BaseModel):
 
 # ─── endpoints ────────────────────────────────────────────────────────────────
 
-@router.post("/send-otp")
-def send_otp(body: SendOtpRequest):
++@router.post("/send-otp")
++async def send_otp(body: SendOtpRequest):
+    
     """Send (simulated) OTP to the given mobile number.
 
     Returns the OTP in the response body so the frontend can surface it
@@ -64,7 +65,7 @@ def send_otp(body: SendOtpRequest):
 
 
 @router.post("/verify-otp")
-def verify_otp(body: VerifyOtpRequest):
+async def verify_otp(body: VerifyOtpRequest):
     """Verify OTP and return whether this is a new or existing user."""
     is_valid = AuthService.verify_otp(body.mobile, body.otp)
     if not is_valid:
@@ -78,7 +79,7 @@ def verify_otp(body: VerifyOtpRequest):
 
 
 @router.post("/login-password")
-def login_password(body: LoginPasswordRequest):
+async def login_password(body: LoginPasswordRequest):
     """Authenticate with mobile + password."""
     result = AuthService.login_password(body.mobile, body.password)
 
@@ -91,7 +92,7 @@ def login_password(body: LoginPasswordRequest):
 
 
 @router.post("/register")
-def register(body: RegisterRequest):
+async def register(body: RegisterRequest):
     """Register a new user account."""
     try:
         user = AuthService.register(body.mobile, body.password)
