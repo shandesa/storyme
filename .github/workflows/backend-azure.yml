@@ -18,13 +18,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Verify dependencies
         run: |
-          cd backend
-          python -m venv antenv
-          source antenv/bin/activate
+          # Verify requirements.txt installs cleanly in CI.
+          # IMPORTANT: the venv is intentionally NOT created inside backend/.
+          # azure/webapps-deploy packages the entire backend/ directory, so any
+          # antenv/ created here would be deployed to Azure with absolute symlinks
+          # pointing to the GitHub runner's Python (e.g. /opt/hostedtoolcache/...),
+          # which do not exist on Azure App Service. The broken venv causes
+          # startup.sh to fail and uvicorn never starts — manifests as 502/503
+          # with no CORS headers that the browser misreports as a CORS error.
+          #
+          # Azure Oryx runs during deployment (SCM_DO_BUILD_DURING_DEPLOYMENT=true
+          # is the default for Python apps) and creates antenv/ with paths that are
+          # correct for the Azure runtime. startup.sh then activates that venv.
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r backend/requirements.txt
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
