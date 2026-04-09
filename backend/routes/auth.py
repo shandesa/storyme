@@ -43,8 +43,8 @@ class RegisterRequest(BaseModel):
 
 # ─── endpoints ────────────────────────────────────────────────────────────────
 
-+@router.post("/send-otp")
-+async def send_otp(body: SendOtpRequest):
+@router.post("/send-otp")
+async def send_otp(body: SendOtpRequest):
     
     """Send (simulated) OTP to the given mobile number.
 
