@@ -34,6 +34,14 @@ jobs:
           output_location: "build"
         env:
           REACT_APP_BACKEND_URL: "https://storyme-backend-d4bxg3afcdbreebt.centralindia-01.azurewebsites.net"
+          # react-scripts@5 bundles ESLint 8 internally; having eslint@9 in
+          # devDependencies causes a version conflict that aborts the build
+          # under CI=true. DISABLE_ESLINT_PLUGIN skips the webpack ESLint
+          # plugin entirely so the conflict never surfaces.
+          DISABLE_ESLINT_PLUGIN: "true"
+          # Suppress react-scripts preflight version-range checks (Node 22
+          # exceeds the officially supported range for react-scripts@5).
+          SKIP_PREFLIGHT_CHECK: "true"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
