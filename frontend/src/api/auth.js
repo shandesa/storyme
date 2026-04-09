@@ -60,19 +60,19 @@ async function post(path, body) {
   } catch (err) {
     clearTimeout(tid);
     if (err.name === "AbortError") {
+      // Helpful debug log for timeout issues
+      console.error("Request timeout:", err),
       return {
         error: true,
-        // Helpful debug log for timeout issues
-        console.error("Request timeout:", err),
         status: 0,
         message:
           "Request timed out — the server may be starting up. Please try again in a moment.",
       };
     }
+    // Helpful debug log for CORS / network issues
+    console.error("Fetch error:", err),
     return {
       error: true,
-      // Helpful debug log for CORS / network issues
-      console.error("Fetch error:", err),
       status: 0,
       message: "Network error — check your connection and try again.",
     };
