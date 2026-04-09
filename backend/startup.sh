@@ -15,15 +15,38 @@
 
 set -e
 
+echo "===== STARTUP SCRIPT BEGIN ====="
+echo "Current directory: $(pwd)"
+echo "Listing /home/site/wwwroot:"
+ls -la /home/site/wwwroot
+
 cd /home/site/wwwroot
 
-# Activate the Oryx-created virtual environment (antenv/ in wwwroot).
+# Activate virtual environment if present
 if [ -d "antenv" ]; then
+    echo "Activating virtual environment..."
     source antenv/bin/activate
+else
+    echo "WARNING: antenv not found"
 fi
+
+echo "Python version:"
+python --version
+
+echo "Installing debug info..."
+pip list
+
+echo "Navigating to backend directory..."
+cd backend
+
+echo "Current directory after cd:"
+pwd
+ls -la
+
+echo "Starting FastAPI app with uvicorn..."
 
 exec python -m uvicorn server:app \
     --host 0.0.0.0 \
     --port 8000 \
     --workers 1 \
-    --log-level info
+    --log-level debug
