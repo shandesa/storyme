@@ -18,6 +18,7 @@ google-generativeai
 # Image processing
 pillow
 opencv-python-headless
+mediapipe
 
 # Document generation
 reportlab

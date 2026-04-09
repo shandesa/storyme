@@ -15,10 +15,20 @@ from datetime import datetime, timezone
 from core.config import config
 
 # Import routes
-from routes.generate import router as generate_router
+# generate and generate_v2 depend on native libs (cv2, mediapipe).
+# Wrap in try/except so a missing or incompatible native lib does not crash
+# the entire app — auth, stories, and health endpoints stay available.
+_generate_import_error: Exception | None = None
+try:
+    from routes.generate import router as generate_router
+    from routes.generate_v2 import router as generate_v2_router
+except Exception as _e:
+    generate_router = None      # type: ignore[assignment]
+    generate_v2_router = None   # type: ignore[assignment]
+    _generate_import_error = _e
+
 from routes.stories import router as stories_router
 from routes.review import router as review_router
-from routes.generate_v2 import router as generate_v2_router
 from routes.auth import router as auth_router
 
 ROOT_DIR = Path(__file__).parent
@@ -101,11 +111,13 @@ async def health():
 
 # ─── Register routers ─────────────────────────────────────────────────────────
 app.include_router(api_router)          # /api/  (legacy)
-app.include_router(generate_router)     # /api/generate
 app.include_router(stories_router)      # /api/stories
 app.include_router(review_router)       # /api/review
-app.include_router(generate_v2_router)  # /api/v2/*
 app.include_router(auth_router)         # /api/auth/*
+if generate_router is not None:
+    app.include_router(generate_router)     # /api/generate
+if generate_v2_router is not None:
+    app.include_router(generate_v2_router)  # /api/v2/*
 
 # ─── Static files (must come after CORS middleware registration) ──────────────
 static_dir = ROOT_DIR / "static"
@@ -127,6 +139,11 @@ async def startup_event():
     logger.info("=" * 70)
     logger.info(f"Storage Type: {config.STORAGE_TYPE}")
     logger.info(f"CORS Origins: {config.CORS_ORIGINS}")
+    if _generate_import_error:
+        logger.warning(
+            f"Story generation routes DISABLED — native dependency missing: "
+            f"{_generate_import_error}. Add mediapipe to requirements.txt and redeploy."
+        )
 
     from services.story_service import story_registry
     logger.info(f"Stories Loaded: {story_registry.get_story_count()}")
