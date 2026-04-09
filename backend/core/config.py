@@ -47,7 +47,17 @@ class Config:
     # fully valid and browsers accept it without restriction.
     # Override with a comma-separated list via the CORS_ORIGINS env var in
     # Azure App Service → Configuration → Application settings if needed.
-    CORS_ORIGINS: list = os.getenv('CORS_ORIGINS', '*').split(',')
+    # Robust parsing to avoid empty/invalid values breaking CORS
+    origins = os.getenv("CORS_ORIGINS", "")
+
+    if not origins or origins.strip() == "":
+        CORS_ORIGINS = ["*"]
+    else:
+        CORS_ORIGINS = [
+            o.strip() for o in origins.split(",") if o.strip()
+        ]
+
+    
 
     # =========================================================================
     # Application Settings
