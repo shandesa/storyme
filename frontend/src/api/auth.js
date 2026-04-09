@@ -61,7 +61,7 @@ async function post(path, body) {
     clearTimeout(tid);
     if (err.name === "AbortError") {
       // Helpful debug log for timeout issues
-      console.error("Request timeout:", err),
+      console.error("Request timeout:", err);
       return {
         error: true,
         status: 0,
@@ -70,7 +70,7 @@ async function post(path, body) {
       };
     }
     // Helpful debug log for CORS / network issues
-    console.error("Fetch error:", err),
+    console.error("Fetch error:", err);
     return {
       error: true,
       status: 0,
