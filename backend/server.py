@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List
 import uuid
 from datetime import datetime, timezone
+from health_check import router as health_router
 
 # Import core configuration
 from core.config import config
@@ -105,8 +106,26 @@ async def get_status_checks():
 # ─── Health check ─────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    """Lightweight liveness probe — use this to verify the backend is running."""
-    return {"status": "ok", "version": "2.0.0"}
+    try:
+        # Example dependency check
+        await db.command("ping")
+
+        return {
+            "status": "healthy",
+            "service": "storyme-backend",
+            "version": "2.0.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "dependencies": {
+                "mongodb": "up"
+            }
+        }
+
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 
 # ─── Register routers ─────────────────────────────────────────────────────────
@@ -114,6 +133,7 @@ app.include_router(api_router)          # /api/  (legacy)
 app.include_router(stories_router)      # /api/stories
 app.include_router(review_router)       # /api/review
 app.include_router(auth_router)         # /api/auth/*
+app.include_router(health_router)
 if generate_router is not None:
     app.include_router(generate_router)     # /api/generate
 if generate_v2_router is not None:
