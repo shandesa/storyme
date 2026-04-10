@@ -63,13 +63,12 @@ async def generate_preview(
     with open(upload_path, "wb") as f:
         f.write(content)
 
-    # Create session
-    session_id = await generation_service.create_session(
+    # Stateless preview generation (NO Mongo)
+    preview_path = await generation_service.generate_preview_stateless(
         child_name=name.strip(),
         story_id=story_id,
         face_image_path=upload_path,
     )
-
     # Generate preview (page 1) — this is synchronous since user waits
     try:
         preview_path = await generation_service.generate_preview(session_id)
@@ -80,10 +79,7 @@ async def generate_preview(
         img_b64 = base64.b64encode(img_bytes).decode("utf-8")
 
         return {
-            "session_id": session_id,
             "preview_image": f"data:image/png;base64,{img_b64}",
-            "message": "Preview ready. Click proceed to generate the full storybook.",
-        }
 
     except Exception as e:
         logger.error(f"Preview generation failed: {e}", exc_info=True)
