@@ -80,6 +80,7 @@ async def generate_preview(
 
         return {
             "preview_image": f"data:image/png;base64,{img_b64}",
+        }   
 
     except Exception as e:
         logger.error(f"Preview generation failed: {e}", exc_info=True)
