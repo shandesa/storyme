@@ -169,14 +169,14 @@ async def startup_event():
     logger.info(f"Stories Loaded: {story_registry.get_story_count()}")
 
     for story_meta in story_registry.list_stories():
-    try:
-        verification = story_registry.verify_story_templates(story_meta.story_id)
-        logger.info(
-            f"{story_meta.story_id}: "
-            f"{verification['verified']}/{verification['total_pages']} templates"
-        )
-    except Exception as e:
-        logger.error(f"Story verification failed for {story_meta.story_id}: {e}")
+        try:
+            verification = story_registry.verify_story_templates(story_meta.story_id)
+            logger.info(
+                f"{story_meta.story_id}: "
+                f"{verification['verified']}/{verification['total_pages']} templates"
+            )
+        except Exception as e:
+            logger.error(f"Story verification failed for {story_meta.story_id}: {e}")
         
     logger.info("=" * 70)
     
