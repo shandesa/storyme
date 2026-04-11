@@ -16,17 +16,23 @@ from health_check import router as health_router
 from core.config import config
 
 # Import routes
-# generate and generate_v2 depend on native libs (cv2, mediapipe).
-# Wrap in try/except so a missing or incompatible native lib does not crash
-# the entire app — auth, stories, and health endpoints stay available.
-_generate_import_error: Exception | None = None
+# generate and generate_v2 depend on native libs (cv2, etc.).
+# Each is wrapped in its OWN try/except so a failure in one does not
+# disable the other — auth, stories, and health endpoints are always available.
+
+_generate_v1_import_error: Exception | None = None
 try:
     from routes.generate import router as generate_router
-    from routes.generate_v2 import router as generate_v2_router
 except Exception as _e:
     generate_router = None      # type: ignore[assignment]
+    _generate_v1_import_error = _e
+
+_generate_v2_import_error: Exception | None = None
+try:
+    from routes.generate_v2 import router as generate_v2_router
+except Exception as _e:
     generate_v2_router = None   # type: ignore[assignment]
-    _generate_import_error = _e
+    _generate_v2_import_error = _e
 
 from routes.stories import router as stories_router
 from routes.review import router as review_router
@@ -135,9 +141,9 @@ app.include_router(review_router)       # /api/review
 app.include_router(auth_router)         # /api/auth/*
 app.include_router(health_router)
 if generate_router is not None:
-    app.include_router(generate_router)     # /api/generate
+    app.include_router(generate_router)       # /api/generate  (v1)
 if generate_v2_router is not None:
-    app.include_router(generate_v2_router)  # /api/v2/*
+    app.include_router(generate_v2_router)    # /api/v2/*      (v2)
 
 # ─── Static files (must come after CORS middleware registration) ──────────────
 static_dir = ROOT_DIR / "static"
@@ -159,10 +165,15 @@ async def startup_event():
     logger.info("=" * 70)
     logger.info(f"Storage Type: {config.STORAGE_TYPE}")
     logger.info(f"CORS Origins: {config.CORS_ORIGINS}")
-    if _generate_import_error:
+    if _generate_v1_import_error:
         logger.warning(
-            f"Story generation routes DISABLED — native dependency missing: "
-            f"{_generate_import_error}. Add mediapipe to requirements.txt and redeploy."
+            f"Story generation v1 route (/api/generate) DISABLED — "
+            f"import error: {_generate_v1_import_error}"
+        )
+    if _generate_v2_import_error:
+        logger.warning(
+            f"Story generation v2 routes (/api/v2/*) DISABLED — "
+            f"import error: {_generate_v2_import_error}"
         )
 
     from services.story_service import story_registry
