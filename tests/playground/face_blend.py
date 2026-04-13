@@ -18,6 +18,9 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "generated")
 mp_face_mesh = mp.solutions.face_mesh
 
 # =============================
+# FACE CONFIG (EDIT PER SCENE)
+# =============================
+# =============================
 # 🔥 FACE PLACEMENT CONFIG
 # =============================
 face_config = {
@@ -79,27 +82,20 @@ def get_landmarks(image):
             return None
 
         h, w = image.shape[:2]
-        pts = np.array([
+        return np.array([
             (int(l.x * w), int(l.y * h))
             for l in result.multi_face_landmarks[0].landmark
         ])
 
-        return pts
-
 
 def align_face(img, pts):
-    left_eye = pts[33]
-    right_eye = pts[263]
+    left_eye, right_eye = pts[33], pts[263]
 
-    dx = float(right_eye[0] - left_eye[0])
-    dy = float(right_eye[1] - left_eye[1])
-
+    dx, dy = right_eye[0] - left_eye[0], right_eye[1] - left_eye[1]
     angle = np.degrees(np.arctan2(dy, dx))
 
-    center = (
-        float((left_eye[0] + right_eye[0]) / 2),
-        float((left_eye[1] + right_eye[1]) / 2)
-    )
+    center = ((left_eye[0] + right_eye[0]) / 2,
+              (left_eye[1] + right_eye[1]) / 2)
 
     M = cv2.getRotationMatrix2D(center, angle, 1.0)
     return cv2.warpAffine(img, M, (img.shape[1], img.shape[0]))
@@ -110,19 +106,60 @@ KEY_POINTS = [33, 263, 1, 61, 291, 199]
 def extract_keypoints(pts):
     return np.array([pts[i] for i in KEY_POINTS], dtype=np.float32)
 
-
-def match_color(src, dst):
-    src = src.astype(np.float32)
-    dst = dst.astype(np.float32)
+# =============================
+# COLOR MATCHING (LAB - GENERIC)
+# =============================
+def match_color_lab(src, dst):
+    src_lab = cv2.cvtColor(src, cv2.COLOR_BGR2LAB).astype(np.float32)
+    dst_lab = cv2.cvtColor(dst, cv2.COLOR_BGR2LAB).astype(np.float32)
 
     for i in range(3):
-        src_mean, src_std = src[:, :, i].mean(), src[:, :, i].std()
-        dst_mean, dst_std = dst[:, :, i].mean(), dst[:, :, i].std()
+        src_mean, src_std = src_lab[:,:,i].mean(), src_lab[:,:,i].std()
+        dst_mean, dst_std = dst_lab[:,:,i].mean(), dst_lab[:,:,i].std()
 
-        src[:, :, i] = ((src[:, :, i] - src_mean) / (src_std + 1e-6)) * dst_std + dst_mean
+        src_lab[:,:,i] = ((src_lab[:,:,i] - src_mean) / (src_std + 1e-6)) * dst_std + dst_mean
 
-    return np.clip(src, 0, 255).astype(np.uint8)
+    result = np.clip(src_lab, 0, 255).astype(np.uint8)
+    return cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
 
+# =============================
+# GENERIC LIGHT MATCH (AUTO)
+# =============================
+def apply_scene_lighting(face, template_roi):
+    face = face.astype(np.float32)
+    ref = template_roi.astype(np.float32)
+
+    # brightness ratio
+    face_mean = np.mean(face)
+    ref_mean = np.mean(ref)
+
+    if face_mean > 0:
+        scale = ref_mean / face_mean
+        face *= scale
+
+    # slight warmth if scene is warm
+    if ref[:,:,2].mean() > ref[:,:,0].mean():  # more red → warm scene
+        face[:,:,2] *= 1.05
+        face[:,:,1] *= 1.02
+
+    return np.clip(face, 0, 255).astype(np.uint8)
+
+# =============================
+# MASK (GENERIC FACE SHAPE)
+# =============================
+def create_face_mask(w, h):
+    mask = np.zeros((h, w), dtype=np.uint8)
+
+    cv2.ellipse(
+        mask,
+        (w//2, h//2),
+        (int(w*0.42), int(h*0.5)),
+        0, 0, 360, 255, -1
+    )
+
+    # strong feather
+    mask = cv2.GaussianBlur(mask, (51, 51), 25)
+    return mask
 
 # =============================
 # CORE PROCESSING
@@ -142,28 +179,26 @@ def process_scene(template_path, reference_path, user_img):
         print("❌ No config found")
         return None
 
-    # STEP 1: Landmarks
+    # LANDMARKS
     ref_pts = get_landmarks(reference)
     user_pts = get_landmarks(user_img)
 
     if ref_pts is None or user_pts is None:
         return None
 
-    # STEP 2: Align user face
+    # ALIGN
     user_aligned = align_face(user_img, user_pts)
     user_pts = get_landmarks(user_aligned)
 
     if user_pts is None:
         return None
 
-    # STEP 3: Warp (preserve expression)
+    # WARP (expression preservation)
     ref_kp = extract_keypoints(ref_pts)
     user_kp = extract_keypoints(user_pts)
 
     M, _ = cv2.estimateAffinePartial2D(user_kp, ref_kp)
-
     if M is None:
-        print("❌ Warp failed")
         return None
 
     warped = cv2.warpAffine(
@@ -172,26 +207,25 @@ def process_scene(template_path, reference_path, user_img):
         (reference.shape[1], reference.shape[0])
     )
 
-    # STEP 4: Extract ONLY face region
+    # FACE REGION
     x, y, w, h = cv2.boundingRect(cv2.convexHull(ref_pts))
     face_region = warped[y:y+h, x:x+w]
 
-    # STEP 5: Resize using YOUR CONFIG (🔥 CONTROL HERE)
+    # TARGET BOX
     box = face_config[filename]
     tx, ty, tw, th = box["x"], box["y"], box["w"], box["h"]
 
     face_resized = cv2.resize(face_region, (tw, th))
 
-    # STEP 6: Color match
+    # COLOR + LIGHT MATCH
     template_roi = template[ty:ty+th, tx:tx+tw]
-    face_colored = match_color(face_resized, template_roi)
+    face_colored = match_color_lab(face_resized, template_roi)
+    face_colored = apply_scene_lighting(face_colored, template_roi)
 
-    # STEP 7: Create soft mask
-    mask = np.zeros((th, tw), dtype=np.uint8)
-    cv2.ellipse(mask, (tw//2, th//2), (tw//2, th//2), 0, 0, 360, 255, -1)
-    mask = cv2.GaussianBlur(mask, (21, 21), 11)
+    # MASK
+    mask = create_face_mask(tw, th)
 
-    # STEP 8: Prepare canvas
+    # CANVAS
     canvas_face = np.zeros_like(template)
     canvas_mask = np.zeros(template.shape[:2], dtype=np.uint8)
 
@@ -200,7 +234,7 @@ def process_scene(template_path, reference_path, user_img):
 
     center = (tx + tw // 2, ty + th // 2)
 
-    # STEP 9: Blend
+    # BLEND
     output = cv2.seamlessClone(
         canvas_face,
         template,
@@ -211,13 +245,10 @@ def process_scene(template_path, reference_path, user_img):
 
     return output
 
-
 # =============================
 # USER PROCESSING
 # =============================
 def process_user(user_name: str, story_name: str = "all"):
-    print(f"\n👤 Processing user: {user_name}")
-
     user_path = os.path.join(USER_DIR, user_name)
 
     if not os.path.exists(user_path):
@@ -225,21 +256,15 @@ def process_user(user_name: str, story_name: str = "all"):
         return
 
     user_files = repo.list_files(user_path)
-
     if not user_files:
         print("❌ No user image found")
         return
 
     user_img = repo.load_image(os.path.join(user_path, user_files[0]))
 
-    if story_name == "all":
-        stories = repo.list_dirs(TEMPLATES_DIR)
-    else:
-        stories = [story_name]
+    stories = repo.list_dirs(TEMPLATES_DIR) if story_name == "all" else [story_name]
 
     for story in stories:
-        print(f"\n📖 Story: {story}")
-
         t_dir = os.path.join(TEMPLATES_DIR, story)
         r_dir = os.path.join(REFERENCES_DIR, story)
 
@@ -260,7 +285,6 @@ def process_user(user_name: str, story_name: str = "all"):
             repo.save_image(out_path, result)
 
     print("\n🎉 Done!")
-
 
 # =============================
 # ENTRY
