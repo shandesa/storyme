@@ -170,6 +170,8 @@ class StoryRegistry:
             "missing": [],
         }
         for page in story.pages:
+            full_path = storage.get_file_path(page.image_path)
+            logger.info(f"Checking template: {full_path}")
             if storage.file_exists(page.image_path):
                 results["verified"] += 1
             else:

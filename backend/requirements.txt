@@ -18,7 +18,8 @@ google-generativeai
 # Image processing
 pillow
 opencv-python-headless
-mediapipe
+mediapipe==0.10.9
+protobuf==3.20.3
 
 # Document generation
 reportlab
@@ -29,5 +30,5 @@ python-multipart
 # Cloud storage
 azure-storage-blob
 
-# Async MongoDB driver — imported by server.py at startup
+# Async MongoDB driver
 motor
