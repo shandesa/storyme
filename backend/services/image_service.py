@@ -121,9 +121,43 @@ class ImageService:
         face_circle_radius: Optional[int] = None,
         name_text_regions: Optional[list] = None,
     ) -> str:
-        tpl_bytes = storage.read_file(template_path)
-        template = Image.open(io.BytesIO(tpl_bytes)).convert("RGBA")
+        """
+        Composite face and name onto a template page and save the result.
 
+        Template reading:
+          Templates are bundled assets deployed with the app. They are ALWAYS
+          read from the local filesystem (via config.BACKEND_DIR), regardless
+          of STORAGE_TYPE. This avoids a blob 404 when templates haven't been
+          uploaded to Azure — which is the correct design since templates ship
+          with the application code, not with user data.
+
+        Output saving:
+          The composited PNG is always written to the LOCAL filesystem so that:
+            - pdf_service.create_storybook_pdf() can open it with RLImage(path)
+            - generate_v2.py can read it with open(path, 'rb')
+          If STORAGE_TYPE is azure/s3, the file is ALSO uploaded to blob/S3
+          for persistence (e.g. final pages, previews).
+
+        Returns:
+          Absolute local path to the saved PNG (always usable with open()).
+        """
+        from core.config import config as _cfg
+
+        # ── Read template from local filesystem (bundled asset) ───────────────
+        # Do NOT use storage.read_file() here — templates are shipped with the
+        # app on local disk and may not be in Azure Blob.
+        tpl_path_obj = Path(template_path)
+        if tpl_path_obj.is_absolute():
+            tpl_local = tpl_path_obj
+        else:
+            tpl_local = _cfg.BACKEND_DIR / template_path
+
+        if not tpl_local.exists():
+            raise FileNotFoundError(f"Template not found: {tpl_local}")
+
+        template = Image.open(str(tpl_local)).convert("RGBA")
+
+        # ── Composite face ────────────────────────────────────────────────────
         if face_circle_center and face_circle_radius:
             template = self._blend_face_into_circle(
                 template, face_img, face_circle_center, face_circle_radius
@@ -132,20 +166,44 @@ class ImageService:
             masked = self._simple_oval_mask(face_img)
             template.paste(masked, face_position, masked)
 
-        # Name replacement
+        # ── Name replacement ──────────────────────────────────────────────────
         if child_name and name_text_regions:
             for region in name_text_regions:
                 self._replace_name_in_line(template, child_name, region, name_font_size, name_color)
         elif child_name and name_position:
             self._overlay_name(template, child_name, name_position, name_font_size, name_color)
 
-        # Save as RGB
+        # ── Save to local filesystem ──────────────────────────────────────────
+        # Resolve output_path to an absolute local path.
+        # output_path may be relative (e.g. "output/uuid_1.png") or absolute.
+        out_path_obj = Path(output_path)
+        if out_path_obj.is_absolute():
+            local_out = out_path_obj
+        else:
+            local_out = _cfg.BACKEND_DIR / output_path
+
+        local_out.parent.mkdir(parents=True, exist_ok=True)
+
         rgb = Image.new("RGB", template.size, (255, 255, 255))
         rgb.paste(template, mask=template.split()[3] if template.mode == "RGBA" else None)
         buf = io.BytesIO()
         rgb.save(buf, format="PNG", quality=95)
-        buf.seek(0)
-        return storage.save_file(buf, output_path)
+
+        # Write to local disk (required by pdf_service and generate_v2 reads)
+        local_out.write_bytes(buf.getvalue())
+        logger.info(f"Page saved locally: {local_out}")
+
+        # Optionally also upload to blob/S3 for persistence
+        if _cfg.STORAGE_TYPE in ("azure", "s3"):
+            try:
+                buf.seek(0)
+                storage.save_file(buf, output_path)
+                logger.info(f"Page uploaded to {_cfg.STORAGE_TYPE} storage: {output_path}")
+            except Exception as upload_err:
+                # Non-fatal: local copy is the source of truth for this request
+                logger.warning(f"Storage upload failed (non-fatal): {upload_err}")
+
+        return str(local_out)
 
     # ------------------------------------------------------------------
     # Advanced face blending

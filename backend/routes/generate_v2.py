@@ -5,6 +5,17 @@ POST /api/v2/generate/preview         — upload face photo, get page-1 preview 
 
 Note: The session-based flow (proceed/status/download) is planned for a future
 iteration.  The stateless preview endpoint is fully functional for MVP.
+
+Storage notes:
+  Uploaded photos are saved to the local filesystem via config.UPLOADS_DIR
+  (which is always BACKEND_DIR/uploads regardless of STORAGE_TYPE). This
+  gives a stable absolute path that image_service.extract_face() can read
+  directly — avoiding the blob-key confusion that arises when passing
+  absolute /tmp/... paths to AzureBlobStorage.read_file().
+
+  The preview PNG returned by generation_service is always a local absolute
+  path (image_service.compose_page() guarantees this). It is read with
+  open() and returned as base64 — no storage abstraction needed.
 """
 
 import base64
@@ -16,12 +27,17 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from services.generation_service import generation_service
+from core.config import config   # ← use config.UPLOADS_DIR for stable path
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v2", tags=["generate_v2"])
 
-UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+# Always use the backend-relative uploads directory (config guarantees it exists).
+# DO NOT use Path(__file__).parent.parent — on Azure App Service __file__ resolves
+# to a /tmp/... deployment path that changes per deployment slot and is unrelated
+# to the stable BACKEND_DIR the storage layer expects.
+UPLOAD_DIR = config.UPLOADS_DIR
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
@@ -67,23 +83,29 @@ async def generate_preview(
             detail=f"Invalid mode: {mode!r}. Expected 'template' or 'dalle'.",
         )
 
-    # Save uploaded file to disk so image_service can read it
+    # ── Save uploaded photo to stable local path ──────────────────────────────
+    # Use config.UPLOADS_DIR (= BACKEND_DIR/uploads) so the path is always a
+    # real local filesystem path — not a /tmp deployment artifact path.
+    # image_service.extract_face() reads this file; on Azure, AzureBlobStorage
+    # now handles absolute paths by reading from local FS directly.
     ext = Path(image.filename or "upload.jpg").suffix or ".jpg"
-    upload_path = str(UPLOAD_DIR / f"{uuid.uuid4().hex}{ext}")
+    upload_path = UPLOAD_DIR / f"{uuid.uuid4().hex}{ext}"
     content = await image.read()
-    with open(upload_path, "wb") as f:
-        f.write(content)
+    upload_path.write_bytes(content)
 
     try:
+        # generation_service returns an absolute local path to the preview PNG.
+        # image_service.compose_page() always writes to local FS and returns
+        # the local absolute path — safe to open() directly regardless of
+        # STORAGE_TYPE.
         preview_path = await generation_service.generate_preview_stateless(
             child_name=name.strip(),
             story_id=story_id,
-            face_image_path=upload_path,
+            face_image_path=str(upload_path),  # absolute local path
             mode=mode,
         )
 
-        # Return preview as base64 so the browser can display it without
-        # needing a separate authenticated GET request.
+        # Read preview bytes from local file and encode as base64
         with open(preview_path, "rb") as f:
             img_bytes = f.read()
         img_b64 = base64.b64encode(img_bytes).decode("utf-8")
@@ -97,8 +119,9 @@ async def generate_preview(
         logger.error(f"Preview generation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Preview generation failed: {str(e)}")
     finally:
-        # Always clean up the uploaded temp file
+        # Clean up the uploaded temp file regardless of outcome
         try:
-            Path(upload_path).unlink(missing_ok=True)
+            upload_path.unlink(missing_ok=True)
         except Exception:
             pass
+

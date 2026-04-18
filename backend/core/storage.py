@@ -246,13 +246,51 @@ class AzureBlobStorage(StorageInterface):
         return blob.url
 
     def read_file(self, path: str) -> bytes:
+        """
+        Read a file from Azure Blob Storage or local filesystem.
+
+        Routing logic:
+          1. Absolute paths (e.g. /tmp/.../uploads/uuid.jpg) — always local FS.
+             These are ephemeral temp files written by the app during the request
+             (uploaded user photos, in-flight composites). They are never in blob.
+          2. Relative paths (e.g. uploads/uuid.jpg) — try blob first.
+             If not in blob, fall back to local FS (covers bundled template assets
+             that ship with the app but haven't been uploaded to blob).
+
+        Fixes:
+          - Bug: generate_v2.py saves upload with open(absolute_path) then
+            extract_face() calls storage.read_file(absolute_path) → blob 404.
+          - Bug: compose_page() reads templates via storage.read_file(relative_path)
+            but templates are bundled on local disk, not in blob → blob 404.
+        """
+        path_obj = Path(path)
+
+        # ── Case 1: Absolute path → always read from local filesystem ────────
+        if path_obj.is_absolute():
+            if not path_obj.exists():
+                raise FileNotFoundError(f"File not found on local filesystem: {path}")
+            logger.debug(f"Azure storage: reading absolute path from local FS: {path}")
+            return path_obj.read_bytes()
+
+        # ── Case 2: Relative path → try blob, fallback to local FS ───────────
         try:
             blob = self._container.get_blob_client(path)
             downloader = blob.download_blob()
             return downloader.readall()
         except Exception as e:
-            logger.error(f"Azure read error [{path}]: {e}")
-            raise FileNotFoundError(f"Blob not found: {path}")
+            logger.warning(f"Azure blob not found [{path}], trying local FS fallback: {e}")
+
+        # Fallback: resolve relative path against the backend root
+        # (handles templates and other bundled assets not uploaded to blob)
+        from core.config import config as _cfg
+        local_path = _cfg.BACKEND_DIR / path
+        if local_path.exists():
+            logger.info(f"Azure fallback: reading from local FS: {local_path}")
+            return local_path.read_bytes()
+
+        raise FileNotFoundError(
+            f"Blob not found in Azure and not on local filesystem: {path}"
+        )
 
     def save_file(self, file: BinaryIO, path: str) -> str:
         try:
