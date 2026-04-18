@@ -19,7 +19,7 @@ class Config:
     # =========================================================================
     # Storage Configuration
     # =========================================================================
-    STORAGE_TYPE: Literal['local', 's3'] = os.getenv('STORAGE_TYPE', 'local')
+    STORAGE_TYPE: Literal['local', 's3', 'azure'] = os.getenv('STORAGE_TYPE', 'local')
 
     BACKEND_DIR   = ROOT_DIR
     TEMPLATES_DIR = BACKEND_DIR / 'templates'
@@ -91,3 +91,14 @@ class Config:
 
 config = Config()
 config.ensure_directories()
+
+
+# NOTE: Config class body ends above. These module-level additions extend it.
+# Azure Blob Storage settings are injected as class attributes below to
+# keep the Config class compatible with existing code that imports Config directly.
+Config.AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING', '')
+Config.AZURE_STORAGE_CONTAINER_NAME = os.getenv('AZURE_STORAGE_CONTAINER_NAME', 'storyme-assets')
+# Prefix paths within the container (mirrors LocalStorage directory structure)
+Config.AZURE_UPLOADS_PREFIX   = os.getenv('AZURE_UPLOADS_PREFIX', 'uploads/')
+Config.AZURE_OUTPUT_PREFIX    = os.getenv('AZURE_OUTPUT_PREFIX', 'output/')
+Config.AZURE_TEMPLATES_PREFIX = os.getenv('AZURE_TEMPLATES_PREFIX', 'templates/')

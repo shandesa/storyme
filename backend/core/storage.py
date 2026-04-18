@@ -193,11 +193,122 @@ class S3Storage(StorageInterface):
 
 
 # ============================================================================
+# Azure Blob Storage
+# ============================================================================
+
+class AzureBlobStorage(StorageInterface):
+    """
+    Azure Blob Storage implementation for StoryMe.
+
+    Stores:
+      - uploads/   → user uploaded photos (short-lived)
+      - output/    → generated page images + final PDFs
+      - templates/ → story template PNGs (read-mostly)
+
+    Environment variables required:
+      AZURE_STORAGE_CONNECTION_STRING  — from Azure portal → Storage Account → Access keys
+      AZURE_STORAGE_CONTAINER_NAME     — blob container name (e.g. "storyme-assets")
+
+    Enable in Azure App Service → Configuration → Application settings:
+      STORAGE_TYPE = azure
+
+    All blobs use the path structure:
+      {container}/{path}  →  e.g.  storyme-assets/output/abc123_page1.png
+    """
+
+    def __init__(self, connection_string: str, container_name: str):
+        self.container_name = container_name
+
+        try:
+            from azure.storage.blob import BlobServiceClient, ContentSettings
+            self._client = BlobServiceClient.from_connection_string(connection_string)
+            self._container = self._client.get_container_client(container_name)
+            self._ContentSettings = ContentSettings
+
+            # Ensure container exists (idempotent)
+            try:
+                self._container.get_container_properties()
+            except Exception:
+                self._container.create_container()
+                logger.info(f"Created Azure container: {container_name}")
+
+            logger.info(f"AzureBlobStorage initialized: container={container_name}")
+
+        except ImportError:
+            raise ImportError(
+                "azure-storage-blob is required for Azure storage. "
+                "Install with: pip install azure-storage-blob"
+            )
+
+    def get_file_path(self, path: str) -> str:
+        """Returns a public/SAS URL — currently returns the blob path for internal use."""
+        blob = self._container.get_blob_client(path)
+        return blob.url
+
+    def read_file(self, path: str) -> bytes:
+        try:
+            blob = self._container.get_blob_client(path)
+            downloader = blob.download_blob()
+            return downloader.readall()
+        except Exception as e:
+            logger.error(f"Azure read error [{path}]: {e}")
+            raise FileNotFoundError(f"Blob not found: {path}")
+
+    def save_file(self, file: BinaryIO, path: str) -> str:
+        try:
+            blob = self._container.get_blob_client(path)
+
+            # Infer content type for browser-friendly delivery
+            suffix = Path(path).suffix.lower()
+            content_type_map = {
+                ".png":  "image/png",
+                ".jpg":  "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".pdf":  "application/pdf",
+                ".webp": "image/webp",
+            }
+            ct = content_type_map.get(suffix, "application/octet-stream")
+            content_settings = self._ContentSettings(content_type=ct)
+
+            blob.upload_blob(file, overwrite=True, content_settings=content_settings)
+            logger.info(f"Azure blob saved: {path}")
+            return blob.url
+
+        except Exception as e:
+            logger.error(f"Azure upload error [{path}]: {e}")
+            raise
+
+    def delete_file(self, path: str) -> bool:
+        try:
+            blob = self._container.get_blob_client(path)
+            blob.delete_blob()
+            logger.info(f"Azure blob deleted: {path}")
+            return True
+        except Exception as e:
+            logger.error(f"Azure delete error [{path}]: {e}")
+            return False
+
+    def file_exists(self, path: str) -> bool:
+        try:
+            blob = self._container.get_blob_client(path)
+            blob.get_blob_properties()
+            return True
+        except Exception:
+            return False
+
+
+# ============================================================================
 # Factory
 # ============================================================================
 
 def get_storage() -> StorageInterface:
     from core.config import config
+
+    if config.STORAGE_TYPE == 'azure':
+        return AzureBlobStorage(
+            connection_string=config.AZURE_STORAGE_CONNECTION_STRING,
+            container_name=config.AZURE_STORAGE_CONTAINER_NAME,
+        )
 
     if config.STORAGE_TYPE == 's3':
         return S3Storage(
