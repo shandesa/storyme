@@ -1,88 +1,144 @@
 /**
  * Auth API client for StoryMe
+ * ============================
+ * Calls go directly to the Azure App Service backend (REACT_APP_BACKEND_URL).
+ * Azure SWA has no API functions (api_location is empty), so relative /api/*
+ * paths return 405 Method Not Allowed — all auth calls must be absolute.
  *
- * Calls go directly to the Azure App Service backend using REACT_APP_BACKEND_URL.
- * Azure SWA has no API functions (api_location is empty) so relative /api/* paths
- * return 405 Method Not Allowed.
+ * credentials: "omit" — the auth API returns JSON tokens, not cookies.
+ * Using "include" cross-origin would force the browser to reject wildcard
+ * CORS responses (spec prohibits Allow-Origin:* + Allow-Credentials:true).
  *
- * credentials: "omit" — the auth API returns JSON (not cookies/sessions).
- * Cross-origin cookie sharing is unnecessary here and was causing CORS preflight
- * failures because browsers reject Access-Control-Allow-Origin: * when
- * Access-Control-Allow-Credentials: true is also present.
+ * Cold-start resilience:
+ *   Azure App Service B1 takes 3–5 minutes to cold-start because the portal
+ *   appCommandLine runs `apt-get install` before starting gunicorn. During
+ *   this window every fetch() throws "Failed to fetch" (connection refused,
+ *   not a timeout). We handle this with:
  *
- * Simulated OTP: the backend returns the generated OTP in the response body
- * so the UI can surface it in a toast for demo / development purposes.
+ *   1. Per-attempt timeout: ATTEMPT_TIMEOUT_MS (30s) — aborts a hanging
+ *      request so we can retry rather than block the UI indefinitely.
+ *   2. Retry loop: up to MAX_ATTEMPTS retries with RETRY_DELAY_MS back-off.
+ *      Total wait ceiling ≈ 30s × 8 attempts + back-off ≈ 5 minutes — enough
+ *      to cover the longest observed cold-start.
+ *   3. Caller-facing messages distinguish "timeout/starting up" from genuine
+ *      network errors.
+ *
+ * Simulated OTP:
+ *   The backend returns the generated OTP in the response body for demo /
+ *   development mode. Remove the `otp` field when real SMS is wired up.
  */
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL ?? "";
 const AUTH_BASE   = `${BACKEND_URL}/api/auth`;
 
-// Azure App Service B1 can take up to 20-25s on a cold start.
-// 30s gives enough headroom without blocking the user too long.
-const TIMEOUT_MS = 30_000;
+// Per-attempt hard timeout. If a single attempt takes longer than this,
+// abort it and retry (don't block the UI for multiple minutes on one call).
+const ATTEMPT_TIMEOUT_MS = 30_000;
+
+// Retry configuration for cold-start resilience.
+// Total ceiling ≈ MAX_ATTEMPTS × ATTEMPT_TIMEOUT_MS + cumulative back-off ≈ 5 min.
+const MAX_ATTEMPTS    = 8;
+const RETRY_DELAY_MS  = 3_000; // base delay between retries (increases linearly)
 
 /**
- * POST wrapper — returns { data } on success, { error, status, message } on failure.
+ * Determine whether an error is a transient network/startup error that
+ * warrants a retry, vs a definitive failure (4xx, invalid JSON, etc.)
+ */
+function isRetryable(err) {
+  // AbortError = our own timeout — server may still be starting up, retry
+  if (err && err.name === "AbortError") return true;
+  // TypeError "Failed to fetch" = connection refused / no server yet, retry
+  if (err instanceof TypeError) return true;
+  return false;
+}
+
+/**
+ * POST to an auth endpoint with per-attempt timeout and cold-start retry.
+ *
+ * Returns:
+ *   { data }             — on HTTP 2xx
+ *   { error, status, message } — on HTTP 4xx/5xx or exhausted retries
  */
 async function post(path, body) {
-  const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(`${AUTH_BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // "omit" — no cookies needed for a JSON auth API.
-      // Using "include" cross-origin forces the browser to reject wildcard CORS
-      // responses, and we have no session cookies to send anyway.
-      credentials: "omit",
-      signal: controller.signal,
-      body: JSON.stringify(body),
-    });
+  let lastErr = null;
 
-    clearTimeout(tid);
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
 
-    let data = null;
     try {
-      data = await res.json();
-    } catch {
-      /* empty body — some error responses have no JSON payload */
-    }
+      const res = await fetch(`${AUTH_BASE}${path}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "omit",
+        signal:  controller.signal,
+        body:    JSON.stringify(body),
+      });
 
-    if (!res.ok) {
-      return {
-        error: true,
-        status: res.status,
-        message: data?.detail || data?.message || `Request failed (${res.status})`,
-      };
-    }
+      clearTimeout(tid);
 
-    return { data };
-  } catch (err) {
-    clearTimeout(tid);
-    if (err.name === "AbortError") {
-      // Helpful debug log for timeout issues
-      console.error("Request timeout:", err);
-      return {
-        error: true,
-        status: 0,
-        message:
-          "Request timed out — the server may be starting up. Please try again in a moment.",
-      };
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+
+      if (!res.ok) {
+        // HTTP error — do NOT retry 4xx (bad request, wrong OTP, etc.)
+        return {
+          error:   true,
+          status:  res.status,
+          message: data?.detail || data?.message || `Request failed (${res.status})`,
+        };
+      }
+
+      return { data };
+
+    } catch (err) {
+      clearTimeout(tid);
+      lastErr = err;
+
+      if (!isRetryable(err)) {
+        // Definitive failure — no point retrying
+        console.error(`Auth ${path} non-retryable error:`, err);
+        break;
+      }
+
+      const isTimeout = err.name === "AbortError";
+      console.warn(
+        `Auth ${path} attempt ${attempt}/${MAX_ATTEMPTS} failed` +
+        ` (${isTimeout ? "timeout" : "connection refused"}).` +
+        (attempt < MAX_ATTEMPTS ? ` Retrying in ${RETRY_DELAY_MS * attempt}ms…` : " Giving up.")
+      );
+
+      if (attempt < MAX_ATTEMPTS) {
+        // Linear back-off: 3s, 6s, 9s, … so later retries space out naturally
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
+      }
     }
-    // Helpful debug log for CORS / network issues
-    console.error("Fetch error:", err);
-    return {
-      error: true,
-      status: 0,
-      message: "Network error — check your connection and try again.",
-    };
   }
+
+  // All attempts exhausted — build a user-friendly message
+  const isTimeout = lastErr && lastErr.name === "AbortError";
+  const isConnRefused = lastErr instanceof TypeError;
+
+  let message;
+  if (isTimeout || isConnRefused) {
+    message =
+      "The server is still starting up — this can take up to 5 minutes on first use. " +
+      "Please try again in a moment.";
+  } else {
+    message = lastErr?.message || "Network error — check your connection and try again.";
+  }
+
+  console.error(`Auth ${path} failed after ${MAX_ATTEMPTS} attempts:`, lastErr);
+  return { error: true, status: 0, message };
 }
+
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Send OTP to mobile number.
  * Returns { data: { message, otp? } }
- * The `otp` field is only present in simulated / dev mode.
+ * `otp` is only present in simulated / dev mode.
  */
 export async function sendOtp(mobile) {
   return post("/send-otp", { mobile });

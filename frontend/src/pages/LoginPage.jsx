@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Sparkles, Phone, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { BookOpen, Sparkles, Phone, Lock, ArrowRight, Loader2, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button }   from "@/components/ui/button";
+import { Input }    from "@/components/ui/input";
+import { Label }    from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { sendOtp, loginWithPassword } from "@/api/auth";
+import { startWarmup, WarmupStatus }  from "@/api/warmup";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -19,15 +20,36 @@ const MODE = { OTP: "otp", PASSWORD: "password" };
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  const [mobile, setMobile]   = useState("");
+  const [mobile,   setMobile]   = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode]       = useState(MODE.OTP);
-  const [loading, setLoading] = useState(false);
+  const [mode,     setMode]     = useState(MODE.OTP);
+  const [loading,  setLoading]  = useState(false);
 
-  // ── helpers ────────────────────────────────────────────────────────────────
+  // ── Server warm-up state ────────────────────────────────────────────────────
+  // Azure App Service cold starts take 3–5 min (apt-get runs on every restart).
+  // We poll /health on mount so the user's first button press hits a live server.
+  const [warmup,        setWarmup]        = useState(WarmupStatus.IDLE);
+  const [warmupElapsed, setWarmupElapsed] = useState(0);
+  const warmupRef = useRef(null);
+
+  useEffect(() => {
+    const handle = startWarmup((status, elapsed) => {
+      setWarmup(status);
+      setWarmupElapsed(elapsed);
+
+      if (status === WarmupStatus.READY) {
+        // Only show the toast the first time (not on every poll)
+        toast.success("Server is ready!", { duration: 3_000 });
+      }
+    });
+
+    warmupRef.current = handle;
+    return () => handle.stop();
+  }, []);
+
+  // ── helpers ─────────────────────────────────────────────────────────────────
 
   const handleMobileChange = (e) => {
-    // Strip non-digits, max 10
     const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
     setMobile(digits);
   };
@@ -40,7 +62,7 @@ export default function LoginPage() {
     return true;
   };
 
-  // ── OTP mode ───────────────────────────────────────────────────────────────
+  // ── OTP mode ────────────────────────────────────────────────────────────────
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -65,15 +87,12 @@ export default function LoginPage() {
     navigate("/otp", { state: { mobile } });
   };
 
-  // ── Password mode ──────────────────────────────────────────────────────────
+  // ── Password mode ────────────────────────────────────────────────────────────
 
   const handleLoginPassword = async (e) => {
     e.preventDefault();
     if (!validateMobile()) return;
-    if (!password.trim()) {
-      toast.error("Please enter your password");
-      return;
-    }
+    if (!password.trim()) { toast.error("Please enter your password"); return; }
 
     setLoading(true);
     const result = await loginWithPassword(mobile, password);
@@ -88,7 +107,39 @@ export default function LoginPage() {
     navigate("/home");
   };
 
-  // ── render ─────────────────────────────────────────────────────────────────
+  // ── Warm-up banner ───────────────────────────────────────────────────────────
+  // Show a non-intrusive status pill below the form while the server warms up.
+
+  const elapsedSec = Math.floor(warmupElapsed / 1_000);
+
+  const WarmupBanner = () => {
+    if (warmup === WarmupStatus.IDLE || warmup === WarmupStatus.READY) return null;
+
+    if (warmup === WarmupStatus.TIMEOUT) {
+      return (
+        <div className="flex items-center gap-2 mt-4 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs">
+          <WifiOff className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            Server is taking longer than expected to start. You can still try —
+            your request will wait up to 5 minutes.
+          </span>
+        </div>
+      );
+    }
+
+    // POLLING state
+    return (
+      <div className="flex items-center gap-2 mt-4 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs">
+        <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+        <span>
+          Server is warming up{elapsedSec > 0 ? ` (${elapsedSec}s)` : ""}…
+          You can still tap Send OTP — your request will wait.
+        </span>
+      </div>
+    );
+  };
+
+  // ── render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-emerald-50 flex items-center justify-center py-8 px-4">
@@ -128,7 +179,6 @@ export default function LoginPage() {
                   Mobile Number
                 </Label>
                 <div className="flex gap-2">
-                  {/* Country code badge */}
                   <span className="inline-flex items-center px-3 rounded-md border border-gray-300 bg-gray-50 text-gray-500 text-sm select-none">
                     🇮🇳 +91
                   </span>
@@ -147,7 +197,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password field — only shown in password mode */}
+              {/* Password field — only in password mode */}
               {mode === MODE.PASSWORD && (
                 <div className="space-y-1.5">
                   <Label htmlFor="password" className="text-gray-700 font-medium">
@@ -177,12 +227,10 @@ export default function LoginPage() {
               >
                 {loading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : mode === MODE.OTP ? (
+                  <Phone className="mr-2 h-4 w-4" />
                 ) : (
-                  mode === MODE.OTP ? (
-                    <Phone className="mr-2 h-4 w-4" />
-                  ) : (
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                  )
+                  <ArrowRight className="mr-2 h-4 w-4" />
                 )}
                 {loading
                   ? "Please wait…"
@@ -191,6 +239,9 @@ export default function LoginPage() {
                   : "Login"}
               </Button>
             </form>
+
+            {/* Warm-up status banner */}
+            <WarmupBanner />
 
             {/* Mode toggle */}
             <div className="mt-5 text-center text-sm text-gray-500">
