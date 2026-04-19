@@ -34,7 +34,7 @@ except Exception as _e:
     generate_v2_router = None   # type: ignore[assignment]
     _generate_v2_import_error = _e
 
-from routes.stories import router as stories_router
+from routes.stories import router as stories_router, v2_router as stories_v2_router
 from routes.review import router as review_router
 from routes.auth import router as auth_router
 
@@ -137,6 +137,7 @@ async def health():
 # ─── Register routers ─────────────────────────────────────────────────────────
 app.include_router(api_router)          # /api/  (legacy)
 app.include_router(stories_router)      # /api/stories
+app.include_router(stories_v2_router)   # /api/v2/stories  ← always available (no cv2 dep)
 app.include_router(review_router)       # /api/review
 app.include_router(auth_router)         # /api/auth/*
 app.include_router(health_router)
