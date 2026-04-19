@@ -6,6 +6,7 @@ Uses OpenCV for face detection/inpainting and PIL for rendering.
 
 import cv2
 import numpy as np
+from pathlib import Path          # required by compose_page() for template resolution
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import Tuple, Optional, List
 import logging
