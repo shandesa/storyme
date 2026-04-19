@@ -1,1 +1,25 @@
-web: bash startup.sh
+## StoryMe — Azure App Service startup
+##
+## This Procfile is deployed as part of the backend/ package.
+##
+## CRITICAL: FastAPI is an ASGI application. It MUST be served by an ASGI
+## worker. Oryx auto-detection picks "sync" (WSGI) workers when it detects
+## Flask-like patterns, which causes:
+##   TypeError: FastAPI.__call__() missing 1 required positional argument: 'send'
+##
+## By declaring the full gunicorn command here, we override Oryx's auto-
+## generated command completely and guarantee UvicornWorker is used.
+##
+## startup.sh is also present in this package for portal Startup Command use.
+## If "Startup Command" is set in Azure App Service → Configuration →
+## General settings, that overrides this Procfile. Clear the Startup Command
+## field to let Azure use this Procfile.
+##
+## Worker / timeout rationale:
+##   -k uvicorn.workers.UvicornWorker  ASGI worker — required for FastAPI
+##   --workers 2                       B1 has 1 vCPU; 2 workers for concurrency
+##   --timeout 300                     face blend + PDF generation takes 15-60s
+##   --keep-alive 5                    warmup poller connections stay open
+##
+web: gunicorn -k uvicorn.workers.UvicornWorker server:app --bind=0.0.0.0:$PORT --workers 2 --timeout 300 --keep-alive 5 --access-logfile - --error-logfile - --log-level info
+
