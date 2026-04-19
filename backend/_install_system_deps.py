@@ -1,210 +1,319 @@
 """
 _install_system_deps.py
 =======================
-Installs Linux system libraries required by OpenCV and MediaPipe.
+Installs Linux system libraries required by OpenCV and MediaPipe at Python
+import time — before any cv2 or mediapipe import in the process.
 
-MUST BE IMPORTED AT THE VERY TOP OF server.py, before any import of:
-  - cv2 / opencv-python-headless
-  - mediapipe
+MUST be the very first import in server.py.
 
-WHY THIS EXISTS
----------------
-OpenCV (opencv-python-headless) and MediaPipe are Python wheels, but they
-link against native Linux shared libraries that are NOT bundled inside the
-wheels. Those libraries must be present on the OS at runtime.
-
-Required shared libraries and the packages that provide them on Debian/Ubuntu:
-
-  Package         Provides              Needed by
-  ─────────────── ───────────────────── ──────────────────────────────
-  libgl1          libGL.so.1            cv2 (OpenCV), mediapipe
-  libglib2.0-0    libglib2.0.so.0       cv2 (OpenCV), mediapipe
-  libxcb1         libxcb.so.1           mediapipe 0.10.x
-  libsm6          libSM.so.6            mediapipe 0.10.x
-  libxext6        libXext.so.6          mediapipe 0.10.x
-  libxrender1     libXrender.so.1       mediapipe 0.10.x
-
-azure.storage.blob, reportlab, PIL (Pillow), motor: no extra system deps.
-
-WHY NOT startup.sh OR THE PORTAL STARTUP COMMAND?
---------------------------------------------------
-Every approach that installs deps OUTSIDE Python (startup.sh, the Azure
-portal Startup Command) is fragile because:
-
-  1. The portal Startup Command bypasses startup.sh entirely.
-  2. startup.sh bypasses gunicorn.conf.py entirely.
-  3. Both depend on exact portal configuration that can change.
-  4. Neither approach is version-controlled or tested in CI.
-
-Installing deps from Python (here, at module load time) is:
-  - Version-controlled (this file is in the repo)
-  - Always executed regardless of how gunicorn is started
-  - Idempotent (dpkg check skips install if already present)
-  - Visible in server logs
-
-HOW IT WORKS
-------------
-At module load time (triggered by `import _install_system_deps` in server.py):
-  1. Check each required package with `dpkg -l`.
-  2. If any are missing, run `apt-get install` with minimal flags.
-  3. The check is fast (<50ms) when packages are already installed.
-  4. The install takes ~30s on first run (network + extraction).
-  5. Packages survive for the life of the container instance.
-  6. They do NOT persist across Azure container restarts
-     ("Note: Any data outside '/home' is not persisted") — but this
-     module runs again on every startup, so they are always installed.
-
-FAILURE BEHAVIOUR
+WHY THIS APPROACH
 -----------------
-If apt-get fails (e.g. no internet, permission denied), a WARNING is logged
-and execution continues. The server starts. Auth, stories, health, and all
-non-cv2 routes work normally. Only the image-generation routes fail (with
-a clear error message), which is the same behaviour as before — but now
-the failure is diagnosed and logged at startup rather than being silent.
+cv2 (opencv-python-headless) and mediapipe are Python wheels that link against
+native Linux shared libraries NOT bundled inside the wheels. Those libraries
+must exist on the OS before any `import cv2` or `import mediapipe` runs.
+
+Required shared libraries → apt packages:
+  libGL.so.1        → libgl1          (OpenCV + MediaPipe)
+  libglib2.0.so.0   → libglib2.0-0   (OpenCV + MediaPipe)
+  libxcb.so.1       → libxcb1        (MediaPipe 0.10.x)
+  libSM.so.6        → libsm6         (MediaPipe 0.10.x)
+  libXext.so.6      → libxext6       (MediaPipe 0.10.x)
+  libXrender.so.1   → libxrender1    (MediaPipe 0.10.x)
+
+All other Python packages (azure-storage-blob, reportlab, PIL, motor):
+no extra system libraries needed.
+
+KNOWN ISSUES FIXED IN THIS VERSION
+------------------------------------
+1. --fix-missing flag added to apt-get install.
+   Without it, a single package returning 404 from debian-security (e.g.
+   libglib2.0-0 version u7 superseded by u8) aborted the ENTIRE install,
+   leaving all other successfully-downloaded packages unused. The server then
+   had ZERO native libs installed and cv2 failed to import.
+
+2. check=False on apt-get install subprocess.
+   With check=True, the CalledProcessError was caught and logged, but the
+   partially-downloaded packages were silently discarded. Now we use
+   check=False and verify which packages actually got installed afterward.
+
+3. cv2 import test via isolated subprocess.
+   If libglib2.0-0 is still missing after apt-get, importing cv2 in the main
+   process can HANG the dynamic linker (dlopen blocks waiting for a missing
+   .so). This caused gunicorn workers to appear frozen for 60–120s with no
+   log output ("No new trace in the past 1 min"). Now we test the cv2 import
+   in a subprocess with a hard 15s timeout. If it hangs or fails, we log a
+   warning and the main process never attempts the hanging import.
+
+4. apt-get update errors are non-fatal.
+   A transient 404 during apt-get update (stale package list) now only logs
+   a warning instead of aborting the whole operation.
 """
 
 import subprocess
 import sys
 import logging
 
-# Use a module-level logger. basicConfig may not be called yet, so we add a
-# StreamHandler directly so the output always appears in Azure Log Stream.
+# Set up logging immediately — basicConfig may not have run yet.
+# We add our own StreamHandler so output always appears in Azure Log Stream
+# regardless of the logging configuration in server.py.
 _log = logging.getLogger(__name__)
 if not _log.handlers:
     _h = logging.StreamHandler(sys.stdout)
-    _h.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    _h.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
     _log.addHandler(_h)
 _log.setLevel(logging.INFO)
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Package manifest
-# Each entry: (apt_package_name, description)
-# These are the MINIMUM packages required by opencv-python-headless and mediapipe.
-# Do NOT add packages that are not needed — keeps cold-start time minimal.
+# Keep this list minimal — every package added increases cold-start time.
+# Packages are installed one batch; individual failures do NOT abort the rest
+# (--fix-missing handles that).
 # ──────────────────────────────────────────────────────────────────────────────
 _REQUIRED_APT_PACKAGES = [
-    # Package name        Why it's needed
-    ("libgl1",           "OpenCV + MediaPipe: libGL.so.1"),
-    ("libglib2.0-0",     "OpenCV + MediaPipe: libglib2.0.so.0"),
-    ("libxcb1",          "MediaPipe 0.10.x:  libxcb.so.1"),
-    ("libsm6",           "MediaPipe 0.10.x:  libSM.so.6"),
-    ("libxext6",         "MediaPipe 0.10.x:  libXext.so.6"),
-    ("libxrender1",      "MediaPipe 0.10.x:  libXrender.so.1"),
+    # apt package name    shared library it provides     needed by
+    ("libgl1",            "libGL.so.1",                  "OpenCV + MediaPipe"),
+    ("libglib2.0-0",      "libglib2.0.so.0",             "OpenCV + MediaPipe"),
+    ("libxcb1",           "libxcb.so.1",                 "MediaPipe 0.10.x"),
+    ("libsm6",            "libSM.so.6",                  "MediaPipe 0.10.x"),
+    ("libxext6",          "libXext.so.6",                "MediaPipe 0.10.x"),
+    ("libxrender1",       "libXrender.so.1",             "MediaPipe 0.10.x"),
 ]
 
 
-def _is_package_installed(package_name: str) -> bool:
-    """Return True if an apt package is installed (dpkg status = 'ii')."""
+# ──────────────────────────────────────────────────────────────────────────────
+# Helper: check a single apt package
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _is_installed(package: str) -> bool:
+    """
+    Return True if an apt package is installed (dpkg status 'ii').
+    Returns False on any error (dpkg not found, timeout, etc.).
+    """
     try:
-        result = subprocess.run(
-            ["dpkg", "-l", package_name],
-            capture_output=True,
-            text=True,
-            timeout=5,
+        r = subprocess.run(
+            ["dpkg", "-l", package],
+            capture_output=True, text=True, timeout=5,
         )
-        # dpkg -l output has 'ii' prefix for installed packages
         return any(
-            line.startswith("ii") and package_name in line
-            for line in result.stdout.splitlines()
+            line.startswith("ii") and package in line
+            for line in r.stdout.splitlines()
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        # dpkg not available (non-Debian OS or timeout) — assume not installed
+    except Exception:
         return False
 
 
-def ensure_system_dependencies() -> bool:
+# ──────────────────────────────────────────────────────────────────────────────
+# Helper: isolated cv2 import test with timeout
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _cv2_imports_safely(timeout_seconds: int = 15) -> bool:
     """
-    Check for required system libraries and install any that are missing.
+    Test whether cv2 can be imported without hanging the main process.
+
+    On some Linux configurations, importing cv2 when a required shared library
+    (e.g. libglib2.0.so.0) is missing causes the dynamic linker's dlopen() to
+    BLOCK rather than raise immediately. This hangs the gunicorn worker silently
+    for 60–120 seconds with no log output.
+
+    We test the import in a child subprocess with a hard timeout. If it
+    succeeds within the timeout, the main process can safely import cv2.
+    If it hangs or raises, we log a warning and skip the import.
+
+    Args:
+        timeout_seconds: Kill the test subprocess if it runs longer than this.
 
     Returns:
-        True  — all packages are present (either were already installed, or
-                were just installed successfully)
-        False — apt-get failed; generation routes will be unavailable but
-                the server continues running
+        True  — cv2 imports cleanly (main process can safely import it)
+        False — cv2 is broken or missing (main process must NOT import it)
     """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", "import cv2; print('ok')"],
+            capture_output=True, text=True,
+            timeout=timeout_seconds,
+        )
+        ok = result.returncode == 0 and "ok" in result.stdout
+        if not ok:
+            _log.warning(
+                "cv2 import test failed (exit %d): %s",
+                result.returncode,
+                (result.stderr or result.stdout or "no output")[:300],
+            )
+        return ok
+    except subprocess.TimeoutExpired:
+        _log.warning(
+            "cv2 import test TIMED OUT after %ds — dynamic linker likely "
+            "blocked on a missing .so file. Generation routes will be disabled.",
+            timeout_seconds,
+        )
+        return False
+    except Exception as e:
+        _log.warning("cv2 import test raised %s: %s", type(e).__name__, e)
+        return False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Main installation function
+# ──────────────────────────────────────────────────────────────────────────────
+
+def ensure_system_dependencies() -> bool:
+    """
+    Install missing system libraries and verify cv2 can be imported safely.
+
+    Steps:
+      1. Check which required packages are missing via dpkg.
+      2. If all present AND cv2 imports cleanly → return True immediately.
+      3. Run apt-get update (failures are non-fatal — stale cache warning only).
+      4. Run apt-get install with --fix-missing so ONE package's 404 does not
+         abort the entire install. All other packages are installed normally.
+      5. Re-verify which packages are now installed.
+      6. Run isolated cv2 import test (subprocess + 15s timeout) to confirm
+         the libraries are loadable without hanging the main process.
+      7. Return True only if cv2 test passes; False otherwise (server still
+         starts, only generation routes are disabled).
+
+    Returns:
+        True  — all packages installed AND cv2 imports safely
+        False — some packages missing or cv2 still broken after install attempt
+                (server continues running; non-generation routes are unaffected)
+    """
+    # ── Step 1: Check what is missing ────────────────────────────────────────
     missing = [
-        pkg for pkg, _ in _REQUIRED_APT_PACKAGES
-        if not _is_package_installed(pkg)
+        pkg for pkg, _, _ in _REQUIRED_APT_PACKAGES
+        if not _is_installed(pkg)
     ]
 
     if not missing:
         _log.info(
-            "System dependencies: all %d required packages already installed — skipping apt-get",
+            "System deps: all %d packages already installed — testing cv2 import...",
             len(_REQUIRED_APT_PACKAGES),
         )
-        return True
-
-    _log.info(
-        "System dependencies: %d package(s) missing, installing: %s",
-        len(missing),
-        ", ".join(missing),
-    )
-
-    # Log WHY each package is needed for future debugging
-    for pkg_name, reason in _REQUIRED_APT_PACKAGES:
-        if pkg_name in missing:
-            _log.info("  Installing %-20s  (%s)", pkg_name, reason)
-
-    try:
-        # apt-get update first (needed so package lists are current)
-        _log.info("Running apt-get update...")
-        subprocess.run(
-            ["apt-get", "update", "-qq"],
-            check=True,
-            timeout=120,
-            capture_output=True,
+        if _cv2_imports_safely():
+            _log.info("System deps: cv2 imports cleanly ✓")
+            return True
+        _log.warning(
+            "System deps: packages installed but cv2 import failed. "
+            "Will attempt reinstall."
         )
+        # Fall through to reinstall
 
-        # Install only the missing packages
-        _log.info("Running apt-get install...")
-        result = subprocess.run(
-            [
-                "apt-get", "install", "-y", "-q",
-                "--no-install-recommends",   # keep it lean
-                "--no-install-suggests",     # same
-            ] + missing,
-            check=True,
-            timeout=180,
-            capture_output=True,
-            text=True,
-        )
-
+    if missing:
         _log.info(
-            "System dependencies installed successfully: %s",
-            ", ".join(missing),
+            "System deps: %d package(s) missing → %s",
+            len(missing), ", ".join(missing),
         )
-        return True
+        for pkg, lib, needed_by in _REQUIRED_APT_PACKAGES:
+            if pkg in missing:
+                _log.info("  %-20s  provides %-22s  (needed by %s)", pkg, lib, needed_by)
 
-    except subprocess.CalledProcessError as e:
-        _log.warning(
-            "apt-get failed (exit %d). Image generation will be unavailable. "
-            "stderr: %s",
-            e.returncode,
-            (e.stderr or "")[:500],
+    # ── Step 2: apt-get update (non-fatal) ───────────────────────────────────
+    # Refreshes the local package list so apt sees the latest versions.
+    # Errors here are logged as warnings only — stale cache is better than
+    # nothing, and the actual install uses --fix-missing anyway.
+    _log.info("System deps: running apt-get update...")
+    try:
+        r = subprocess.run(
+            ["apt-get", "update", "-qq"],
+            capture_output=True, text=True, timeout=120,
         )
-        return False
+        if r.returncode != 0:
+            _log.warning(
+                "apt-get update exited %d (non-fatal, continuing): %s",
+                r.returncode, (r.stderr or "")[:200],
+            )
+        else:
+            _log.info("System deps: apt-get update OK")
     except subprocess.TimeoutExpired:
-        _log.warning(
-            "apt-get timed out. Image generation will be unavailable. "
-            "This can happen if the network is slow on this Azure instance."
-        )
-        return False
+        _log.warning("apt-get update timed out after 120s (non-fatal, continuing)")
     except FileNotFoundError:
-        _log.warning(
-            "apt-get not found. This server may not be running on Debian/Ubuntu. "
-            "Image generation will be unavailable if system libs are missing."
-        )
+        _log.warning("apt-get not found — not a Debian/Ubuntu system")
         return False
     except Exception as e:
+        _log.warning("apt-get update error (non-fatal): %s", e)
+
+    # ── Step 3: apt-get install with --fix-missing ────────────────────────────
+    # --fix-missing: if a specific package version 404s on the mirror (e.g.
+    # libglib2.0-0 u7 superseded by u8 on debian-security), apt skips that
+    # package and installs everything else successfully instead of aborting.
+    # We use check=False and verify afterward which packages actually installed.
+    packages_to_install = [pkg for pkg, _, _ in _REQUIRED_APT_PACKAGES]
+    _log.info(
+        "System deps: running apt-get install --fix-missing for: %s",
+        ", ".join(packages_to_install),
+    )
+    try:
+        r = subprocess.run(
+            [
+                "apt-get", "install",
+                "-y",                        # non-interactive
+                "-q",                        # quiet output
+                "--no-install-recommends",   # no optional extras
+                "--no-install-suggests",     # no suggestions
+                "--fix-missing",             # KEY: skip 404 packages, install rest
+            ] + packages_to_install,
+            capture_output=True, text=True,
+            timeout=300,
+            check=False,                     # KEY: don't raise on non-zero exit
+        )
+        if r.returncode == 0:
+            _log.info("System deps: apt-get install completed (exit 0)")
+        else:
+            # Non-zero exit is expected when --fix-missing skips a package.
+            # We verify the actual state below via dpkg.
+            _log.warning(
+                "System deps: apt-get install exited %d (some packages may have "
+                "been skipped due to --fix-missing — verifying actual state):\n%s",
+                r.returncode,
+                (r.stderr or r.stdout or "")[:400],
+            )
+    except subprocess.TimeoutExpired:
+        _log.warning("apt-get install timed out after 300s")
+    except Exception as e:
+        _log.warning("apt-get install raised %s: %s", type(e).__name__, e)
+
+    # ── Step 4: Re-verify what is now installed ───────────────────────────────
+    still_missing = [
+        pkg for pkg, _, _ in _REQUIRED_APT_PACKAGES
+        if not _is_installed(pkg)
+    ]
+    installed_now = [
+        pkg for pkg, _, _ in _REQUIRED_APT_PACKAGES
+        if pkg not in still_missing
+    ]
+
+    if installed_now:
+        _log.info("System deps: installed ✓ → %s", ", ".join(installed_now))
+    if still_missing:
         _log.warning(
-            "Unexpected error during apt-get: %s. Image generation may be unavailable.",
-            e,
+            "System deps: still missing after install attempt → %s. "
+            "These packages could not be fetched (mirror 404 or network issue). "
+            "Image generation will be unavailable until they are installed.",
+            ", ".join(still_missing),
+        )
+
+    # ── Step 5: Isolated cv2 import test ─────────────────────────────────────
+    # Even if all packages installed, test cv2 in a subprocess to confirm the
+    # dynamic linker can resolve all symbols. If cv2 hangs during import (due
+    # to a missing transitive .so), the timeout kills the test subprocess rather
+    # than hanging the main gunicorn worker.
+    _log.info("System deps: testing cv2 import in isolated subprocess (timeout=15s)...")
+    if _cv2_imports_safely(timeout_seconds=15):
+        _log.info("System deps: cv2 imports cleanly ✓ — generation routes enabled")
+        return True
+    else:
+        _log.warning(
+            "System deps: cv2 import test failed — generation routes will be "
+            "disabled. Server continues with auth/stories/health routes active."
         )
         return False
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Module-level execution: runs automatically when this module is imported.
-# server.py imports this as its FIRST statement, before any cv2/mediapipe import.
+# Module-level execution
+# Runs automatically on `import _install_system_deps` in server.py.
+# The result is stored in _deps_ok and exposed via the /health endpoint.
 # ──────────────────────────────────────────────────────────────────────────────
-_deps_ok = ensure_system_dependencies()
+_deps_ok: bool = ensure_system_dependencies()
