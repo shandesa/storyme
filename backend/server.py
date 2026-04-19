@@ -1,24 +1,55 @@
-from fastapi import FastAPI, APIRouter
-from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+"""StoryMe API — Main Application Entry Point
+=============================================
+
+STARTUP ORDER (critical):
+  1. _install_system_deps  ← MUST be first: installs libgl1, libxcb1, etc.
+  2. All other imports     ← cv2/mediapipe will only succeed after step 1
+  3. FastAPI app creation
+  4. Route registration
+  5. ASGI startup event
+
+Do NOT move the _install_system_deps import below any cv2/mediapipe import.
+"""
+
+# ── Step 1: Install system dependencies BEFORE any cv2/mediapipe import ───────
+# This module runs apt-get at import time to ensure libGL.so.1, libxcb.so.1,
+# etc. are present. It is idempotent (skips if already installed) and
+# survives any Azure portal Startup Command configuration.
+import _install_system_deps  # noqa: F401  (side-effect import, result unused)
+
+# ── Step 2: Standard library ──────────────────────────────────────────────────
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone
-from health_check import router as health_router
+from typing import List
 
-# Import core configuration
+# ── Step 3: Third-party (no native lib deps) ──────────────────────────────────
+from fastapi import FastAPI, APIRouter
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field, ConfigDict
+
+# ── Step 4: Internal — core config ───────────────────────────────────────────
 from core.config import config
 
-# Import routes
-# generate and generate_v2 depend on native libs (cv2, etc.).
-# Each is wrapped in its OWN try/except so a failure in one does not
-# disable the other — auth, stories, and health endpoints are always available.
+# ── Step 5: Routes that never depend on cv2/mediapipe ─────────────────────────
+from health_check import router as health_router
+from routes.stories import router as stories_router, v2_router as stories_v2_router
+from routes.review import router as review_router
+from routes.auth import router as auth_router
+
+# ── Step 6: Routes that NEED cv2/mediapipe — wrapped in try/except ────────────
+# generate and generate_v2 depend on native libs (cv2, mediapipe, libxcb, libGL).
+# _install_system_deps (step 1) installs those libs first, but we still wrap
+# these imports defensively so a failure disables only the generation routes
+# rather than crashing the entire server.
+#
+# If import fails here AFTER step 1 ran, it means apt-get itself failed
+# (network issue, permission, etc.) — the warning in the startup log will say so.
 
 _generate_v1_import_error: Exception | None = None
 try:
@@ -34,48 +65,43 @@ except Exception as _e:
     generate_v2_router = None   # type: ignore[assignment]
     _generate_v2_import_error = _e
 
-from routes.stories import router as stories_router, v2_router as stories_v2_router
-from routes.review import router as review_router
-from routes.auth import router as auth_router
+# ─────────────────────────────────────────────────────────────────────────────
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection (lazy — Motor connects on first use, not at startup)
+# MongoDB — lazy connection (Motor connects on first use, not at import time)
 mongo_url = os.environ.get('MONGO_URL', config.MONGO_URL)
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ.get('DB_NAME', config.DB_NAME)]
 
-# ─── Create the main FastAPI app ──────────────────────────────────────────────
+# ─── FastAPI application ──────────────────────────────────────────────────────
 app = FastAPI(
     title="StoryMe API",
     description="Production-ready storybook generation API with storage abstraction",
-    version="2.0.0"
+    version="2.0.0",
 )
 
 # ─── CORS middleware ──────────────────────────────────────────────────────────
-# MUST be added before any app.mount() call so it wraps the full ASGI app.
+# MUST be added BEFORE any app.mount() call so it wraps the full ASGI app.
 #
-# allow_credentials=False because the frontend uses credentials:"omit".
-# The auth API returns JSON tokens — it does not set or read cookies.
-# With allow_credentials=False, allow_origins=["*"] is valid per the CORS spec
-# and browsers will accept it without restriction.
+# allow_credentials=False: the auth API returns JSON tokens, not cookies.
+# With allow_credentials=False, allow_origins=["*"] is valid per the CORS spec.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.CORS_ORIGINS,   # defaults to ["*"] — see core/config.py
-    allow_credentials=False,              # no session cookies used
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ─── Legacy /api prefix router ────────────────────────────────────────────────
+# ─── Legacy /api router ───────────────────────────────────────────────────────
 api_router = APIRouter(prefix="/api")
 
 
-# ─── Models (status check — legacy MongoDB endpoint) ─────────────────────────
+# ─── MongoDB status check (legacy endpoint) ───────────────────────────────────
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
-
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -112,87 +138,116 @@ async def get_status_checks():
 # ─── Health check ─────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
+    """
+    Health probe endpoint.
+    Returns HTTP 200 with system status. Used by:
+      - Azure App Service liveness probe
+      - Frontend warmup poller (warmup.js)
+    """
     try:
-        # Example dependency check
         await db.command("ping")
-
-        return {
-            "status": "healthy",
-            "service": "storyme-backend",
-            "version": "2.0.0",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "dependencies": {
-                "mongodb": "up"
-            }
-        }
-
+        mongo_status = "up"
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        mongo_status = f"error: {e}"
+
+    return {
+        "status": "healthy",
+        "service": "storyme-backend",
+        "version": "2.0.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "system_deps_installed": _install_system_deps._deps_ok,
+        "generation_v1_available": generate_router is not None,
+        "generation_v2_available": generate_v2_router is not None,
+        "dependencies": {
+            "mongodb": mongo_status,
+        },
+    }
 
 
 # ─── Register routers ─────────────────────────────────────────────────────────
-app.include_router(api_router)          # /api/  (legacy)
-app.include_router(stories_router)      # /api/stories
-app.include_router(stories_v2_router)   # /api/v2/stories  ← always available (no cv2 dep)
-app.include_router(review_router)       # /api/review
-app.include_router(auth_router)         # /api/auth/*
-app.include_router(health_router)
+#
+# Registration order:
+#   1. api_router        /api/         legacy root + MongoDB status
+#   2. stories_router    /api/stories  story list (v1, no cv2 dep)
+#   3. stories_v2_router /api/v2/stories  story list (v2, no cv2 dep, used by frontend)
+#   4. review_router     /api/review
+#   5. auth_router       /api/auth/*
+#   6. health_router     /health
+#   7. generate_router   /api/generate    (conditional — needs cv2/mediapipe)
+#   8. generate_v2_router /api/v2/*       (conditional — needs cv2/mediapipe)
+#
+# stories_router and stories_v2_router are ALWAYS registered regardless of
+# whether cv2/mediapipe imported successfully. This guarantees the frontend
+# story dropdown is always populated.
+
+app.include_router(api_router)           # /api/
+app.include_router(stories_router)       # /api/stories
+app.include_router(stories_v2_router)    # /api/v2/stories ← always available
+app.include_router(review_router)        # /api/review
+app.include_router(auth_router)          # /api/auth/*
+app.include_router(health_router)        # /health
+
 if generate_router is not None:
     app.include_router(generate_router)       # /api/generate  (v1)
 if generate_v2_router is not None:
     app.include_router(generate_v2_router)    # /api/v2/*      (v2)
 
-# ─── Static files (must come after CORS middleware registration) ──────────────
+# ─── Static files (MUST come after CORS middleware) ───────────────────────────
 static_dir = ROOT_DIR / "static"
 static_dir.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# ─── Logging ─────────────────────────────────────────────────────────────────
+# ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 )
 logger = logging.getLogger(__name__)
 
 
+# ─── Startup event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
     logger.info("=" * 70)
     logger.info("StoryMe API Starting")
     logger.info("=" * 70)
-    logger.info(f"Storage Type: {config.STORAGE_TYPE}")
-    logger.info(f"CORS Origins: {config.CORS_ORIGINS}")
+    logger.info("Storage Type:           %s", config.STORAGE_TYPE)
+    logger.info("CORS Origins:           %s", config.CORS_ORIGINS)
+    logger.info("System deps installed:  %s", _install_system_deps._deps_ok)
+    logger.info("Generation v1 active:   %s", generate_router is not None)
+    logger.info("Generation v2 active:   %s", generate_v2_router is not None)
+
     if _generate_v1_import_error:
         logger.warning(
-            f"Story generation v1 route (/api/generate) DISABLED — "
-            f"import error: {_generate_v1_import_error}"
+            "Story generation v1 (/api/generate) DISABLED — %s",
+            _generate_v1_import_error,
         )
     if _generate_v2_import_error:
         logger.warning(
-            f"Story generation v2 routes (/api/v2/*) DISABLED — "
-            f"import error: {_generate_v2_import_error}"
+            "Story generation v2 (/api/v2/generate/*) DISABLED — %s",
+            _generate_v2_import_error,
         )
 
     from services.story_service import story_registry
-    logger.info(f"Stories Loaded: {story_registry.get_story_count()}")
+    logger.info("Stories Loaded: %d", story_registry.get_story_count())
 
+    # Template verification is informational only — a template missing from
+    # Azure Blob Storage does NOT prevent generation because image_service
+    # reads templates directly from local disk (bundled with the app).
     for story_meta in story_registry.list_stories():
         try:
-            verification = story_registry.verify_story_templates(story_meta.story_id)
+            v = story_registry.verify_story_templates(story_meta.story_id)
             logger.info(
-                f"{story_meta.story_id}: "
-                f"{verification['verified']}/{verification['total_pages']} templates"
+                "%s: %d/%d templates found in storage",
+                story_meta.story_id, v["verified"], v["total_pages"],
             )
         except Exception as e:
-            logger.error(f"Story verification failed for {story_meta.story_id}: {e}")
-        
-    logger.info("=" * 70)
-    
+            logger.warning("Template verification failed for %s: %s", story_meta.story_id, e)
 
+    logger.info("=" * 70)
+
+
+# ─── Shutdown event ───────────────────────────────────────────────────────────
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
