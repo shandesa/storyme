@@ -160,25 +160,74 @@ class StoryRegistry:
         return None
 
     def verify_story_templates(self, story_id: str) -> dict:
+        """
+        Verify that all template image files exist for a story.
+
+        Templates are bundled assets deployed with the application — they live
+        on the local filesystem inside the backend package (templates/stories/...).
+        They are NOT stored in Azure Blob / S3; those backends are for user
+        uploads and generated output only.
+
+        Verification strategy (local-first):
+          1. Check the local filesystem using config.BACKEND_DIR / image_path.
+             This is fast (<1ms per file), requires no network, and is the
+             authoritative source — image_service.compose_page() also reads
+             templates from local disk using exactly the same path.
+          2. Only if the local file is missing, fall back to checking the
+             configured storage backend (blob/S3). This handles any future
+             scenario where templates are stored remotely.
+
+        Previous behaviour (broken):
+          Called storage.file_exists() directly for every page. When
+          STORAGE_TYPE=azure, this made a HEAD request to Azure Blob for
+          EACH template file. Since templates are never uploaded to blob,
+          every check returned 404 — generating 20+ unnecessary HTTP round-
+          trips and 404 errors in the log on every server restart, making
+          real errors hard to spot.
+        """
+        from pathlib import Path
+        from core.config import config as _cfg
+
         story = self.get_story_by_id(story_id)
         if not story:
             return {"error": f"Story not found: {story_id}"}
+
         results = {
             "story_id": story_id,
             "total_pages": len(story.pages),
             "verified": 0,
             "missing": [],
         }
+
         for page in story.pages:
-            full_path = storage.get_file_path(page.image_path)
-            logger.info(f"Checking template: {full_path}")
+            # ── Local filesystem check (primary) ──────────────────────────────
+            # Templates ship with the app; they are always on local disk.
+            local_path = _cfg.BACKEND_DIR / page.image_path
+            if local_path.exists():
+                results["verified"] += 1
+                logger.debug("Template OK (local): %s", local_path)
+                continue
+
+            # ── Storage backend check (fallback) ──────────────────────────────
+            # Only reached if the file is not on local disk — e.g. if templates
+            # were intentionally moved to blob storage in a future architecture.
             if storage.file_exists(page.image_path):
                 results["verified"] += 1
+                logger.debug("Template OK (storage): %s", page.image_path)
             else:
-                results["missing"].append({"page": page.page_number, "path": page.image_path})
+                results["missing"].append({
+                    "page": page.page_number,
+                    "path": page.image_path,
+                    "local_checked": str(local_path),
+                })
+                logger.warning(
+                    "Template MISSING — not on local disk or in storage: %s",
+                    page.image_path,
+                )
+
         logger.info(
-            f"Template verification for {story_id}: "
-            f"{results['verified']}/{results['total_pages']} found"
+            "Template verification for %s: %d/%d found locally",
+            story_id, results["verified"], results["total_pages"],
         )
         return results
 
