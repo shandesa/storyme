@@ -217,28 +217,69 @@ class AzureBlobStorage(StorageInterface):
     """
 
     def __init__(self, connection_string: str, container_name: str):
+        """
+        Initialise AzureBlobStorage.
+
+        Raises:
+            ValueError   — if connection_string is empty or clearly malformed.
+                           Caught by get_storage() which falls back to LocalStorage.
+            ImportError  — if azure-storage-blob is not installed.
+                           Also caught by get_storage().
+            Exception    — any SDK-level error (bad key, network, etc.).
+                           Also caught by get_storage().
+
+        Design decision:
+            We raise early with a clear, actionable message rather than letting
+            the Azure SDK raise a cryptic KeyError: 'ACCOUNTNAME' (the root cause
+            of the production outage: server crashed at import time because
+            AZURE_STORAGE_CONNECTION_STRING was empty).
+        """
         self.container_name = container_name
 
+        # ── Step 1: Validate connection string BEFORE hitting the SDK ─────────
+        # An empty string causes BlobServiceClient.from_connection_string() to
+        # raise KeyError: 'ACCOUNTNAME' — not helpful. We catch this ourselves.
+        if not connection_string or not connection_string.strip():
+            raise ValueError(
+                "AZURE_STORAGE_CONNECTION_STRING is empty or not set. "
+                "Go to Azure Portal → App Service → Configuration → "
+                "Application settings and add AZURE_STORAGE_CONNECTION_STRING "
+                "with the full connection string from your Storage Account → Access keys. "
+                "The server will fall back to local disk storage until this is corrected."
+            )
+
+        # Basic structure check: a valid Azure Storage connection string must
+        # contain 'AccountName' and either 'AccountKey' or 'SharedAccessSignature'.
+        cs_lower = connection_string.lower()
+        if "accountname" not in cs_lower:
+            raise ValueError(
+                "AZURE_STORAGE_CONNECTION_STRING appears malformed — missing 'AccountName'. "
+                "Copy the full connection string from Azure Portal → Storage Account → Access keys. "
+                "The server will fall back to local disk storage until this is corrected."
+            )
+
+        # ── Step 2: Import SDK (lazy — not at module level) ───────────────────
         try:
             from azure.storage.blob import BlobServiceClient, ContentSettings
-            self._client = BlobServiceClient.from_connection_string(connection_string)
-            self._container = self._client.get_container_client(container_name)
-            self._ContentSettings = ContentSettings
-
-            # Ensure container exists (idempotent)
-            try:
-                self._container.get_container_properties()
-            except Exception:
-                self._container.create_container()
-                logger.info(f"Created Azure container: {container_name}")
-
-            logger.info(f"AzureBlobStorage initialized: container={container_name}")
-
         except ImportError:
             raise ImportError(
-                "azure-storage-blob is required for Azure storage. "
-                "Install with: pip install azure-storage-blob"
+                "azure-storage-blob is not installed. "
+                "Add 'azure-storage-blob' to requirements.txt and redeploy."
             )
+
+        # ── Step 3: Connect and verify container ─────────────────────────────
+        self._client = BlobServiceClient.from_connection_string(connection_string)
+        self._container = self._client.get_container_client(container_name)
+        self._ContentSettings = ContentSettings
+
+        # Ensure container exists (idempotent — safe to call on every startup)
+        try:
+            self._container.get_container_properties()
+        except Exception:
+            self._container.create_container()
+            logger.info(f"Created Azure container: {container_name}")
+
+        logger.info(f"AzureBlobStorage initialized: container={container_name}")
 
     def get_file_path(self, path: str) -> str:
         """Returns a public/SAS URL — currently returns the blob path for internal use."""
@@ -336,28 +377,97 @@ class AzureBlobStorage(StorageInterface):
 
 
 # ============================================================================
-# Factory
+# Factory + Singleton
 # ============================================================================
 
 def get_storage() -> StorageInterface:
+    """
+    Instantiate and return the configured storage backend.
+
+    CRITICAL DESIGN RULE — must never raise at module import time:
+        This function is called as `storage = get_storage()` at module level.
+        Any unhandled exception here crashes the gunicorn worker during import,
+        which kills the entire server before FastAPI registers a single route.
+        The health endpoint never responds, warm-up probes time out, and the
+        frontend shows "Server is warming up..." indefinitely.
+
+        Root cause of the April 2026 production outage:
+            STORAGE_TYPE=azure was set but AZURE_STORAGE_CONNECTION_STRING was
+            empty. BlobServiceClient.from_connection_string('') raised
+            KeyError: 'ACCOUNTNAME'. The exception propagated to module level
+            and crashed every worker on startup.
+
+    Fallback strategy:
+        If the configured backend (azure/s3) fails to initialise for ANY reason
+        (missing env var, bad connection string, network error, missing package),
+        we fall back to LocalStorage and log a CRITICAL warning. The server
+        starts, all routes are available, and file I/O uses local disk.
+        This is far better than a dead server.
+
+        The operator can fix the configuration and restart the app without a
+        code deployment.
+    """
     from core.config import config
 
     if config.STORAGE_TYPE == 'azure':
-        return AzureBlobStorage(
-            connection_string=config.AZURE_STORAGE_CONNECTION_STRING,
-            container_name=config.AZURE_STORAGE_CONTAINER_NAME,
+        conn_str = config.AZURE_STORAGE_CONNECTION_STRING
+        container = config.AZURE_STORAGE_CONTAINER_NAME
+        try:
+            instance = AzureBlobStorage(
+                connection_string=conn_str,
+                container_name=container,
+            )
+            logger.info("Storage backend: Azure Blob Storage")
+            return instance
+        except ValueError as e:
+            # Empty / malformed connection string — configuration error
+            logger.critical(
+                f"AzureBlobStorage configuration error: {e} "
+                "Falling back to LocalStorage. "
+                "Fix AZURE_STORAGE_CONNECTION_STRING in App Service → Configuration."
+            )
+        except ImportError as e:
+            logger.critical(
+                f"AzureBlobStorage import error: {e} "
+                "Falling back to LocalStorage."
+            )
+        except Exception as e:
+            # SDK-level errors: bad key, unreachable endpoint, etc.
+            logger.critical(
+                f"AzureBlobStorage init failed unexpectedly: {type(e).__name__}: {e} "
+                "Falling back to LocalStorage."
+            )
+        # Fallback — server stays alive, operator can fix config and restart
+        logger.warning(
+            "Using LocalStorage as fallback. "
+            "File writes go to local disk and will NOT persist across Azure restarts. "
+            "Set AZURE_STORAGE_CONNECTION_STRING correctly and restart the app."
         )
+        return LocalStorage(base_path=str(config.BACKEND_DIR))
 
     if config.STORAGE_TYPE == 's3':
-        return S3Storage(
-            bucket_name=config.S3_BUCKET_NAME,
-            region=config.S3_REGION,
-            access_key=config.S3_ACCESS_KEY,
-            secret_key=config.S3_SECRET_KEY,
-        )
+        try:
+            instance = S3Storage(
+                bucket_name=config.S3_BUCKET_NAME,
+                region=config.S3_REGION,
+                access_key=config.S3_ACCESS_KEY,
+                secret_key=config.S3_SECRET_KEY,
+            )
+            logger.info("Storage backend: Amazon S3")
+            return instance
+        except Exception as e:
+            logger.critical(
+                f"S3Storage init failed: {type(e).__name__}: {e} "
+                "Falling back to LocalStorage."
+            )
+        return LocalStorage(base_path=str(config.BACKEND_DIR))
 
+    # Default: local filesystem
+    logger.info("Storage backend: LocalStorage (local disk)")
     return LocalStorage(base_path=str(config.BACKEND_DIR))
 
 
-# Singleton
+# Module-level singleton — imported as `from core.storage import storage`.
+# get_storage() is guaranteed not to raise (see docstring above), so this
+# line is safe at import time even when cloud storage is misconfigured.
 storage = get_storage()
