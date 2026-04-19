@@ -1,13 +1,35 @@
 name: "[BETA] Deploy Backend to Azure App Service"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Triggers ONLY on the beta branch.
-# Every push to beta builds the FastAPI backend and deploys it to Azure.
+# Triggers on every push to beta.
+# Deploys FastAPI backend to storyme-backend Azure App Service.
 #
-# Architecture notes (same as main pipeline):
-#   - No venv is created in CI. Azure Oryx (SCM_DO_BUILD_DURING_DEPLOYMENT)
-#     builds antenv/ at deploy time with correct Azure-relative paths.
-#   - Startup command is declared in backend/Procfile (read by Azure automatically).
+# WORKER CLASS PROBLEM & SOLUTION
+# --------------------------------
+# Azure Oryx auto-detects this as a "Flask" app and generates:
+#   gunicorn --timeout 600 --access-logfile '-' server:app
+# This uses gunicorn's default sync (WSGI) worker. FastAPI is ASGI.
+# Result: TypeError: FastAPI.__call__() missing 1 required positional argument: 'send'
+#
+# Approaches tried and why they fail:
+#   Procfile: Oryx reads /home/site/wwwroot/Procfile — but our Procfile is
+#     INSIDE the compressed tarball at /home/site/wwwroot/output.tar.zst,
+#     extracted to /tmp/8de9d.../ — Oryx never finds it. Falls back to
+#     auto-detect every time.
+#   gunicorn.conf.py: Should be read from CWD by gunicorn. But Oryx's
+#     generated script's CWD is unreliable across versions — confirmed not
+#     working by 5+ consecutive deployments still showing "Using worker: sync".
+#   startup-command in this action: NOT supported with publish-profile auth
+#     (per azure/webapps-deploy@v2 source code).
+#
+# THE FIX THAT WORKS:
+#   GUNICORN_CMD_ARGS is read by gunicorn before anything else and merged
+#   directly into sys.argv. This takes priority over config files and Oryx's
+#   generated command. We set it as an Azure App Setting via the Kudu REST API
+#   using the same credentials embedded in the publish profile secret.
+#
+# Architecture notes:
+#   - No venv is created in CI. Azure Oryx builds antenv/ at deploy time.
 #   - Only the backend/ directory is packaged and deployed.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
@@ -24,7 +46,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # ── Python setup & dependency validation ──────────────────────────────
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -32,20 +53,97 @@ jobs:
 
       - name: Validate dependencies
         run: |
-          # Validate that requirements.txt installs cleanly in CI.
-          #
-          # IMPORTANT: We intentionally do NOT create a venv inside backend/.
-          # azure/webapps-deploy packages the entire backend/ directory.
-          # A venv created here would contain absolute symlinks pointing to the
-          # GitHub runner's Python (/opt/hostedtoolcache/...) which do NOT exist
-          # on Azure App Service — causing startup.sh to fail and uvicorn to
-          # never start (manifests as 502/503 errors with broken CORS headers).
-          #
-          # Azure Oryx (SCM_DO_BUILD_DURING_DEPLOYMENT=true, the default) creates
-          # antenv/ at deploy time with correct Azure-relative paths.
-          # startup.sh then activates that venv.
+          # Validate requirements.txt installs cleanly.
+          # Do NOT create a venv inside backend/ — it would be packaged and
+          # deployed with absolute symlinks pointing to the CI runner's Python,
+          # which don't exist on Azure. Oryx builds the venv at deploy time.
           pip install --upgrade pip
           pip install -r backend/requirements.txt
+
+      # ── Set GUNICORN_CMD_ARGS via Kudu REST API ────────────────────────────
+      # This is the definitive fix for the WSGI/ASGI worker mismatch.
+      #
+      # Kudu is Azure App Service's deployment engine. Its REST API accepts
+      # the same Basic auth credentials embedded in the publish profile.
+      # Setting GUNICORN_CMD_ARGS as an App Setting means gunicorn will merge
+      # '-k uvicorn.workers.UvicornWorker' into its argv on every startup,
+      # regardless of what command Oryx auto-generates.
+      #
+      # This step is idempotent — safe to run on every deployment.
+      - name: Force UvicornWorker via GUNICORN_CMD_ARGS (Kudu API)
+        shell: python
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        run: |
+          import os, json, base64, ssl, urllib.request, urllib.error
+          import xml.etree.ElementTree as ET
+
+          profile_xml = os.environ['PUBLISH_PROFILE']
+
+          # Parse publish profile XML to extract MSDeploy (Kudu) credentials.
+          # The publish profile contains two profiles: MSDeploy and FTP.
+          # MSDeploy credentials are identical to the Kudu SCM API credentials.
+          root = ET.fromstring(profile_xml)
+          kudu_url = user = password = None
+
+          for profile in root.findall('publishProfile'):
+              if profile.get('publishMethod') == 'MSDeploy':
+                  raw_url = profile.get('publishUrl', '').strip()
+                  # Strip port if present (e.g. "foo.scm.azurewebsites.net:443")
+                  kudu_url = raw_url.split(':')[0]
+                  user     = profile.get('userName', '').strip()
+                  password = profile.get('userPWD', '').strip()
+                  break
+
+          if not all([kudu_url, user, password]):
+              print('ERROR: Could not extract Kudu credentials from publish profile')
+              raise SystemExit(1)
+
+          settings_url = f'https://{kudu_url}/api/settings'
+          print(f'Kudu settings endpoint: {settings_url}')
+
+          # Set GUNICORN_CMD_ARGS.
+          # -k uvicorn.workers.UvicornWorker — ASGI worker required for FastAPI
+          # --timeout 300                    — face blend + PDF can take 15-60s
+          # --workers 2                      — B1: 1 vCPU, 1.75 GB RAM
+          # --keep-alive 5                   — warmup poller connections
+          settings = {
+              'GUNICORN_CMD_ARGS': (
+                  '-k uvicorn.workers.UvicornWorker '
+                  '--timeout 300 '
+                  '--workers 2 '
+                  '--keep-alive 5'
+              )
+          }
+
+          data        = json.dumps(settings).encode('utf-8')
+          credentials = base64.b64encode(f'{user}:{password}'.encode()).decode()
+
+          req = urllib.request.Request(
+              settings_url,
+              data=data,
+              method='PUT',
+              headers={
+                  'Content-Type':  'application/json',
+                  'Authorization': f'Basic {credentials}',
+              },
+          )
+
+          # Use default SSL context (validates Azure's cert)
+          ctx = ssl.create_default_context()
+
+          try:
+              with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
+                  print(f'App setting saved — HTTP {resp.status}')
+                  print('GUNICORN_CMD_ARGS=-k uvicorn.workers.UvicornWorker set successfully')
+          except urllib.error.HTTPError as e:
+              body = e.read().decode('utf-8', errors='replace')
+              print(f'Kudu API error {e.code}: {e.reason}')
+              print(f'Response body: {body}')
+              raise SystemExit(1)
+          except Exception as e:
+              print(f'Unexpected error calling Kudu API: {e}')
+              raise SystemExit(1)
 
       # ── Deploy ────────────────────────────────────────────────────────────
       - name: Deploy to Azure Web App
@@ -53,7 +151,4 @@ jobs:
         with:
           app-name: storyme-backend
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          # Only package the backend/ directory — no frontend assets, no tests
           package: backend
-          # NOTE: startup-command is NOT valid when using publish-profile auth.
-          # Startup is declared via backend/Procfile, which Azure reads automatically.
