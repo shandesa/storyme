@@ -342,44 +342,39 @@ async def generate_storybook(
                 logger.warning("PDF upload failed (non-fatal): %s", upload_err)
                 blob_pdf_path = None
 
-        # ── Persist GenerationSession to MongoDB ──────────────────────────────
-        # This enables the image quality evaluator to discover all generated
-        # images by querying generation_sessions collection.
-        # Non-fatal: PDF download proceeds even if MongoDB write fails.
+        # ── Persist GenerationSession via session_store abstraction ─────────────
+        # session_store routes to AzureTableSessionStore, MongoSessionStore,
+        # or NullSessionStore based on available environment configuration.
+        # This is non-fatal — PDF download proceeds even if the write fails.
         try:
-            from models.generation import GenerationSession, GenerationStatus, PageResult
+            from core.session_store import session_store as _store
             from datetime import datetime, timezone as _tz
-            session = GenerationSession(
-                generation_id=gen_id,
-                child_name=child_name,
-                story_id=story.story_id,
-                gender=gender,
-                generation_mode=gen_mode,
-                status=GenerationStatus.COMPLETE,
-                pdf_blob_path=blob_pdf_path,
-                pdf_filename=pdf_filename,
-                pages_succeeded=succeeded,
-                pages_failed=failed,
-                total_pages=total_pages,
-                completed_at=datetime.now(_tz.utc).isoformat(),
-                page_results=[
-                    PageResult(
-                        page_number=pd["page_number"],
-                        blob_path=pd.get("blob_path"),
-                        succeeded=True,
-                    )
+            session_dict = {
+                "generation_id":   gen_id,
+                "child_name":      child_name,
+                "story_id":        story.story_id,
+                "gender":          gender,
+                "generation_mode": str(gen_mode.value if hasattr(gen_mode, "value") else gen_mode),
+                "status":          "complete",
+                "pdf_blob_path":   blob_pdf_path or "",
+                "pdf_filename":    pdf_filename,
+                "pages_succeeded": succeeded,
+                "pages_failed":    failed,
+                "total_pages":     total_pages,
+                "completed_at":    datetime.now(_tz.utc).isoformat(),
+                "page_results":    [
+                    {
+                        "page_number": pd["page_number"],
+                        "blob_path":   pd.get("blob_path") or "",
+                        "succeeded":   True,
+                    }
                     for pd in pages_data if "page_number" in pd
                 ],
-            )
-            from server import db as _db
-            await _db.generation_sessions.replace_one(
-                {"generation_id": gen_id},
-                session.model_dump(),
-                upsert=True,
-            )
-            logger.info("GenerationSession %s persisted to MongoDB", gen_id[:8])
+            }
+            await _store.write_session(session_dict)
+            logger.info("Session %s persisted via %s", gen_id[:8], type(_store).__name__)
         except Exception as db_err:
-            logger.warning("MongoDB session persist failed (non-fatal): %s", db_err)
+            logger.warning("Session persist failed (non-fatal): %s", db_err)
 
         # ── Return PDF as download ────────────────────────────────────────────
         download_name = f"{_safe_name(child_name)}_storybook.pdf"

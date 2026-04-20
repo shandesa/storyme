@@ -148,7 +148,10 @@ async def health():
         await db.command("ping")
         mongo_status = "up"
     except Exception as e:
-        mongo_status = f"error: {e}"
+        mongo_status = f"unavailable: {e}"
+
+    from core.session_store import session_store as _ss
+    session_store_type = type(_ss).__name__
 
     return {
         "status": "healthy",
@@ -158,6 +161,7 @@ async def health():
         "system_deps_installed": _install_system_deps._deps_ok,
         "generation_v1_available": generate_router is not None,
         "generation_v2_available": generate_v2_router is not None,
+        "session_store": session_store_type,
         "dependencies": {
             "mongodb": mongo_status,
         },

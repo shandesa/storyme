@@ -30,5 +30,11 @@ python-multipart
 # Cloud storage
 azure-storage-blob
 
-# Async MongoDB driver
+# Async MongoDB driver (optional — used only if MONGO_URL is set)
+# If not installed, MongoSessionStore is unavailable but AzureTableSessionStore
+# and NullSessionStore work without it.
 motor
+
+# Azure Table Storage — session index for image quality evaluator
+# Uses the same Storage Account as blob storage (no extra subscription needed).
+azure-data-tables
