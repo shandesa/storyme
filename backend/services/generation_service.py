@@ -62,16 +62,33 @@ class GenerationService:
           template  → composites face onto a pre-designed PNG template (production)
           dalle     → generates base image via DALL-E then composites (experimental)
         """
-        if mode == "template":
+        # ── Mode normalisation (defensive) ────────────────────────────────────
+        # generate_v2.py normalises "opencv"→"template" and "ai"→"dalle"
+        # before calling here. This layer accepts both vocabularies as a
+        # second line of defence, so a future caller cannot get HTTP 500
+        # from an unexpected mode string.
+        _internal_mode = {
+            "opencv":   "template",
+            "ai":       "dalle",
+            "template": "template",
+            "dalle":    "dalle",
+        }.get(mode, "template")
+
+        if _internal_mode != mode:
+            import logging as _log
+            _log.getLogger(__name__).warning(
+                "generate_preview_stateless: mode %r normalised to %r",
+                mode, _internal_mode,
+            )
+
+        if _internal_mode == "template":
             return await self._generate_preview_from_template(
                 child_name, story_id, face_image_path
             )
-        elif mode == "dalle":
+        else:  # "dalle"
             return await self._generate_preview_from_dalle(
                 child_name, story_id, face_image_path
             )
-        else:
-            raise ValueError(f"Invalid mode: {mode!r}. Expected 'template' or 'dalle'.")
 
     # ============================================================
     # TEMPLATE-BASED GENERATION (PRIMARY / PRODUCTION)
