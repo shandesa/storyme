@@ -230,3 +230,50 @@ You should see folders named by generation ID, each containing `pages/page_01.pn
 ---
 
 *All evaluation is local — no OpenAI, no Vision API, no external services. Just OpenCV and MediaPipe.*
+
+---
+
+## What the Evaluator Does Not Do
+
+### It does not fix anything
+
+The evaluator is a measurement instrument, not a repair tool. When a scene scores 0.54 and the report shows `lighting_match` and `expression` as the failing attributes, nothing in the codebase changes automatically. The evaluator's job ends at telling you precisely what is wrong and where.
+
+Improving the face blend quality is a separate manual engineering step:
+
+```
+Evaluator reports → Engineer reads pattern → Engineer modifies face_blend pipeline
+→ Redeploy backend → Generate new storybooks → Run evaluator again → Confirm score improved
+```
+
+For example: if `lighting_match` consistently fails on landscape scenes (scene_06 through scene_10), that tells an engineer to look at the LAB colour matching step in `services/face_blend_service.py` for those template dimensions — not at the portrait scenes where it passes. The evaluator gives you the precision to know exactly where to look.
+
+### It does not block live generation
+
+The evaluator has no role in the live generation flow. When a parent clicks "Generate Full Book", the backend generates the storybook, saves the page images to Azure Blob, and returns the PDF. None of that waits for evaluation. A parent never experiences any delay from this system.
+
+---
+
+## Live Flow vs Offline — How They Relate
+
+These are two entirely separate processes that share only Azure Blob Storage as a communication channel.
+
+**Live flow (always running):**
+```
+Parent clicks Generate → POST /api/generate runs → page images saved to Azure Blob
+                       → session record written to Azure Table → PDF returned to parent
+```
+
+**Evaluator (runs separately, on demand):**
+```
+You run: python tests/evaluator/run_evaluator.py
+         → reads session records from Azure Table
+         → downloads page images from Azure Blob
+         → scores each image locally (OpenCV + MediaPipe)
+         → prints report + saves to reports/
+```
+
+The evaluator can run while the app is serving live traffic. It only reads from storage — it never writes to the generation pipeline, never calls any endpoint, and never delays any user. You can run it at 3am, run it in a CI job every night, or run it ad-hoc after a deployment. It does not matter when it runs as long as images exist in blob storage.
+
+**The loop behaviour** (`--poll-interval`) is just re-running the evaluator repeatedly. It does not trigger new generations — it only checks whether newly generated images (produced naturally by users or tests in the meantime) meet the quality bar.
+
