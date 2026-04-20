@@ -1,18 +1,57 @@
 """Story Service with Registry
 
 Manages story metadata and provides access to stories by ID or index.
-Uses storage abstraction to load page templates.
+
+Template structure (new, gendered):
+  backend/templates/stories/{story_id}/{gender}/templates/scene_XX.png
+  backend/templates/stories/{story_id}/{gender}/references/scene_XX.png
+
+Face coordinates sourced from tests/playground/face_blend.py face_config,
+which were measured against the actual illustrated scene images.
+
+Gender variants: male | female | neutral (same templates currently,
+separate paths so per-gender art can be swapped in without code changes).
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
+from pathlib import Path
 from models.story import (
     Story, Page, FacePlacement, NamePlacement,
     StoryMetadata, FaceCircle, NameTextRegion,
 )
+from models.generation import Gender
+from core.storage_paths import (
+    story_template_path, story_reference_path, GENDER_NEUTRAL,
+)
 from core.storage import storage
+from core.config import config
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ─── Face coordinates (from playground/face_blend.py) ─────────────────────────
+# These were measured against the actual illustrated scene images.
+# Keys are scene filenames (scene_01.png ... scene_10.png).
+# Values are pixel coords in the template image: x, y = top-left, w/h = size.
+#
+# scenes 01-05: portrait orientation (1024 × 1536)
+# scenes 06-10: landscape orientation (1536 × 1024)
+
+FACE_COORDS: Dict[str, Dict[str, int]] = {
+    "scene_01.png": {"x": 297, "y": 608, "w": 192, "h": 180},
+    "scene_02.png": {"x": 280, "y": 848, "w": 220, "h": 185},
+    "scene_03.png": {"x": 365, "y": 764, "w": 200, "h": 175},
+    "scene_04.png": {"x": 290, "y": 478, "w": 193, "h": 178},
+    "scene_05.png": {"x": 180, "y": 524, "w": 173, "h": 158},
+    "scene_06.png": {"x": 586, "y": 148, "w": 116, "h": 122},
+    "scene_07.png": {"x": 586, "y": 148, "w": 116, "h": 122},
+    "scene_08.png": {"x": 586, "y": 148, "w": 116, "h": 122},
+    "scene_09.png": {"x": 586, "y": 148, "w": 116, "h": 122},
+    "scene_10.png": {"x": 586, "y": 148, "w": 116, "h": 122},
+}
+
+# Scene files ordered by page number (1-based)
+SCENE_FILES = [f"scene_{i:02d}.png" for i in range(1, 11)]
 
 
 class StoryRegistry:
@@ -20,115 +59,91 @@ class StoryRegistry:
 
     def __init__(self):
         self._stories: List[Story] = self._initialize_stories()
-        logger.info(f"StoryRegistry initialized with {len(self._stories)} stories")
+        logger.info("StoryRegistry initialized with %d stories", len(self._stories))
+
+    def _make_pages(self, story_id: str, gender: str) -> List[Page]:
+        """
+        Build the page list for a story using the gendered template paths
+        and face coordinates from FACE_COORDS.
+
+        Template local path pattern:
+          templates/stories/{story_id}/{gender}/templates/scene_XX.png
+
+        This relative path is resolved against config.BACKEND_DIR by
+        image_service.compose_page() and verify_story_templates().
+        """
+        story_texts = _FOREST_OF_SMILES_TEXTS  # per-story text dict
+
+        pages = []
+        for i, scene_file in enumerate(SCENE_FILES, start=1):
+            coords = FACE_COORDS[scene_file]
+            # Relative path from backend/ root — resolved locally by image_service
+            template_rel = f"templates/stories/{story_id}/{gender}/templates/{scene_file}"
+
+            # Page 1 has special name text regions baked into the template
+            name_text_regions = None
+            face_circle = None
+            name_placement = None
+
+            if i == 1:
+                # Page 1 has a white face circle and baked-in {name} text
+                # (These values are for the page1 template which is the illustrated
+                # scene_01 from the playground)
+                name_text_regions = [
+                    NameTextRegion(
+                        x1=50, y1=30, x2=700, y2=80,
+                        line_text="{name} and the Forest of Smiles",
+                    ),
+                ]
+                name_placement = NamePlacement(
+                    x=375, y=55, font_size=32, color=(134, 105, 54),
+                )
+            else:
+                name_placement = NamePlacement(
+                    x=512, y=1480, font_size=36, color=(51, 51, 51),
+                )
+
+            pages.append(Page(
+                page_number=i,
+                text=story_texts.get(i, f"Page {i} of the story."),
+                face_placement=FacePlacement(
+                    x=coords["x"],
+                    y=coords["y"],
+                    width=coords["w"],
+                    height=coords["h"],
+                    angle=0.0,
+                ),
+                image_path=template_rel,
+                name_placement=name_placement,
+                face_circle=face_circle,
+                name_text_regions=name_text_regions,
+            ))
+
+        return pages
 
     def _initialize_stories(self) -> List[Story]:
         stories = []
 
-        # ================================================================
-        # Story 1: Forest of Smiles
-        # ================================================================
-        # Page 1: 1536x1024 illustrated template with:
-        #   - White face circle at center=(985,382), radius=135
-        #   - Baked-in "{name}" text at ~(y=186-210, x=270-410)
-        #   - Character looking slightly down-left, brown hair, yellow shirt
-        #   - Text color: dark brown ~RGB(134, 105, 54)
-        #
-        # Pages 2-10: 612x792 solid-color backgrounds.
-        # ================================================================
+        # ── Forest of Smiles ──────────────────────────────────────────────────
+        # Templates: tests/playground/templates/forrest_of_smiles/scene_01-10.png
+        # Copied to:  backend/templates/stories/forest_of_smiles/{gender}/templates/
+        # Face coords: FACE_COORDS (measured from actual illustrated scenes)
 
         forest_story = Story(
             story_id="forest_of_smiles",
             title="{name} and the Forest of Smiles",
             age_group="3-6",
-            description="A magical adventure where your child meets friendly animals and learns about kindness, peace, and joy.",
-            pages=[
-                Page(
-                    page_number=1,
-                    text="One sunny morning, {name} walked into a beautiful forest filled with soft light and gentle sounds.\n\nEverything felt magical... as if the forest was waiting just for {name}.",
-                    face_placement=FacePlacement(x=850, y=247, width=270, height=270, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page1.png",
-                    face_circle=FaceCircle(cx=985, cy=382, radius=135),
-                    name_text_regions=[
-                        NameTextRegion(x1=146, y1=110, x2=676, y2=150,
-                                       line_text="{name} and the Forest of Smiles"),
-                        NameTextRegion(x1=197, y1=172, x2=616, y2=208,
-                                       line_text='"Hello {name}! Welcome to'),
-                    ],
-                    name_placement=NamePlacement(x=335, y=197, font_size=28, color=(134, 105, 54)),
-                ),
-                Page(
-                    page_number=2,
-                    text='A fluffy rabbit hopped closer and said,\n"Hello {name}! Welcome to the Forest of Smiles."\n\n{name} blinked... the rabbit could talk!',
-                    face_placement=FacePlacement(x=230, y=120, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page2.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=3,
-                    text='Above them, birds sang sweet songs.\n"Sing with us, {name}!" they chirped happily.\n\n{name} smiled and listened to the melody.',
-                    face_placement=FacePlacement(x=240, y=130, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page3.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=4,
-                    text='A big gentle elephant came forward and said,\n"Kindness makes the forest shine."\n\n{name} touched its trunk and felt happy.',
-                    face_placement=FacePlacement(x=230, y=120, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page4.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=5,
-                    text='A slow turtle whispered,\n"Take your time, {name}. Every moment is special."\n\n{name} walked slowly... and noticed tiny flowers.',
-                    face_placement=FacePlacement(x=240, y=130, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page5.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=6,
-                    text='A monkey swung down laughing,\n"Let\'s play, {name}!"\n\n{name} giggled and clapped with joy.',
-                    face_placement=FacePlacement(x=230, y=120, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page6.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=7,
-                    text='A deer stood quietly and said,\n"Peace lives in your heart, {name}."\n\n{name} took a deep breath and smiled softly.',
-                    face_placement=FacePlacement(x=240, y=130, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page7.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=8,
-                    text='As evening came, tiny fireflies glowed around {name}.\n"You bring light wherever you go," they whispered.\n\n{name} felt warm and special.',
-                    face_placement=FacePlacement(x=230, y=120, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page8.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=9,
-                    text='A big tree spoke gently,\n"You are kind, brave, and wonderful, {name}."\n\n{name} hugged the tree with love.',
-                    face_placement=FacePlacement(x=240, y=130, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page9.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-                Page(
-                    page_number=10,
-                    text='As {name} walked home, the forest whispered,\n"Come back anytime."\n\nAnd {name} knew... the smiles would always stay in the heart.',
-                    face_placement=FacePlacement(x=230, y=120, width=120, height=120, angle=0.0),
-                    image_path="templates/stories/forest_of_smiles/page10.png",
-                    name_placement=NamePlacement(x=306, y=700, font_size=36, color=(51, 51, 51)),
-                ),
-            ],
+            description=(
+                "A magical adventure where your child meets friendly animals "
+                "and learns about kindness, peace, and joy."
+            ),
+            pages=self._make_pages("forest_of_smiles", GENDER_NEUTRAL),
         )
-
         stories.append(forest_story)
+
         return stories
 
-    # ================================================================
-    # Access Methods
-    # ================================================================
+    # ─── Access methods ───────────────────────────────────────────────────────
 
     def get_story_by_id(self, story_id: str) -> Optional[Story]:
         for story in self._stories:
@@ -159,35 +174,23 @@ class StoryRegistry:
                 return storage.get_file_path(page.image_path)
         return None
 
+    def get_reference_path(
+        self, story_id: str, gender: str, scene_filename: str,
+    ) -> str:
+        """
+        Return the local absolute path to a reference image for a given scene.
+        Reference images are used by face_blend_service for landmark alignment.
+        """
+        rel = story_reference_path(story_id, gender, scene_filename)
+        return str(config.BACKEND_DIR / rel)
+
     def verify_story_templates(self, story_id: str) -> dict:
         """
         Verify that all template image files exist for a story.
 
-        Templates are bundled assets deployed with the application — they live
-        on the local filesystem inside the backend package (templates/stories/...).
-        They are NOT stored in Azure Blob / S3; those backends are for user
-        uploads and generated output only.
-
-        Verification strategy (local-first):
-          1. Check the local filesystem using config.BACKEND_DIR / image_path.
-             This is fast (<1ms per file), requires no network, and is the
-             authoritative source — image_service.compose_page() also reads
-             templates from local disk using exactly the same path.
-          2. Only if the local file is missing, fall back to checking the
-             configured storage backend (blob/S3). This handles any future
-             scenario where templates are stored remotely.
-
-        Previous behaviour (broken):
-          Called storage.file_exists() directly for every page. When
-          STORAGE_TYPE=azure, this made a HEAD request to Azure Blob for
-          EACH template file. Since templates are never uploaded to blob,
-          every check returned 404 — generating 20+ unnecessary HTTP round-
-          trips and 404 errors in the log on every server restart, making
-          real errors hard to spot.
+        Checks local filesystem only — templates are bundled assets shipped
+        with the app. They are never in Azure Blob (blob = user uploads + PDFs).
         """
-        from pathlib import Path
-        from core.config import config as _cfg
-
         story = self.get_story_by_id(story_id)
         if not story:
             return {"error": f"Story not found: {story_id}"}
@@ -200,20 +203,10 @@ class StoryRegistry:
         }
 
         for page in story.pages:
-            # ── Local filesystem check (primary) ──────────────────────────────
-            # Templates ship with the app; they are always on local disk.
-            local_path = _cfg.BACKEND_DIR / page.image_path
+            local_path = config.BACKEND_DIR / page.image_path
             if local_path.exists():
                 results["verified"] += 1
                 logger.debug("Template OK (local): %s", local_path)
-                continue
-
-            # ── Storage backend check (fallback) ──────────────────────────────
-            # Only reached if the file is not on local disk — e.g. if templates
-            # were intentionally moved to blob storage in a future architecture.
-            if storage.file_exists(page.image_path):
-                results["verified"] += 1
-                logger.debug("Template OK (storage): %s", page.image_path)
             else:
                 results["missing"].append({
                     "page": page.page_number,
@@ -221,8 +214,8 @@ class StoryRegistry:
                     "local_checked": str(local_path),
                 })
                 logger.warning(
-                    "Template MISSING — not on local disk or in storage: %s",
-                    page.image_path,
+                    "Template MISSING: %s — expected at %s",
+                    page.image_path, local_path,
                 )
 
         logger.info(
@@ -230,6 +223,63 @@ class StoryRegistry:
             story_id, results["verified"], results["total_pages"],
         )
         return results
+
+
+# ─── Story texts ──────────────────────────────────────────────────────────────
+# {name} placeholders are replaced with the child's name at render time.
+
+_FOREST_OF_SMILES_TEXTS: Dict[int, str] = {
+    1: (
+        "One sunny morning, {name} walked into a beautiful forest "
+        "filled with soft light and gentle sounds.\n\n"
+        "Everything felt magical... as if the forest was waiting just for {name}."
+    ),
+    2: (
+        'A fluffy rabbit hopped closer and said,\n'
+        '"Hello {name}! Welcome to the Forest of Smiles."\n\n'
+        "{name} blinked... the rabbit could talk!"
+    ),
+    3: (
+        'Above them, birds sang sweet songs.\n'
+        '"Sing with us, {name}!" they chirped happily.\n\n'
+        "{name} smiled and listened to the melody."
+    ),
+    4: (
+        'A big gentle elephant came forward and said,\n'
+        '"Kindness makes the forest shine."\n\n'
+        "{name} touched its trunk and felt happy."
+    ),
+    5: (
+        'A slow turtle whispered,\n'
+        '"Take your time, {name}. Every moment is special."\n\n'
+        "{name} walked slowly... and noticed tiny flowers."
+    ),
+    6: (
+        'A monkey swung down laughing,\n'
+        '"Let\'s play, {name}!"\n\n'
+        "{name} giggled and clapped with joy."
+    ),
+    7: (
+        'A deer stood quietly and said,\n'
+        '"Peace lives in your heart, {name}."\n\n'
+        "{name} took a deep breath and smiled softly."
+    ),
+    8: (
+        'As evening came, tiny fireflies glowed around {name}.\n'
+        '"You bring light wherever you go," they whispered.\n\n'
+        "{name} felt warm and special."
+    ),
+    9: (
+        'A big tree spoke gently,\n'
+        '"You are kind, brave, and wonderful, {name}."\n\n'
+        "{name} hugged the tree with love."
+    ),
+    10: (
+        'As {name} walked home, the forest whispered,\n'
+        '"Come back anytime."\n\n'
+        "And {name} knew... the smiles would always stay in the heart."
+    ),
+}
 
 
 # Singleton

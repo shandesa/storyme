@@ -4,17 +4,14 @@
  * User flow:
  *   INPUT → PREVIEWING → PREVIEW → GENERATING → COMPLETE
  *
- * Why the "Proceed" button was broken (root cause):
- *   handleProceed() had `if (!sessionId) return` — but the preview endpoint
- *   never returned a session_id (stateless design). The button silently did
- *   nothing. Additionally, the proceed/status/download endpoints it called
- *   (/api/v2/generate/proceed, /status, /download) never existed in the backend.
+ * Generation mode selector (new):
+ *   "Classic Storybook" (opencv, default) — fast face blend, no AI cost
+ *   "AI-Powered Storybook" (ai) — model-based scene generation
+ *   Mode is sent with both preview and full-generation requests.
  *
- * Fix:
- *   handleProceed() now calls POST /api/generate directly (the existing v1
- *   endpoint) with name + image + story_id. It receives a PDF blob in response
- *   and triggers an immediate browser download. No session or polling needed —
- *   the request waits for the full PDF (up to GENERATE_TIMEOUT_MS).
+ * Gender selector (new):
+ *   neutral (default) | male | female
+ *   Selects which illustrated template set to use.
  */
 
 import { useState, useEffect } from "react";
@@ -35,17 +32,16 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-// ─── API endpoints ─────────────────────────────────────────────────────────
+// ─── API ────────────────────────────────────────────────────────────────────
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API_V2      = `${BACKEND_URL}/api/v2`;   // preview + stories
-const API_V1      = `${BACKEND_URL}/api`;       // full PDF generation
+const API_V2      = `${BACKEND_URL}/api/v2`;
+const API_V1      = `${BACKEND_URL}/api`;
 
-// Timeouts
-const PREVIEW_TIMEOUT_MS  =  120_000;  // 2 min for page-1 preview
-const GENERATE_TIMEOUT_MS =  600_000;  // 10 min for full storybook PDF
+const PREVIEW_TIMEOUT_MS  =  120_000;
+const GENERATE_TIMEOUT_MS =  600_000;
 
-// ─── Steps ─────────────────────────────────────────────────────────────────
+// ─── Steps ──────────────────────────────────────────────────────────────────
 
 const STEPS = {
   INPUT:      "input",
@@ -55,37 +51,59 @@ const STEPS = {
   COMPLETE:   "complete",
 };
 
-// ─── Component ─────────────────────────────────────────────────────────────
+// ─── Generation mode options (shown in UI dropdown) ──────────────────────────
+// Backend values: "opencv" | "ai"
+const GENERATION_MODES = [
+  {
+    value: "opencv",
+    label: "Classic Storybook",
+    description: "Fast face personalisation using computer vision (recommended)",
+  },
+  {
+    value: "ai",
+    label: "AI-Powered Storybook",
+    description: "AI generates each scene — slower but highly creative",
+  },
+];
+
+// ─── Gender options ──────────────────────────────────────────────────────────
+const GENDER_OPTIONS = [
+  { value: "neutral", label: "Neutral" },
+  { value: "male",    label: "Boy" },
+  { value: "female",  label: "Girl" },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const navigate = useNavigate();
 
-  const [step, setStep]             = useState(STEPS.INPUT);
-  const [childName, setChildName]   = useState("");
+  const [step, setStep]                 = useState(STEPS.INPUT);
+  const [childName, setChildName]       = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);   // local object URL for UI display
-  const [stories, setStories]       = useState([]);
-  const [selectedStory, setSelectedStory] = useState("forest_of_smiles");
-  const [previewImage, setPreviewImage]   = useState(null);  // base64 preview from backend
-  const [pdfBlob, setPdfBlob]       = useState(null);   // final PDF blob for download
-  const [statusMessage, setStatusMessage] = useState("");
-  const [totalPages, setTotalPages] = useState(0);
+  const [previewUrl, setPreviewUrl]     = useState(null);
+  const [stories, setStories]           = useState([]);
+  const [selectedStory, setSelectedStory]   = useState("forest_of_smiles");
+  const [generationMode, setGenerationMode] = useState("opencv");  // "opencv" | "ai"
+  const [gender, setGender]                 = useState("neutral");
+  const [previewImage, setPreviewImage]     = useState(null);
+  const [pdfBlob, setPdfBlob]               = useState(null);
+  const [statusMessage, setStatusMessage]   = useState("");
+  const [totalPages, setTotalPages]         = useState(0);
 
-  // ── Fetch story list on mount ─────────────────────────────────────────────
-
+  // Fetch story list on mount
   useEffect(() => {
     axios.get(`${API_V2}/stories`)
       .then((res) => setStories(res.data.stories || []))
       .catch(() => {});
   }, []);
 
-  // ── File handling ─────────────────────────────────────────────────────────
+  // ── File handling ──────────────────────────────────────────────────────────
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) {
+    if (!["image/jpeg","image/jpg","image/png","image/webp"].includes(file.type)) {
       toast.error("Please upload a valid image (JPG, PNG, or WEBP)");
       return;
     }
@@ -99,7 +117,7 @@ export default function HomePage() {
     reader.readAsDataURL(file);
   };
 
-  // ── STEP 1 → STEP 2: Generate page-1 preview ─────────────────────────────
+  // ── Preview ────────────────────────────────────────────────────────────────
 
   const handlePreview = async (e) => {
     e.preventDefault();
@@ -114,16 +132,16 @@ export default function HomePage() {
       formData.append("name",     childName.trim());
       formData.append("image",    selectedFile);
       formData.append("story_id", selectedStory);
+      formData.append("mode",     generationMode);
+      formData.append("gender",   gender);
 
       const res = await axios.post(`${API_V2}/generate/preview`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: PREVIEW_TIMEOUT_MS,
       });
 
-      // The story's total page count (for display in UI)
       const story = stories.find((s) => s.story_id === selectedStory);
       setTotalPages(story?.total_pages || 10);
-
       setPreviewImage(res.data.preview_image);
       setStep(STEPS.PREVIEW);
       toast.success("Preview ready — review page 1 and proceed.");
@@ -134,17 +152,7 @@ export default function HomePage() {
     }
   };
 
-  // ── STEP 2 → STEP 3: Generate full storybook PDF ─────────────────────────
-  //
-  // Calls POST /api/generate (v1) which:
-  //   1. Composites every page with the child's face
-  //   2. Generates a PDF
-  //   3. Stores the PDF to Azure Blob at pdfs/{name}/{story}/{file}.pdf
-  //   4. Returns the PDF as a file download response
-  //
-  // We receive it as a blob, store it in state, and trigger a browser download.
-  // The COMPLETE step shows a re-download button in case the auto-download
-  // was blocked by the browser.
+  // ── Full generation ────────────────────────────────────────────────────────
 
   const handleProceed = async () => {
     if (!selectedFile || !childName.trim()) {
@@ -154,28 +162,25 @@ export default function HomePage() {
     }
 
     setStep(STEPS.GENERATING);
-    setStatusMessage("Generating your personalised storybook…");
+    const modeLabel = GENERATION_MODES.find((m) => m.value === generationMode)?.label || generationMode;
+    setStatusMessage(`Generating your personalised storybook using ${modeLabel}…`);
 
     try {
       const formData = new FormData();
       formData.append("name",     childName.trim());
       formData.append("image",    selectedFile);
       formData.append("story_id", selectedStory);
+      formData.append("mode",     generationMode);
+      formData.append("gender",   gender);
 
-      // POST /api/generate — returns the full PDF as application/pdf
       const res = await axios.post(`${API_V1}/generate`, formData, {
         headers:      { "Content-Type": "multipart/form-data" },
-        responseType: "blob",   // receive raw bytes for immediate download
+        responseType: "blob",
         timeout:      GENERATE_TIMEOUT_MS,
-        onUploadProgress: () => {
-          setStatusMessage("Uploading photo…");
-        },
       });
 
       const blob = new Blob([res.data], { type: "application/pdf" });
       setPdfBlob(blob);
-
-      // Trigger automatic browser download
       _downloadBlob(blob, `${childName.replace(/\s+/g, "_")}_storybook.pdf`);
 
       setStep(STEPS.COMPLETE);
@@ -183,80 +188,54 @@ export default function HomePage() {
       toast.success("Storybook generated! Download started automatically.");
     } catch (err) {
       console.error("Full generation failed:", err);
-
-      // Axios wraps blob error responses — try to parse the error message
       let detail = "Generation failed. Please try again.";
       if (err.response?.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
           const json = JSON.parse(text);
           detail = json.detail || detail;
-        } catch {
-          /* ignore parse error */
-        }
+        } catch { /* ignore */ }
       } else if (err.response?.data?.detail) {
         detail = err.response.data.detail;
       } else if (err.code === "ECONNABORTED") {
-        detail = "Generation timed out. The server may be busy — please try again.";
+        detail = "Generation timed out — please try again.";
       }
-
       toast.error(detail);
-      setStep(STEPS.PREVIEW);  // go back to preview so user can retry
+      setStep(STEPS.PREVIEW);
     }
   };
 
-  // ── Re-download from COMPLETE step ───────────────────────────────────────
+  // ── Download ────────────────────────────────────────────────────────────────
 
   const handleDownload = () => {
-    if (!pdfBlob) {
-      toast.error("PDF not available — please generate again.");
-      return;
-    }
+    if (!pdfBlob) { toast.error("PDF not available — please generate again."); return; }
     _downloadBlob(pdfBlob, `${childName.replace(/\s+/g, "_")}_storybook.pdf`);
   };
-
-  // ── Shared helper: trigger browser download from Blob ────────────────────
 
   const _downloadBlob = (blob, filename) => {
     const url  = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href     = url;
-    link.download = filename;
+    link.href = url; link.download = filename;
     document.body.appendChild(link);
     link.click();
-    setTimeout(() => {
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    }, 1000);
+    setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 1000);
   };
 
-  // ── Cancel / reset ────────────────────────────────────────────────────────
+  // ── Reset ──────────────────────────────────────────────────────────────────
 
-  const handleCancel = () => {
-    setStep(STEPS.INPUT);
-    setPreviewImage(null);
-    setPdfBlob(null);
+  const handleCancel  = () => { setStep(STEPS.INPUT); setPreviewImage(null); setPdfBlob(null); };
+  const resetAll      = () => {
+    setStep(STEPS.INPUT); setChildName(""); setSelectedFile(null);
+    setPreviewUrl(null); setPreviewImage(null); setPdfBlob(null);
+    setTotalPages(0); setStatusMessage("");
   };
-
-  const resetAll = () => {
-    setStep(STEPS.INPUT);
-    setChildName("");
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setPreviewImage(null);
-    setPdfBlob(null);
-    setTotalPages(0);
-    setStatusMessage("");
-  };
-
-  const handleLogout = () => navigate("/");
+  const handleLogout  = () => navigate("/");
 
   const selectedStoryTitle =
     stories.find((s) => s.story_id === selectedStory)
-      ?.title?.replace("{name}", childName || "Your Child") ||
-    "Forest of Smiles";
+      ?.title?.replace("{name}", childName || "Your Child") || "Forest of Smiles";
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-emerald-50 py-8 px-4">
@@ -266,21 +245,14 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <BookOpen className="w-9 h-9 text-emerald-600" />
-            <h1 data-testid="app-title" className="text-4xl font-bold text-gray-900 tracking-tight">
-              StoryMe
-            </h1>
+            <h1 data-testid="app-title" className="text-4xl font-bold text-gray-900 tracking-tight">StoryMe</h1>
             <Sparkles className="w-7 h-7 text-amber-500" />
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}
-            className="text-gray-400 hover:text-gray-600">
-            <LogOut className="w-4 h-4 mr-1" />
-            Logout
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-400 hover:text-gray-600">
+            <LogOut className="w-4 h-4 mr-1" />Logout
           </Button>
         </div>
-
-        <p className="text-base text-gray-500 text-center mb-6">
-          AI-powered personalised storybooks for your child
-        </p>
+        <p className="text-base text-gray-500 text-center mb-6">AI-powered personalised storybooks for your child</p>
 
         {/* ── INPUT ── */}
         {step === STEPS.INPUT && (
@@ -292,18 +264,14 @@ export default function HomePage() {
             <CardContent className="pt-5">
               <form onSubmit={handlePreview} className="space-y-5">
 
-                {/* Story selector */}
+                {/* Story */}
                 <div className="space-y-1.5">
                   <Label className="text-gray-700 font-medium">Story</Label>
-                  <Select value={selectedStory} onValueChange={setSelectedStory}
-                    data-testid="story-select">
-                    <SelectTrigger data-testid="story-select-trigger" className="border-gray-300">
-                      <SelectValue placeholder="Select a story" />
-                    </SelectTrigger>
+                  <Select value={selectedStory} onValueChange={setSelectedStory} data-testid="story-select">
+                    <SelectTrigger className="border-gray-300"><SelectValue placeholder="Select a story" /></SelectTrigger>
                     <SelectContent>
                       {stories.map((s) => (
-                        <SelectItem key={s.story_id} value={s.story_id}
-                          data-testid={`story-option-${s.story_id}`}>
+                        <SelectItem key={s.story_id} value={s.story_id}>
                           {s.title.replace("{name}", "Your Child")} ({s.total_pages} pages)
                         </SelectItem>
                       ))}
@@ -311,19 +279,43 @@ export default function HomePage() {
                   </Select>
                 </div>
 
+                {/* Generation mode */}
+                <div className="space-y-1.5">
+                  <Label className="text-gray-700 font-medium">Generation Style</Label>
+                  <Select value={generationMode} onValueChange={setGenerationMode}>
+                    <SelectTrigger className="border-gray-300"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {GENERATION_MODES.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          <div>
+                            <span className="font-medium">{m.label}</span>
+                            <span className="text-xs text-gray-500 ml-2">{m.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Gender */}
+                <div className="space-y-1.5">
+                  <Label className="text-gray-700 font-medium">Character Style</Label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger className="border-gray-300"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {GENDER_OPTIONS.map((g) => (
+                        <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Child's name */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="childName" className="text-gray-700 font-medium">
-                    Child's Name
-                  </Label>
-                  <Input
-                    id="childName"
-                    data-testid="child-name-input"
-                    placeholder="Enter your child's name"
-                    value={childName}
-                    onChange={(e) => setChildName(e.target.value)}
-                    className="border-gray-300"
-                  />
+                  <Label htmlFor="childName" className="text-gray-700 font-medium">Child's Name</Label>
+                  <Input id="childName" data-testid="child-name-input"
+                    placeholder="Enter your child's name" value={childName}
+                    onChange={(e) => setChildName(e.target.value)} className="border-gray-300" />
                 </div>
 
                 {/* Photo upload */}
@@ -359,8 +351,7 @@ export default function HomePage() {
 
                 <Button type="submit" data-testid="generate-preview-btn"
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base font-semibold">
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Preview
+                  <Sparkles className="mr-2 h-4 w-4" />Generate Preview
                 </Button>
               </form>
             </CardContent>
@@ -372,9 +363,7 @@ export default function HomePage() {
           <Card className="shadow-lg" data-testid="previewing-card">
             <CardContent className="py-16 text-center">
               <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                Creating Your Preview
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Creating Your Preview</h2>
               <p className="text-sm text-gray-500">{statusMessage}</p>
               <p className="text-xs text-gray-400 mt-2">This may take up to a minute…</p>
             </CardContent>
@@ -387,25 +376,20 @@ export default function HomePage() {
             <CardHeader className="bg-gradient-to-r from-emerald-50 to-amber-50 pb-3">
               <CardTitle className="text-lg text-gray-800">Preview — Page 1</CardTitle>
               <CardDescription>
-                Review the first page. If you like it, proceed to generate the full{" "}
-                {totalPages}-page storybook.
+                Review the first page. If you like it, proceed to generate the full {totalPages}-page storybook.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                <img src={previewImage} alt="Page 1 Preview" className="w-full"
-                  data-testid="preview-image" />
+                <img src={previewImage} alt="Page 1 Preview" className="w-full" data-testid="preview-image" />
               </div>
               <div className="flex gap-3">
                 <Button onClick={handleProceed} data-testid="proceed-btn"
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-5 font-semibold">
-                  <ChevronRight className="mr-1 h-4 w-4" />
-                  Proceed — Generate Full Book
+                  <ChevronRight className="mr-1 h-4 w-4" />Proceed — Generate Full Book
                 </Button>
-                <Button onClick={handleCancel} variant="outline" data-testid="cancel-btn"
-                  className="py-5">
-                  <X className="mr-1 h-4 w-4" />
-                  Cancel
+                <Button onClick={handleCancel} variant="outline" data-testid="cancel-btn" className="py-5">
+                  <X className="mr-1 h-4 w-4" />Cancel
                 </Button>
               </div>
             </CardContent>
@@ -418,14 +402,12 @@ export default function HomePage() {
             <CardContent className="py-12 text-center space-y-5">
               <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto" />
               <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-1">
-                  Generating Your Storybook
-                </h2>
+                <h2 className="text-lg font-semibold text-gray-800 mb-1">Generating Your Storybook</h2>
                 <p className="text-sm text-gray-500">{statusMessage}</p>
               </div>
               <p className="text-xs text-gray-400">
                 Personalising {totalPages} pages with {childName || "your child"}'s face.
-                This takes a few minutes — please keep this page open.
+                Please keep this page open.
               </p>
             </CardContent>
           </Card>
@@ -439,37 +421,28 @@ export default function HomePage() {
                 <BookOpen className="w-8 h-8 text-emerald-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-1">
-                  Your Storybook is Ready!
-                </h2>
-                <p className="text-sm text-gray-500">
-                  "{selectedStoryTitle}" — {totalPages} pages
-                </p>
+                <h2 className="text-xl font-bold text-gray-800 mb-1">Your Storybook is Ready!</h2>
+                <p className="text-sm text-gray-500">"{selectedStoryTitle}" — {totalPages} pages</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Your download should have started automatically. If not, tap below.
+                  Your download should have started automatically.
                 </p>
               </div>
               <div className="flex gap-3 justify-center">
                 <Button onClick={handleDownload} data-testid="download-pdf-btn"
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 font-semibold">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download PDF
+                  <Download className="mr-2 h-4 w-4" />Download PDF
                 </Button>
-                <Button onClick={resetAll} variant="outline" data-testid="create-another-btn"
-                  className="py-5">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Create Another
+                <Button onClick={resetAll} variant="outline" data-testid="create-another-btn" className="py-5">
+                  <RefreshCw className="mr-2 h-4 w-4" />Create Another
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Footer */}
         <div className="text-center mt-6 text-xs text-gray-400">
           <p>Powered by AI image generation &bull; Each storybook is unique</p>
         </div>
-
       </div>
     </div>
   );
