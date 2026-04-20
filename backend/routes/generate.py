@@ -206,7 +206,23 @@ async def generate_storybook(
                     logger.info(
                         "Page %d/%d: %s ✓", page.page_number, total_pages, mode,
                     )
-                    pages_data.append({"text": page_text, "image_path": result})
+                    # Save page image to Azure Blob for evaluator + retrieval
+                    page_blob_path = None
+                    if config.STORAGE_TYPE in ("azure", "s3"):
+                        page_blob_path = generation_page_path(gen_id, page.page_number)
+                        try:
+                            with open(result, "rb") as pf:
+                                storage.save_file(pf, page_blob_path)
+                        except Exception as _e:
+                            logger.warning("Page %d blob upload failed (non-fatal): %s", page.page_number, _e)
+                            page_blob_path = None
+                    pages_data.append({
+                        "text": page_text,
+                        "image_path": result,
+                        "blob_path": page_blob_path,
+                        "page_number": page.page_number,
+                        "scene_file": scene_file,
+                    })
                     continue
 
                 # ── FALLBACK: PIL pipeline ────────────────────────────────────
@@ -245,7 +261,22 @@ async def generate_storybook(
                     name_text_regions=text_regions,
                 )
                 logger.info("Page %d/%d: PIL fallback ✓", page.page_number, total_pages)
-                pages_data.append({"text": page_text, "image_path": composed})
+                page_blob_path = None
+                if config.STORAGE_TYPE in ("azure", "s3"):
+                    page_blob_path = generation_page_path(gen_id, page.page_number)
+                    try:
+                        with open(composed, "rb") as pf:
+                            storage.save_file(pf, page_blob_path)
+                    except Exception as _e:
+                        logger.warning("Page %d blob upload failed (non-fatal): %s", page.page_number, _e)
+                        page_blob_path = None
+                pages_data.append({
+                    "text": page_text,
+                    "image_path": composed,
+                    "blob_path": page_blob_path,
+                    "page_number": page.page_number,
+                    "scene_file": scene_file,
+                })
 
             except Exception as page_err:
                 failed_pages.append(page.page_number)
@@ -300,6 +331,7 @@ async def generate_storybook(
         )
 
         # ── Upload PDF to cloud storage ───────────────────────────────────────
+        blob_pdf_path = None
         if config.STORAGE_TYPE in ("azure", "s3"):
             blob_pdf_path = make_pdf_path(child_name, story.story_id, gen_id)
             try:
@@ -308,6 +340,46 @@ async def generate_storybook(
                 logger.info("PDF uploaded to %s: %s", config.STORAGE_TYPE, blob_pdf_path)
             except Exception as upload_err:
                 logger.warning("PDF upload failed (non-fatal): %s", upload_err)
+                blob_pdf_path = None
+
+        # ── Persist GenerationSession to MongoDB ──────────────────────────────
+        # This enables the image quality evaluator to discover all generated
+        # images by querying generation_sessions collection.
+        # Non-fatal: PDF download proceeds even if MongoDB write fails.
+        try:
+            from models.generation import GenerationSession, GenerationStatus, PageResult
+            from datetime import datetime, timezone as _tz
+            session = GenerationSession(
+                generation_id=gen_id,
+                child_name=child_name,
+                story_id=story.story_id,
+                gender=gender,
+                generation_mode=gen_mode,
+                status=GenerationStatus.COMPLETE,
+                pdf_blob_path=blob_pdf_path,
+                pdf_filename=pdf_filename,
+                pages_succeeded=succeeded,
+                pages_failed=failed,
+                total_pages=total_pages,
+                completed_at=datetime.now(_tz.utc).isoformat(),
+                page_results=[
+                    PageResult(
+                        page_number=pd["page_number"],
+                        blob_path=pd.get("blob_path"),
+                        succeeded=True,
+                    )
+                    for pd in pages_data if "page_number" in pd
+                ],
+            )
+            from server import db as _db
+            await _db.generation_sessions.replace_one(
+                {"generation_id": gen_id},
+                session.model_dump(),
+                upsert=True,
+            )
+            logger.info("GenerationSession %s persisted to MongoDB", gen_id[:8])
+        except Exception as db_err:
+            logger.warning("MongoDB session persist failed (non-fatal): %s", db_err)
 
         # ── Return PDF as download ────────────────────────────────────────────
         download_name = f"{_safe_name(child_name)}_storybook.pdf"

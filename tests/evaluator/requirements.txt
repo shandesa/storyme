@@ -1,0 +1,17 @@
+# tests/evaluator/requirements.txt
+# Dependencies for the StoryMe image quality evaluator.
+# Install: pip install -r tests/evaluator/requirements.txt
+
+# Computer vision (same as backend — ensure version compatibility)
+opencv-python-headless
+mediapipe==0.10.9
+numpy
+
+# Azure Blob Storage (for downloading generated images)
+azure-storage-blob
+
+# MongoDB (for session discovery)
+pymongo
+
+# Already in backend requirements.txt but listed here for standalone use:
+pillow
