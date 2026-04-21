@@ -38,3 +38,7 @@ motor
 # Azure Table Storage — session index for image quality evaluator
 # Uses the same Storage Account as blob storage (no extra subscription needed).
 azure-data-tables
+
+# Auth — password hashing and JWT session tokens
+passlib[bcrypt]
+PyJWT

@@ -1,83 +1,160 @@
 """Authentication service.
 
 OTP-based login flow:
-  1. send_otp(mobile)   → generates & stores a random 6-digit OTP
-  2. verify_otp(mobile, otp) → True/False
-  3. register(mobile, password) → creates User
-  4. login_password(mobile, password) → User | None | False
+  1. send_otp(mobile)          → generates & stores OTP
+  2. verify_otp(mobile, otp)   → True/False
+  3. register(mobile, password) → user_dict + token
+  4. login_password(mobile, password) → user_dict + token | None | False
+  5. login_otp_success(mobile)  → (user_dict | None, is_new_user: bool)
+     Called after OTP is verified — returns existing user if found.
 
-The OTP store is in-process memory (dict).
-For production, replace with Redis TTL keys.
+Storage:
+  - Users: Azure Table (AzureUserStore) or local JSON (JsonUserStore dev fallback)
+  - OTPs:  In-process dict (acceptable for simulated mode; use Redis for prod)
+
+Passwords:
+  - Stored as bcrypt hashes (passlib, cost=12)
+  - Legacy plaintext passwords are re-hashed on first successful login
 """
 
 import random
 import logging
-from typing import Optional, Union
+from datetime import datetime, timezone
+from typing import Optional, Union, Tuple
 
-from core.local_user_store import get_user, create_user
-from models.user import User
+from core.user_store import (
+    get_user, upsert_user, touch_login, user_exists,
+    hash_password, verify_password, is_hashed,
+)
+from core.session_tokens import create_token
 
 logger = logging.getLogger(__name__)
 
-# In-process OTP store  {mobile: otp_string}
-# Acceptable for MVP/simulated mode; use Redis + TTL in production.
+# In-process OTP store {mobile: otp_string}
+# Replace with Redis + TTL for production SMS delivery.
 _OTP_STORE: dict[str, str] = {}
 
 
 class AuthService:
 
-    # ── OTP ───────────────────────────────────────────────────────────────────
+    # ── Validation ────────────────────────────────────────────────────────────
 
     @staticmethod
     def _validate_mobile(mobile: str) -> None:
-        """Raise ValueError for invalid Indian mobile numbers."""
         if not mobile or not mobile.isdigit() or len(mobile) != 10:
             raise ValueError("Mobile must be a 10-digit Indian number (no country code)")
 
+    # ── OTP ───────────────────────────────────────────────────────────────────
+
     @staticmethod
     def send_otp(mobile: str) -> str:
-        """Generate OTP, store it, log it, and return it (for simulated mode)."""
         AuthService._validate_mobile(mobile)
         otp = str(random.randint(100_000, 999_999))
         _OTP_STORE[mobile] = otp
-        # Always log so developers can see it in server output
-        logger.info(f"[SIMULATED OTP] {mobile} → {otp}")
+        logger.info("[SIMULATED OTP] %s → %s", mobile, otp)
         return otp
 
     @staticmethod
     def verify_otp(mobile: str, otp: str) -> bool:
-        """Return True iff the supplied OTP matches the stored one."""
         stored = _OTP_STORE.get(mobile)
         if stored and stored == otp.strip():
-            # Consume the OTP (one-time use)
-            del _OTP_STORE[mobile]
+            del _OTP_STORE[mobile]  # one-time use
             return True
         return False
 
-    # ── Registration & Login ──────────────────────────────────────────────────
+    # ── OTP login (after verify_otp succeeds) ─────────────────────────────────
 
     @staticmethod
-    def register(mobile: str, password: str) -> User:
-        """Create and persist a new user."""
+    def login_otp_success(mobile: str) -> Tuple[Optional[dict], bool, Optional[str]]:
+        """
+        Called after OTP is successfully verified.
+
+        Returns:
+          (user_dict, is_new_user, token)
+
+          user_dict    — existing user or None if new
+          is_new_user  — True if no account exists yet (→ RegisterPage)
+          token        — session JWT if existing user, None if new user
+        """
+        user = get_user(mobile)
+        if user is None:
+            return None, True, None
+
+        # Existing user — create session token and update login timestamp
+        touch_login(mobile)
+        token = create_token(mobile)
+        logger.info("OTP login success (existing user): %s", mobile)
+        return user, False, token
+
+    # ── Registration ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def register(mobile: str, password: str) -> Tuple[dict, str]:
+        """
+        Create a new user account with a hashed password.
+
+        Returns (user_dict, session_token).
+        Raises ValueError for validation failures.
+        """
         AuthService._validate_mobile(mobile)
         if not password or len(password) < 6:
             raise ValueError("Password must be at least 6 characters")
-        user = User(mobile=mobile, password=password)
-        create_user(user)
-        logger.info(f"New user registered: {mobile}")
-        return user
+
+        now = datetime.now(timezone.utc).isoformat()
+        user_dict = {
+            "mobile":        mobile,
+            "password_hash": hash_password(password),
+            "country_code":  "+91",
+            "created_at":    now,
+            "last_login_at": now,
+        }
+        upsert_user(user_dict)
+        token = create_token(mobile)
+        logger.info("New user registered: %s", mobile)
+        return user_dict, token
+
+    # ── Password login ────────────────────────────────────────────────────────
 
     @staticmethod
-    def login_password(mobile: str, password: str) -> Optional[Union[User, bool]]:
+    def login_password(
+        mobile: str, password: str
+    ) -> Union[Tuple[dict, str], None, bool]:
         """
+        Authenticate with mobile + password.
+
         Returns:
-          User  — credentials correct
-          False — user exists but wrong password
-          None  — user not found
+          (user_dict, token)  — credentials correct
+          False               — user exists but wrong password
+          None                — user not found
         """
         user = get_user(mobile)
         if user is None:
             return None
-        if user.password == password:
-            return user
-        return False
+
+        stored_hash = user.get("password_hash", "")
+
+        # Migrate legacy plaintext password on first successful password login
+        if not is_hashed(stored_hash):
+            if stored_hash != password:
+                return False
+            # Re-hash and save
+            user["password_hash"] = hash_password(password)
+            user["last_login_at"] = datetime.now(timezone.utc).isoformat()
+            upsert_user(user)
+            logger.info("Migrated plaintext password to bcrypt for %s", mobile)
+        else:
+            if not verify_password(password, stored_hash):
+                return False
+            touch_login(mobile)
+
+        token = create_token(mobile)
+        logger.info("Password login success: %s", mobile)
+        return user, token
+
+    # ── Refresh token ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def refresh_token(mobile: str) -> str:
+        """Issue a fresh token for an already-authenticated user."""
+        touch_login(mobile)
+        return create_token(mobile)

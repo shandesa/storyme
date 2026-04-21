@@ -1,59 +1,27 @@
-"""Local JSON user store.
-
-Persists users to backend/data/users.json.
-Suitable for development / MVP; swap for a real DB when ready.
 """
+core/local_user_store.py — DEPRECATED COMPATIBILITY SHIM
+=========================================================
+This module previously held the JSON file user store.
+It now delegates to core.user_store which uses Azure Table Storage.
 
-import json
-import os
-import logging
-from pathlib import Path
-from typing import Optional
+Kept to avoid breaking any code that imports from here.
+All new code should import from core.user_store directly.
+"""
+from core.user_store import get_user, upsert_user, user_exists
 
-from models.user import User
+# Legacy compat: the old API used a User pydantic model
+# Wrap dicts in a simple object that has .model_dump() for backward compat
+from models.user import User as _User
 
-logger = logging.getLogger(__name__)
-
-_DATA_DIR = Path(__file__).parent.parent / "data"
-_USER_DB  = _DATA_DIR / "users.json"
-
-
-# ─── internal helpers ─────────────────────────────────────────────────────────
-
-def _ensure_file() -> None:
-    _DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if not _USER_DB.exists():
-        _USER_DB.write_text("{}")
-
-
-def _load() -> dict:
-    _ensure_file()
-    try:
-        return json.loads(_USER_DB.read_text())
-    except json.JSONDecodeError:
-        logger.warning("users.json is corrupt — resetting to empty store")
-        return {}
-
-
-def _save(users: dict) -> None:
-    _ensure_file()
-    _USER_DB.write_text(json.dumps(users, indent=2, default=str))
-
-
-# ─── public API ───────────────────────────────────────────────────────────────
-
-def get_user(mobile: str) -> Optional[User]:
-    """Return User for the given mobile number, or None if not found."""
-    users = _load()
-    record = users.get(mobile)
-    if record:
-        return User(**record)
-    return None
-
-
-def create_user(user: User) -> None:
-    """Persist a new user (overwrites if mobile already exists)."""
-    users = _load()
-    users[user.mobile] = user.model_dump(mode="json")
-    _save(users)
-    logger.info(f"User created/updated: {user.mobile}")
+def create_user(user: _User) -> None:
+    """Legacy: accepts a User model. Delegates to user_store.upsert_user."""
+    from core.user_store import hash_password, is_hashed
+    d = {
+        "mobile":        user.mobile,
+        "password_hash": user.password if is_hashed(user.password)
+                         else hash_password(user.password),
+        "country_code":  user.country_code,
+        "created_at":    user.created_at.isoformat() if user.created_at else "",
+        "last_login_at": "",
+    }
+    upsert_user(d)
