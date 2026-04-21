@@ -38,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from passlib.hash import bcrypt as _bcrypt
+import bcrypt as _bcrypt
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,10 @@ _TABLE_NAME    = "Users"
 
 def hash_password(plaintext: str) -> str:
     """Return bcrypt hash of plaintext password (cost=12)."""
-    return _bcrypt.using(rounds=12).hash(plaintext)
+    return _bcrypt.hashpw(
+        plaintext.encode("utf-8"),
+        _bcrypt.gensalt(rounds=12),
+    ).decode("utf-8")
 
 
 def verify_password(plaintext: str, hashed: str) -> bool:
@@ -58,7 +61,10 @@ def verify_password(plaintext: str, hashed: str) -> bool:
         # Support legacy plaintext passwords during migration window
         if not hashed.startswith("$2"):
             return plaintext == hashed
-        return _bcrypt.verify(plaintext, hashed)
+        return _bcrypt.checkpw(
+            plaintext.encode("utf-8"),
+            hashed.encode("utf-8"),
+        )
     except Exception:
         return False
 

@@ -40,5 +40,7 @@ motor
 azure-data-tables
 
 # Auth — password hashing and JWT session tokens
-passlib[bcrypt]
+# bcrypt is already listed above (image processing dep transitively)
+# Direct bcrypt 4.x usage (passlib dropped — incompatible with bcrypt>=4.0)
+bcrypt
 PyJWT
