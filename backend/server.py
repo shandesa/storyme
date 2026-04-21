@@ -41,6 +41,7 @@ from health_check import router as health_router
 from routes.stories import router as stories_router, v2_router as stories_v2_router
 from routes.review import router as review_router
 from routes.auth import router as auth_router
+from routes.print_orders import router as print_orders_router
 
 # ── Step 6: Routes that NEED cv2/mediapipe — wrapped in try/except ────────────
 # generate and generate_v2 depend on native libs (cv2, mediapipe, libxcb, libGL).
@@ -93,6 +94,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Generation-ID", "X-Child-Name", "X-Story-ID"],
 )
 
 # ─── Legacy /api router ───────────────────────────────────────────────────────
@@ -190,6 +192,7 @@ app.include_router(stories_v2_router)    # /api/v2/stories ← always available
 app.include_router(review_router)        # /api/review
 app.include_router(auth_router)          # /api/auth/*
 app.include_router(health_router)        # /health
+app.include_router(print_orders_router)  # /api/v2/print/* and /api/v2/orders/* and /api/v2/admin/*
 
 if generate_router is not None:
     app.include_router(generate_router)       # /api/generate  (v1)
@@ -249,6 +252,22 @@ async def startup_event():
             logger.warning("Template verification failed for %s: %s", story_meta.story_id, e)
 
     logger.info("=" * 70)
+
+    # Seed print products and placeholder cover images
+    try:
+        from services.product_catalog import get_catalog_store
+        cat = get_catalog_store()
+        if cat:
+            cat.seed_products()
+            logger.info("PrintProducts: catalog seeded")
+    except Exception as _e:
+        logger.warning("PrintProducts seed failed (non-fatal): %s", _e)
+
+    try:
+        from services.cover_image_gen import seed_cover_images
+        seed_cover_images()
+    except Exception as _e:
+        logger.warning("Cover image seed failed (non-fatal): %s", _e)
 
 
 # ─── Shutdown event ───────────────────────────────────────────────────────────

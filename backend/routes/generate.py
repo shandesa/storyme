@@ -382,7 +382,16 @@ async def generate_storybook(
             path=pdf_local,
             filename=download_name,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+            headers={
+                "Content-Disposition":  f'attachment; filename="{download_name}"',
+                # X-Generation-ID allows the frontend to link this PDF download
+                # to the GenerationSession for subsequent print ordering.
+                # Exposed via CORS expose_headers in server.py.
+                "X-Generation-ID":      gen_id,
+                "X-Child-Name":         child_name,
+                "X-Story-ID":           story.story_id,
+                "Access-Control-Expose-Headers": "X-Generation-ID, X-Child-Name, X-Story-ID",
+            },
         )
 
     except HTTPException:
