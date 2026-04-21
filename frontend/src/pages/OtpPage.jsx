@@ -75,6 +75,7 @@ export default function OtpPage() {
       toast.success("Welcome! Let's set up your account.");
       navigate("/register", { state: { mobile } });
     } else {
+      // Existing user — token already saved in api/auth.js verifyOtp
       toast.success("Welcome back!");
       navigate("/home");
     }

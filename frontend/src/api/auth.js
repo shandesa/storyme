@@ -29,6 +29,15 @@
  */
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL ?? "";
+
+// Session utilities — imported lazily to avoid circular deps
+// saveSession(token, mobile) stores in sessionStorage
+async function _saveSession(token, mobile) {
+  try {
+    const { saveSession } = await import("@/lib/session");
+    saveSession(token, mobile);
+  } catch { /* non-fatal */ }
+}
 const AUTH_BASE   = `${BACKEND_URL}/api/auth`;
 
 // Per-attempt hard timeout. If a single attempt takes longer than this,
@@ -151,7 +160,12 @@ export async function sendOtp(mobile) {
  *   EXISTING  → { data: { status: "LOGIN_SUCCESS", user: {...} } }
  */
 export async function verifyOtp(mobile, otp) {
-  return post("/verify-otp", { mobile, otp });
+  const result = await post("/verify-otp", { mobile, otp });
+  // If existing user, backend returns a token — save it immediately
+  if (!result.error && result.data?.token) {
+    await _saveSession(result.data.token, mobile);
+  }
+  return result;
 }
 
 /**
@@ -159,7 +173,11 @@ export async function verifyOtp(mobile, otp) {
  * Returns { data: { status: "LOGIN_SUCCESS", user: {...} } }
  */
 export async function loginWithPassword(mobile, password) {
-  return post("/login-password", { mobile, password });
+  const result = await post("/login-password", { mobile, password });
+  if (!result.error && result.data?.token) {
+    await _saveSession(result.data.token, mobile);
+  }
+  return result;
 }
 
 /**
@@ -167,5 +185,9 @@ export async function loginWithPassword(mobile, password) {
  * Returns { data: { status: "REGISTERED", user: {...} } }
  */
 export async function register(mobile, password) {
-  return post("/register", { mobile, password });
+  const result = await post("/register", { mobile, password });
+  if (!result.error && result.data?.token) {
+    await _saveSession(result.data.token, mobile);
+  }
+  return result;
 }

@@ -23,6 +23,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { authHeaders } from "@/lib/session";
 import axios from "axios";
 import { toast } from "sonner";
 import { Button }   from "@/components/ui/button";
@@ -133,9 +134,6 @@ export default function PrintOrderPage() {
 
     setPlacing(true);
     try {
-      // Get user mobile from session (set by auth flow)
-      const userMobile = sessionStorage.getItem("user_mobile") || "";
-
       const payload = {
         generation_id:    generationId,
         product_id:       selectedProduct,
@@ -152,10 +150,7 @@ export default function PrintOrderPage() {
         },
       };
 
-      const headers = {};
-      if (userMobile) headers["X-User-Mobile"] = userMobile;
-
-      const res = await axios.post(`${API_V2}/orders`, payload, { headers });
+      const res = await axios.post(`${API_V2}/orders`, payload, { headers: authHeaders() });
       const order = res.data;
 
       toast.success("Order placed successfully!");

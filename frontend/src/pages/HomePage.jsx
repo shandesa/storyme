@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { clearSession, stopInactivityTimer, stopTokenRefresh } from "@/lib/session";
 import axios from "axios";
 import { Button }   from "@/components/ui/button";
 import { Input }    from "@/components/ui/input";
@@ -251,7 +252,12 @@ export default function HomePage() {
     setGenerationId(null); setStoryId(null);
   };
 
-  const handleLogout = () => navigate("/");
+  const handleLogout = () => {
+    clearSession();
+    stopInactivityTimer();
+    stopTokenRefresh();
+    navigate("/", { replace: true });
+  };
 
   const selectedStoryTitle =
     stories.find((s) => s.story_id === selectedStory)

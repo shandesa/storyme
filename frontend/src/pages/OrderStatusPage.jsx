@@ -21,6 +21,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { authHeaders } from "@/lib/session";
 import axios from "axios";
 import {
   Card, CardContent, CardHeader, CardTitle,
@@ -120,7 +121,7 @@ export default function OrderStatusPage() {
     if (!orderId) { setError("No order ID provided."); return; }
 
     setLoading(true);
-    axios.get(`${API_V2}/orders/${orderId}`)
+    axios.get(`${API_V2}/orders/${orderId}`, { headers: authHeaders() })
       .then((res) => setOrder(res.data))
       .catch(() => setError("Order not found or could not be loaded."))
       .finally(() => setLoading(false));
