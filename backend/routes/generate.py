@@ -348,7 +348,11 @@ async def generate_storybook(
         # This is non-fatal — PDF download proceeds even if the write fails.
         try:
             from core.session_store import session_store as _store
-            from datetime import datetime, timezone as _tz
+            # datetime and timezone already imported at module level (line 32).
+            # Do NOT re-import here — a local `from datetime import datetime`
+            # inside a try block makes Python treat `datetime` as local throughout
+            # the entire function, causing UnboundLocalError at the earlier
+            # `datetime.now()` call that builds the PDF filename.
             session_dict = {
                 "generation_id":   gen_id,
                 "child_name":      child_name,
@@ -361,7 +365,7 @@ async def generate_storybook(
                 "pages_succeeded": succeeded,
                 "pages_failed":    failed,
                 "total_pages":     total_pages,
-                "completed_at":    datetime.now(_tz.utc).isoformat(),
+                "completed_at":    datetime.now(timezone.utc).isoformat(),
                 "page_results":    [
                     {
                         "page_number": pd["page_number"],
