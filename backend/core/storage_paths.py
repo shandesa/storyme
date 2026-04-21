@@ -217,3 +217,26 @@ def pdf_prefix_by_child(child_name: str) -> str:
 def pdf_prefix_by_child_story(child_name: str, story_id: str) -> str:
     """Blob prefix for all PDFs for a child + story combo."""
     return f"pdfs/{_safe(child_name)}/{_safe(story_id)}/"
+
+
+# ─── Print product paths ──────────────────────────────────────────────────────
+
+def product_cover_path(product_id: str, side: str) -> str:
+    """
+    Blob path for a print product cover image.
+
+    Args:
+        product_id: e.g. "paperback_a4"
+        side:       "front" | "back"
+
+    Returns:
+        e.g. "products/paperback_a4/front_cover.png"
+    """
+    if side not in ("front", "back"):
+        raise ValueError(f"Invalid side {side!r}. Must be 'front' or 'back'.")
+    return f"products/{product_id}/{side}_cover.png"
+
+
+def product_cover_prefix(product_id: str) -> str:
+    """Blob prefix for all cover images of a product."""
+    return f"products/{product_id}/"
