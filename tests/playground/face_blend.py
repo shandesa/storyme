@@ -24,12 +24,12 @@ face_config = {
     "scene_02.png": {"x": 280, "y": 848, "w": 220, "h": 185},
     "scene_03.png": {"x": 365, "y": 764, "w": 200, "h": 175},
     "scene_04.png": {"x": 290, "y": 478, "w": 193, "h": 178},
-    "scene_05.png": {"x": 180, "y": 524, "w": 173, "h": 158},
-    "scene_06.png": {"x": 586, "y": 148, "w": 116, "h": 122},
-    "scene_07.png": {"x": 586, "y": 148, "w": 116, "h": 122},
-    "scene_08.png": {"x": 586, "y": 148, "w": 116, "h": 122},
-    "scene_09.png": {"x": 586, "y": 148, "w": 116, "h": 122},
-    "scene_10.png": {"x": 586, "y": 148, "w": 116, "h": 122},
+    "scene_05.png": {"x": 180, "y": 524, "w": 193, "h": 158},
+    "scene_06.png": {"x": 570, "y": 304, "w": 238, "h": 218},  # Need little face rotation to the left so that left cheek is little behind and right cheek is little forward. Otherwise, face looks too big in the scene.
+    "scene_07.png": {"x": 220, "y": 238, "w": 255, "h": 228},
+    "scene_08.png": {"x": 286, "y": 288, "w": 280, "h": 233},  # Need little face rotation to the right so that right cheek is little behind and left cheek is little forward. Otherwise, face looks too big in the scene.
+    "scene_09.png": {"x": 293, "y": 240, "w": 295, "h": 248},
+    "scene_10.png": {"x": 383, "y": 303, "w": 273, "h": 228},  # Need little face rotation to the right so that right cheek is little behind and left cheek is little forward. Otherwise, face looks too big in the scene.
 }
 
 # =============================
