@@ -32,60 +32,72 @@ import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle, Clock, Printer, Package, Truck, Home,
   ArrowLeft, RefreshCw, Loader2, MapPin, BookOpen,
+  Download, Mail, Zap, Send, CreditCard,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_V2      = `${BACKEND_URL}/api/v2`;
 
-// ─── Status config ────────────────────────────────────────────────────────────
+// ─── Print (offline) status config ────────────────────────────────────────────
 
-const STATUS_CONFIG = {
+const PRINT_STATUS_CONFIG = {
   pending: {
-    label:       "Order Received",
-    description: "Your order has been received. We'll confirm it shortly.",
-    color:       "bg-blue-100 text-blue-700 border-blue-200",
-    icon:        Clock,
-    step:        1,
+    label: "Order Received", description: "Your order has been received. We'll confirm it shortly.",
+    color: "bg-blue-100 text-blue-700 border-blue-200", icon: Clock, step: 1,
   },
   confirmed: {
-    label:       "Order Confirmed",
-    description: "Your order is confirmed and queued for printing.",
-    color:       "bg-purple-100 text-purple-700 border-purple-200",
-    icon:        CheckCircle,
-    step:        2,
+    label: "Order Confirmed", description: "Your order is confirmed and queued for printing.",
+    color: "bg-purple-100 text-purple-700 border-purple-200", icon: CheckCircle, step: 2,
   },
   printing: {
-    label:       "Printing in Progress",
-    description: "Your storybook is being printed with love.",
-    color:       "bg-amber-100 text-amber-700 border-amber-200",
-    icon:        Printer,
-    step:        3,
+    label: "Printing in Progress", description: "Your storybook is being printed with love.",
+    color: "bg-amber-100 text-amber-700 border-amber-200", icon: Printer, step: 3,
   },
   shipped: {
-    label:       "Shipped",
-    description: "Your storybook is on its way!",
-    color:       "bg-cyan-100 text-cyan-700 border-cyan-200",
-    icon:        Truck,
-    step:        4,
+    label: "Shipped", description: "Your storybook is on its way!",
+    color: "bg-cyan-100 text-cyan-700 border-cyan-200", icon: Truck, step: 4,
   },
   delivered: {
-    label:       "Delivered",
-    description: "Your storybook has been delivered. Enjoy!",
-    color:       "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon:        Home,
-    step:        5,
+    label: "Delivered", description: "Your storybook has been delivered. Enjoy!",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: Home, step: 5,
   },
   cancelled: {
-    label:       "Cancelled",
-    description: "This order has been cancelled.",
-    color:       "bg-red-100 text-red-700 border-red-200",
-    icon:        null,
-    step:        0,
+    label: "Cancelled", description: "This order has been cancelled.",
+    color: "bg-red-100 text-red-700 border-red-200", icon: null, step: 0,
   },
 };
 
-const TIMELINE_STEPS = ["pending","confirmed","printing","shipped","delivered"];
+const PRINT_TIMELINE = ["pending", "confirmed", "printing", "shipped", "delivered"];
+
+// ─── Digital (online) status config ───────────────────────────────────────────
+
+const DIGITAL_STATUS_CONFIG = {
+  order_received: {
+    label: "Order Received", description: "Your order has been received and is being processed.",
+    color: "bg-blue-100 text-blue-700 border-blue-200", icon: CheckCircle, step: 1,
+  },
+  payment_pending: {
+    label: "Payment Pending", description: "Awaiting payment confirmation.",
+    color: "bg-amber-100 text-amber-700 border-amber-200", icon: CreditCard, step: 2,
+  },
+  generating: {
+    label: "Book Generation in Progress",
+    description: "Your personalised storybook is being prepared for delivery.",
+    color: "bg-purple-100 text-purple-700 border-purple-200", icon: Zap, step: 3,
+  },
+  emailed: {
+    label: "Delivered to Email",
+    description: "Your storybook PDF has been sent to your email. Check your inbox!",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: Send, step: 4,
+  },
+  cancelled: {
+    label: "Cancelled", description: "This order has been cancelled.",
+    color: "bg-red-100 text-red-700 border-red-200", icon: null, step: 0,
+  },
+};
+
+const DIGITAL_TIMELINE = ["order_received", "payment_pending", "generating", "emailed"];
 
 function paise_to_display(paise) {
   if (!paise) return "";
@@ -114,6 +126,13 @@ export default function OrderStatusPage() {
   const [error,   setError]   = useState(null);
 
   const childName = location.state?.childName || order?.child_name || "Your Child";
+  // orderType from navigation state takes priority; fall back to the stored order field
+  const orderType = location.state?.orderType || order?.order_type || "print";
+  const isDigital = orderType === "pdf_download" || orderType === "email_pdf";
+
+  // Config sets for this order type
+  const STATUS_CONFIG  = isDigital ? DIGITAL_STATUS_CONFIG : PRINT_STATUS_CONFIG;
+  const TIMELINE_STEPS = isDigital ? DIGITAL_TIMELINE       : PRINT_TIMELINE;
 
   // ── Fetch if not in navigation state ──────────────────────────────────────
 
@@ -156,10 +175,18 @@ export default function OrderStatusPage() {
     );
   }
 
-  const status     = order.status || "pending";
-  const statusConf = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const status     = order.status || (isDigital ? "order_received" : "pending");
+  const statusConf = STATUS_CONFIG[status] || (isDigital ? DIGITAL_STATUS_CONFIG.order_received : PRINT_STATUS_CONFIG.pending);
   const StatusIcon = statusConf.icon || CheckCircle;
   const addr       = order.delivery_address || {};
+
+  // Type label & icon for the banner
+  const TypeIcon  = isDigital
+    ? (orderType === "email_pdf" ? Mail : Download)
+    : Printer;
+  const typeLabel = isDigital
+    ? (orderType === "email_pdf" ? "Email PDF Delivery" : "Digital PDF Download")
+    : "Printed Storybook";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-emerald-50 py-8 px-4">
@@ -187,8 +214,14 @@ export default function OrderStatusPage() {
               Order Placed Successfully!
             </h2>
             <p className="text-sm text-emerald-700">
-              Your personalised storybook for <strong>{childName}</strong> is on its way.
+              Your personalised storybook for <strong>{childName}</strong> is confirmed.
             </p>
+            {/* Order type badge */}
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <Badge className={`flex items-center gap-1 ${isDigital ? "bg-indigo-100 text-indigo-700 border-indigo-200" : "bg-amber-100 text-amber-700 border-amber-200"} border`}>
+                <TypeIcon className="w-3 h-3" />{typeLabel}
+              </Badge>
+            </div>
             {/* Order reference */}
             <div className="mt-3 bg-white rounded-lg border border-emerald-200 px-4 py-2.5 inline-block">
               <p className="text-xs text-gray-500 mb-0.5">Order Reference</p>
@@ -213,16 +246,17 @@ export default function OrderStatusPage() {
             <p className="text-xs text-gray-500 mt-1">{statusConf.description}</p>
           </CardHeader>
           <CardContent>
-            {/* Visual timeline */}
             {status !== "cancelled" && (
-              <div className="flex items-center justify-between mt-2 mb-1">
-                {TIMELINE_STEPS.map((s, i) => {
-                  const conf     = STATUS_CONFIG[s];
-                  const Icon     = conf.icon;
-                  const done     = conf.step <= statusConf.step;
-                  const current  = s === status;
+              <div className="flex items-start justify-between mt-2 mb-1 relative">
+                {/* Connecting line */}
+                <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 z-0" />
+                {TIMELINE_STEPS.map((s) => {
+                  const conf    = STATUS_CONFIG[s];
+                  const Icon    = conf?.icon;
+                  const done    = conf && (conf.step <= statusConf.step);
+                  const current = s === status;
                   return (
-                    <div key={s} className="flex flex-col items-center flex-1">
+                    <div key={s} className="flex flex-col items-center flex-1 relative z-10">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center
                         transition-colors text-xs
                         ${done
@@ -233,13 +267,10 @@ export default function OrderStatusPage() {
                         }`}>
                         {Icon && <Icon className="w-4 h-4" />}
                       </div>
-                      <p className={`text-xs mt-1 text-center leading-tight
+                      <p className={`text-xs mt-1.5 text-center leading-tight max-w-[56px]
                         ${done ? "text-emerald-700 font-medium" : "text-gray-400"}`}>
-                        {conf.label.split(" ")[0]}
+                        {conf?.label?.split(" ")[0] || ""}
                       </p>
-                      {i < TIMELINE_STEPS.length - 1 && (
-                        <div className={`hidden`} />
-                      )}
                     </div>
                   );
                 })}
@@ -249,13 +280,21 @@ export default function OrderStatusPage() {
             {/* Timestamps */}
             <div className="space-y-1.5 mt-4 text-xs text-gray-500">
               {order.created_at   && <p>📋 Placed: {formatDate(order.created_at)}</p>}
-              {order.confirmed_at && <p>✅ Confirmed: {formatDate(order.confirmed_at)}</p>}
-              {order.shipped_at   && <p>🚚 Shipped: {formatDate(order.shipped_at)}</p>}
-              {order.delivered_at && <p>🏠 Delivered: {formatDate(order.delivered_at)}</p>}
+              {isDigital ? (
+                <>
+                  {order.emailed_at && <p>📧 Emailed: {formatDate(order.emailed_at)}</p>}
+                </>
+              ) : (
+                <>
+                  {order.confirmed_at && <p>✅ Confirmed: {formatDate(order.confirmed_at)}</p>}
+                  {order.shipped_at   && <p>🚚 Shipped: {formatDate(order.shipped_at)}</p>}
+                  {order.delivered_at && <p>🏠 Delivered: {formatDate(order.delivered_at)}</p>}
+                </>
+              )}
             </div>
 
-            {/* Tracking info */}
-            {order.tracking_id && (
+            {/* Tracking info (print only) */}
+            {!isDigital && order.tracking_id && (
               <div className="mt-3 bg-cyan-50 border border-cyan-200 rounded-lg px-3 py-2">
                 <p className="text-xs text-cyan-700 font-medium">
                   🚚 Tracking: <span className="font-mono">{order.tracking_id}</span>
@@ -274,18 +313,17 @@ export default function OrderStatusPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-emerald-500" />
+                <TypeIcon className={`w-4 h-4 ${isDigital ? "text-indigo-500" : "text-emerald-500"}`} />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">
-                    {order.product_id?.includes("hardcover") ? "Hardcover" : "Paperback"} — A4
-                  </p>
+                  <p className="text-sm font-semibold text-gray-800">{typeLabel}</p>
                   <p className="text-xs text-gray-500">
-                    Personalised for {order.child_name || childName} · Qty: {order.quantity}
+                    Personalised for {order.child_name || childName}
+                    {!isDigital && ` · Qty: ${order.quantity}`}
                   </p>
                 </div>
               </div>
               <p className="text-lg font-black text-amber-600">
-                {order.price_display || paise_to_display(order.total_amount_paise)}
+                {order.price_display || (isDigital ? "Free (Beta)" : paise_to_display(order.total_amount_paise))}
               </p>
             </div>
 
@@ -295,27 +333,31 @@ export default function OrderStatusPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
               <p className="text-xs text-blue-700">
                 🎉 <strong>Beta period:</strong> This order is at no charge.
-                We will print and ship your storybook free of cost.
+                {isDigital
+                  ? " Your PDF will be delivered shortly."
+                  : " We will print and ship your storybook free of cost."}
               </p>
             </div>
 
             {/* Estimated delivery */}
-            <div className="flex items-start gap-2 text-sm">
-              <Truck className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-gray-700">Expected Delivery</p>
-                <p className="text-gray-500 text-xs">
-                  {order.product_id?.includes("hardcover")
-                    ? "10–14 business days"
-                    : "7–10 business days"}
-                </p>
+            {!isDigital && (
+              <div className="flex items-start gap-2 text-sm">
+                <Truck className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-gray-700">Expected Delivery</p>
+                  <p className="text-gray-500 text-xs">
+                    {order.product_id?.includes("hardcover")
+                      ? "10–14 business days"
+                      : "7–10 business days"}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* ── Delivery address ── */}
-        {Object.keys(addr).length > 0 && (
+        {/* ── Delivery address (print only) ── */}
+        {!isDigital && Object.keys(addr).length > 0 && (
           <Card className="shadow-md mb-5">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">

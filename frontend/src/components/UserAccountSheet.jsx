@@ -65,12 +65,18 @@ const INDIAN_STATES = [
 const ADDRESS_LABELS = ["Home", "Office", "Other"];
 
 const ORDER_STATUS = {
+  // Print (offline) statuses
   pending:   { label: "Received",  color: "bg-blue-100 text-blue-700 border-blue-200" },
   confirmed: { label: "Confirmed", color: "bg-purple-100 text-purple-700 border-purple-200" },
   printing:  { label: "Printing",  color: "bg-amber-100 text-amber-700 border-amber-200" },
   shipped:   { label: "Shipped",   color: "bg-cyan-100 text-cyan-700 border-cyan-200" },
   delivered: { label: "Delivered", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
   cancelled: { label: "Cancelled", color: "bg-red-100 text-red-700 border-red-200" },
+  // Digital (online) statuses
+  order_received:  { label: "Received",   color: "bg-blue-100 text-blue-700 border-blue-200" },
+  payment_pending: { label: "Payment",    color: "bg-amber-100 text-amber-700 border-amber-200" },
+  generating:      { label: "Generating", color: "bg-purple-100 text-purple-700 border-purple-200" },
+  emailed:         { label: "Delivered",  color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
 };
 
 const EMPTY_ADDRESS = {
@@ -296,17 +302,23 @@ function MyOrdersTab({ onClose }) {
   return (
     <div className="space-y-2.5">
       {orders.map((order) => {
-        const sc   = ORDER_STATUS[order.status] || ORDER_STATUS.pending;
-        const ref  = (order.order_id || "").slice(0, 8).toUpperCase();
-        const prod = (order.product_id || "").includes("hardcover") ? "Hardcover" : "Paperback";
-        const price = order.price_display || "";
+        const sc       = ORDER_STATUS[order.status] || ORDER_STATUS.pending;
+        const ref      = (order.order_id || "").slice(0, 8).toUpperCase();
+        const otype    = order.order_type || "print";
+        const isDigital = otype === "pdf_download" || otype === "email_pdf";
+        const typeLabel = otype === "pdf_download" ? "PDF Download"
+          : otype === "email_pdf" ? "Email PDF"
+          : ((order.product_id || "").includes("hardcover") ? "Hardcover" : "Paperback");
+        const price = order.price_display || (isDigital ? "Free (Beta)" : "");
 
         return (
           <button
             key={order.order_id}
             onClick={() => {
               onClose();
-              navigate(`/order-status/${order.order_id}`, { state: { order } });
+              navigate(`/order-status/${order.order_id}`, {
+                state: { order, orderType: otype },
+              });
             }}
             className="w-full text-left rounded-xl border border-gray-200 bg-white
               hover:border-emerald-300 hover:shadow-sm
@@ -319,9 +331,16 @@ function MyOrdersTab({ onClose }) {
                   <Badge className={`text-xs border px-2 py-0 ${sc.color}`}>
                     {sc.label}
                   </Badge>
+                  <Badge className={`text-xs border px-2 py-0 ${
+                    isDigital
+                      ? "bg-indigo-50 text-indigo-600 border-indigo-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}>
+                    {isDigital ? "🌐 Online" : "📦 Print"}
+                  </Badge>
                 </div>
                 <p className="text-sm font-medium text-gray-800 truncate">
-                  {prod} — {price}
+                  {typeLabel} — {price}
                 </p>
                 {order.child_name && (
                   <p className="text-xs text-gray-500 mt-0.5">

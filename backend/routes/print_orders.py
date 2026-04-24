@@ -204,11 +204,18 @@ class PlaceOrderBody(BaseModel):
     delivery_address: DeliveryAddressBody
 
 
+class PlaceDigitalOrderBody(BaseModel):
+    """Order for a digital storybook (PDF download or email delivery)."""
+    generation_id: str
+    order_type:    str   # "pdf_download" | "email_pdf"
+    email:         Optional[str] = None   # required for email_pdf; ignored for download
+
+
 class UpdateOrderStatusBody(BaseModel):
-    status:     str
+    status:      str
     tracking_id: Optional[str] = None
-    courier:    Optional[str] = None
-    notes:      Optional[str] = None
+    courier:     Optional[str] = None
+    notes:       Optional[str] = None
 
 
 # ─── Order placement ──────────────────────────────────────────────────────────
@@ -290,6 +297,7 @@ async def place_order(body: PlaceOrderBody, request: Request):
     # ── Create Order ──────────────────────────────────────────────────────────
     order = {
         "order_id":           order_id,
+        "order_type":         "print",
         "user_mobile":        user_mobile or "anonymous",
         "generation_id":      body.generation_id,
         "product_id":         body.product_id,
@@ -340,6 +348,88 @@ async def place_order(body: PlaceOrderBody, request: Request):
             "Beta period: orders are being accepted at no charge. "
             "Payment integration coming soon."
         ),
+    }
+
+
+# ─── Digital order placement ──────────────────────────────────────────────────
+
+@router.post("/orders/digital")
+async def place_digital_order(body: PlaceDigitalOrderBody, request: Request):
+    """
+    Place a digital order (PDF download or email delivery).
+
+    order_type values:
+      "pdf_download"  → user downloads the PDF; delivered status = "emailed"
+      "email_pdf"     → PDF sent to provided email address
+
+    Status lifecycle (digital):
+      order_received → payment_pending → generating → emailed
+
+    For the beta/dummy payment period the order is created immediately at
+    "order_received". When payment is integrated the lifecycle will be driven
+    by the payment webhook.
+    """
+    valid_types = {"pdf_download", "email_pdf"}
+    if body.order_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"order_type must be one of {sorted(valid_types)}",
+        )
+
+    # Validate generation session
+    session = await session_store.read_session(body.generation_id)
+    if session is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Generation session '{body.generation_id[:8]}' not found. "
+                   "Generate a storybook first.",
+        )
+
+    user_mobile  = _get_user_mobile(request)
+    order_id     = uuid.uuid4().hex
+    now          = datetime.now(timezone.utc).isoformat()
+
+    # Digital orders have a fixed low price (₹49); free during beta
+    digital_price_paise = 4900   # ₹49 — overridden to 0 for beta
+
+    order = {
+        "order_id":           order_id,
+        "order_type":         body.order_type,
+        "user_mobile":        user_mobile or "anonymous",
+        "generation_id":      body.generation_id,
+        "product_id":         body.order_type,   # use order_type as product key
+        "child_name":         session.get("child_name", ""),
+        "story_id":           session.get("story_id", ""),
+        "pdf_blob_path":      session.get("pdf_blob_path", ""),
+        "quantity":           1,
+        "total_amount_paise": 0,      # beta: free
+        "currency":           "INR",
+        "status":             "order_received",
+        "delivery_email":     body.email or "",
+        "payment_id":         "",
+        "payment_gateway":    "",
+        "payment_status":     "",
+        "created_at":         now,
+        "emailed_at":         "",
+        "cancelled_at":       "",
+        "notes":              "",
+    }
+    await session_store.write_order(order)
+    logger.info(
+        "Digital order %s placed: type=%s child=%s",
+        order_id[:8], body.order_type, session.get("child_name", "?"),
+    )
+
+    type_label = "PDF Download" if body.order_type == "pdf_download" else "Email Delivery"
+    return {
+        "order_id":     order_id,
+        "order_type":   body.order_type,
+        "status":       "order_received",
+        "child_name":   session.get("child_name", ""),
+        "type_label":   type_label,
+        "price_display": "Free (Beta)",
+        "created_at":   now,
+        "message":      f"Your digital order ({type_label}) has been recorded.",
     }
 
 
@@ -436,7 +526,12 @@ async def admin_update_order_status(
     """
     _require_admin(x_admin_key)
 
-    valid_statuses = {"pending","confirmed","printing","shipped","delivered","cancelled"}
+    valid_statuses = {
+        # Print order statuses
+        "pending", "confirmed", "printing", "shipped", "delivered", "cancelled",
+        # Digital order statuses
+        "order_received", "payment_pending", "generating", "emailed",
+    }
     if body.status not in valid_statuses:
         raise HTTPException(
             status_code=400,
@@ -459,6 +554,8 @@ async def admin_update_order_status(
         order["delivered_at"] = now
     if body.status == "cancelled"  and not order.get("cancelled_at"):
         order["cancelled_at"] = now
+    if body.status == "emailed"    and not order.get("emailed_at"):
+        order["emailed_at"]   = now
 
     # Update tracking if provided
     if body.tracking_id:

@@ -149,64 +149,28 @@ export default function PrintOrderPage() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  // ── Place order ────────────────────────────────────────────────────────────
+  // ── Proceed to payment ────────────────────────────────────────────────────
 
-  const handlePlaceOrder = async () => {
+  const handleProceedToPayment = () => {
     if (!validate()) {
       toast.error("Please fix the highlighted fields.");
       return;
     }
 
-    setPlacing(true);
-    try {
-      const payload = {
-        generation_id:    generationId,
-        product_id:       selectedProduct,
-        quantity:         1,
-        delivery_address: {
-          full_name: address.full_name.trim(),
-          line1:     address.line1.trim(),
-          line2:     address.line2?.trim() || undefined,
-          city:      address.city.trim(),
-          state:     address.state.trim(),
-          pincode:   address.pincode.trim(),
-          phone:     address.phone.trim(),
-          country:   "India",
-        },
-      };
-
-      const res = await axios.post(`${API_V2}/orders`, payload, { headers: authHeaders() });
-      const order = res.data;
-
-      // Save address to address book if checkbox is checked
-      if (saveAddress) {
-        try {
-          await axios.post(`${API_V2}/user/addresses`, {
-            label:    "Home",
-            full_name: address.full_name.trim(),
-            line1:    address.line1.trim(),
-            line2:    address.line2?.trim() || null,
-            city:     address.city.trim(),
-            state:    address.state.trim(),
-            pincode:  address.pincode.trim(),
-            phone:    address.phone.trim(),
-            country:  "India",
-          }, { headers: authHeaders() });
-        } catch { /* non-fatal — don't block order completion */ }
-      }
-
-      toast.success("Order placed successfully!");
-
-      navigate(`/order-status/${order.order_id}`, {
-        state: { order, childName, storyId },
-      });
-
-    } catch (err) {
-      const detail = err.response?.data?.detail || "Failed to place order. Please try again.";
-      toast.error(detail);
-    } finally {
-      setPlacing(false);
-    }
+    navigate("/payment", {
+      state: {
+        orderType:       "print",
+        generationId,
+        childName,
+        storyId,
+        storyTitle:      `Personalised Storybook for ${childName}`,
+        totalPages:      10,
+        selectedProduct,
+        product,
+        address,
+        saveAddress,
+      },
+    });
   };
 
   // ── Selected product details ───────────────────────────────────────────────
@@ -473,14 +437,14 @@ export default function PrintOrderPage() {
             </div>
 
             <Button
-              onClick={handlePlaceOrder}
-              disabled={placing || productsLoading || !selectedProduct}
+              onClick={handleProceedToPayment}
+              disabled={productsLoading || !selectedProduct}
               className="w-full bg-amber-500 hover:bg-amber-600 text-white py-6 text-base font-bold shadow-md"
             >
               {placing ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Placing Order…</>
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Please wait…</>
               ) : (
-                <><Printer className="mr-2 h-5 w-5" />Place Order — {priceDisplay || "Select format"}</>
+                <><Printer className="mr-2 h-5 w-5" />Proceed to Payment — {priceDisplay || "Select format"}</>
               )}
             </Button>
 

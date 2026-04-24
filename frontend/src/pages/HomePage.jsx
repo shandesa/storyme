@@ -28,7 +28,7 @@ import { Badge }  from "@/components/ui/badge";
 import { toast }  from "sonner";
 import {
   Loader2, Upload, BookOpen, Sparkles, ChevronRight,
-  X, Download, RefreshCw, LogOut, Printer, CheckCircle,
+  X, Download, RefreshCw, LogOut, Printer, CheckCircle, Mail,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -83,6 +83,7 @@ export default function HomePage() {
   const [gender, setGender]                 = useState("neutral");
   const [previewImage, setPreviewImage]     = useState(null);
   const [pdfBlob, setPdfBlob]               = useState(null);
+  const [pdfObjectUrl, setPdfObjectUrl]     = useState(null);
   const [statusMessage, setStatusMessage]   = useState("");
   const [totalPages, setTotalPages]         = useState(0);
   // NEW: store generation metadata for print ordering
@@ -187,11 +188,13 @@ export default function HomePage() {
 
       const blob = new Blob([res.data], { type: "application/pdf" });
       setPdfBlob(blob);
-      _downloadBlob(blob, `${childName.replace(/\s+/g, "_")}_storybook.pdf`);
+      // Create a stable object URL for use in PaymentPage (no auto-download)
+      const objUrl = window.URL.createObjectURL(blob);
+      setPdfObjectUrl(objUrl);
 
       setStep(STEPS.COMPLETE);
       setStatusMessage("Your storybook is ready!");
-      toast.success("Storybook generated! Download started automatically.");
+      toast.success("Storybook generated! Choose how you'd like to get it below.");
     } catch (err) {
       console.error("Full generation failed:", err);
       let detail = "Generation failed. Please try again.";
@@ -247,9 +250,10 @@ export default function HomePage() {
   };
 
   const resetAll = () => {
+    if (pdfObjectUrl) window.URL.revokeObjectURL(pdfObjectUrl);
     setStep(STEPS.INPUT); setChildName(""); setSelectedFile(null);
     setPreviewUrl(null); setPreviewImage(null); setPdfBlob(null);
-    setTotalPages(0); setStatusMessage("");
+    setPdfObjectUrl(null); setTotalPages(0); setStatusMessage("");
     setGenerationId(null); setStoryId(null);
   };
 
@@ -427,45 +431,120 @@ export default function HomePage() {
 
         {/* ── COMPLETE ── */}
         {step === STEPS.COMPLETE && (
-          <Card className="shadow-lg border-emerald-200">
-            <CardContent className="py-10 text-center space-y-5">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-8 h-8 text-emerald-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-1">Your Storybook is Ready!</h2>
-                <p className="text-sm text-gray-500">"{selectedStoryTitle}"</p>
-                <p className="text-xs text-gray-400 mt-1">Download started automatically.</p>
-              </div>
+          <div className="space-y-4">
+            {/* Success banner */}
+            <Card className="shadow-lg border-emerald-200 bg-emerald-50">
+              <CardContent className="py-6 text-center space-y-2">
+                <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h2 className="text-xl font-bold text-emerald-800">
+                  "{selectedStoryTitle}" is Ready!
+                </h2>
+                <p className="text-sm text-emerald-700">
+                  Personalised for <strong>{childName}</strong> · {totalPages} pages
+                </p>
+              </CardContent>
+            </Card>
 
-              {/* Primary actions */}
-              <div className="flex flex-col gap-3 pt-2">
-                {/* Order print — primary CTA */}
-                <Button
+            {/* How would you like it? */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-gray-800">How would you like your storybook?</CardTitle>
+                <CardDescription>Choose one or more — each is tracked separately in My Orders.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+
+                {/* Option 1: Download PDF */}
+                <button
+                  onClick={() => navigate("/payment", {
+                    state: {
+                      orderType:    "pdf_download",
+                      generationId,
+                      childName:    childName.trim(),
+                      storyId:      storyId || selectedStory,
+                      storyTitle:   selectedStoryTitle,
+                      totalPages,
+                      pdfObjectUrl,
+                    },
+                  })}
+                  className="w-full text-left rounded-xl border-2 border-indigo-200 bg-indigo-50
+                    hover:border-indigo-400 hover:bg-indigo-100 transition-all p-4 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-100 group-hover:bg-indigo-200
+                      flex items-center justify-center flex-shrink-0 transition-colors">
+                      <Download className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800">Download PDF</p>
+                      <p className="text-sm text-gray-500">Get the digital PDF file to keep forever</p>
+                    </div>
+                    <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-xs flex-shrink-0">
+                      Free (Beta)
+                    </Badge>
+                  </div>
+                </button>
+
+                {/* Option 2: Email PDF */}
+                <button
+                  onClick={() => navigate("/payment", {
+                    state: {
+                      orderType:  "email_pdf",
+                      generationId,
+                      childName:  childName.trim(),
+                      storyId:    storyId || selectedStory,
+                      storyTitle: selectedStoryTitle,
+                      totalPages,
+                    },
+                  })}
+                  className="w-full text-left rounded-xl border-2 border-amber-200 bg-amber-50
+                    hover:border-amber-400 hover:bg-amber-100 transition-all p-4 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-100 group-hover:bg-amber-200
+                      flex items-center justify-center flex-shrink-0 transition-colors">
+                      <Mail className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800">Email PDF</p>
+                      <p className="text-sm text-gray-500">Send directly to your inbox</p>
+                    </div>
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs flex-shrink-0">
+                      Coming Soon
+                    </Badge>
+                  </div>
+                </button>
+
+                {/* Option 3: Printed Book */}
+                <button
                   onClick={handleOrderPrint}
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-white py-6 text-base font-semibold shadow-md"
+                  className="w-full text-left rounded-xl border-2 border-emerald-200 bg-emerald-50
+                    hover:border-emerald-400 hover:bg-emerald-100 transition-all p-4 group"
                 >
-                  <Printer className="mr-2 h-5 w-5" />
-                  Order a Printed Copy
-                  <Badge variant="secondary" className="ml-2 bg-amber-700 text-white text-xs">NEW</Badge>
-                </Button>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-100 group-hover:bg-emerald-200
+                      flex items-center justify-center flex-shrink-0 transition-colors">
+                      <Printer className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800">Order Printed Book</p>
+                      <p className="text-sm text-gray-500">Delivered to your door in 7–14 days</p>
+                    </div>
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs flex-shrink-0">
+                      From ₹299
+                    </Badge>
+                  </div>
+                </button>
 
-                {/* Secondary — download again */}
-                <Button
-                  onClick={handleDownload}
-                  variant="outline"
-                  className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 py-5"
-                >
-                  <Download className="mr-2 h-4 w-4" />Download PDF Again
-                </Button>
-              </div>
+              </CardContent>
+            </Card>
 
-              <Button onClick={resetAll} variant="ghost" size="sm"
-                className="text-gray-400 hover:text-gray-600 mt-2">
-                <RefreshCw className="mr-1 h-3 w-3" />Create Another Story
-              </Button>
-            </CardContent>
-          </Card>
+            <Button onClick={resetAll} variant="ghost" size="sm"
+              className="w-full text-gray-400 hover:text-gray-600">
+              <RefreshCw className="mr-1 h-3 w-3" />Create Another Story
+            </Button>
+          </div>
         )}
 
         <div className="text-center mt-6 text-xs text-gray-400">

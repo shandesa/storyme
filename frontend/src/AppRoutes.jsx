@@ -28,6 +28,7 @@ import RegisterPage     from "@/pages/RegisterPage";
 import TermsPage        from "@/pages/TermsPage";
 import HomePage         from "@/pages/HomePage";
 import PrintOrderPage   from "@/pages/PrintOrderPage";
+import PaymentPage      from "@/pages/PaymentPage";
 import OrderStatusPage  from "@/pages/OrderStatusPage";
 import AdminOrdersPage  from "@/pages/AdminOrdersPage";
 
@@ -47,6 +48,9 @@ export default function AppRoutes() {
         } />
         <Route path="/print-order" element={
           <ProtectedRoute><PrintOrderPage /></ProtectedRoute>
+        } />
+        <Route path="/payment" element={
+          <ProtectedRoute><PaymentPage /></ProtectedRoute>
         } />
         <Route path="/order-status/:orderId" element={
           <ProtectedRoute><OrderStatusPage /></ProtectedRoute>
