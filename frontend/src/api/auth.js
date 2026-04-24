@@ -191,3 +191,12 @@ export async function register(mobile, password) {
   }
   return result;
 }
+
+/**
+ * Record the user's Terms & Conditions decision.
+ * accepted=true  → { data: { status: "TERMS_ACCEPTED", user: {...} } }
+ * accepted=false → { data: { status: "TERMS_REJECTED" } }
+ */
+export async function acceptTerms(mobile, accepted) {
+  return post("/accept-terms", { mobile, accepted });
+}

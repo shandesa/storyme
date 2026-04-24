@@ -91,8 +91,9 @@ export default function RegisterPage() {
       return;
     }
 
-    toast.success("Account created! Welcome to StoryMe 🎉");
-    navigate("/home");
+    toast.success("Account created! Please review our Terms & Conditions.");
+    // New users always need to accept Terms before accessing the app
+    navigate("/terms", { state: { mobile } });
   };
 
   return (

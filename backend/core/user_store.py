@@ -111,14 +111,16 @@ class AzureUserStore:
         client = self._get_client()
         mobile = user_dict["mobile"]
         entity = {
-            "PartitionKey":   _PARTITION_KEY,
-            "RowKey":         mobile,
-            "mobile":         mobile,
-            "password_hash":  user_dict.get("password_hash", ""),
-            "country_code":   user_dict.get("country_code", "+91"),
-            "created_at":     user_dict.get("created_at",
-                              datetime.now(timezone.utc).isoformat()),
-            "last_login_at":  user_dict.get("last_login_at", ""),
+            "PartitionKey":       _PARTITION_KEY,
+            "RowKey":             mobile,
+            "mobile":             mobile,
+            "password_hash":      user_dict.get("password_hash", ""),
+            "country_code":       user_dict.get("country_code", "+91"),
+            "created_at":         user_dict.get("created_at",
+                                  datetime.now(timezone.utc).isoformat()),
+            "last_login_at":      user_dict.get("last_login_at", ""),
+            "terms_accepted":     user_dict.get("terms_accepted", False),
+            "terms_accepted_at":  user_dict.get("terms_accepted_at", ""),
         }
         client.upsert_entity(entity)
         logger.info("UserStore: upserted user %s", mobile)
@@ -133,11 +135,13 @@ class AzureUserStore:
     @staticmethod
     def _to_dict(entity) -> dict:
         return {
-            "mobile":        entity.get("mobile", entity.get("RowKey", "")),
-            "password_hash": entity.get("password_hash", ""),
-            "country_code":  entity.get("country_code", "+91"),
-            "created_at":    entity.get("created_at", ""),
-            "last_login_at": entity.get("last_login_at", ""),
+            "mobile":           entity.get("mobile", entity.get("RowKey", "")),
+            "password_hash":    entity.get("password_hash", ""),
+            "country_code":     entity.get("country_code", "+91"),
+            "created_at":       entity.get("created_at", ""),
+            "last_login_at":    entity.get("last_login_at", ""),
+            "terms_accepted":   entity.get("terms_accepted", False),
+            "terms_accepted_at": entity.get("terms_accepted_at", ""),
         }
 
 
@@ -174,6 +178,9 @@ class JsonUserStore:
         # Normalise: old records have 'password' instead of 'password_hash'
         if "password" in rec and "password_hash" not in rec:
             rec["password_hash"] = rec["password"]
+        # Normalise: ensure terms fields exist for legacy records
+        rec.setdefault("terms_accepted", False)
+        rec.setdefault("terms_accepted_at", "")
         return rec
 
     def upsert_user(self, user_dict: dict) -> None:
@@ -225,3 +232,20 @@ def touch_login(mobile: str) -> None:
 def user_exists(mobile: str) -> bool:
     """Return True if a user record exists for this mobile."""
     return _store.get_user(mobile) is not None
+
+
+def update_user_terms(mobile: str, accepted: bool) -> Optional[dict]:
+    """Record the user's Terms & Conditions acceptance decision.
+
+    Fetches the existing record, sets terms_accepted + terms_accepted_at,
+    writes it back, and returns the updated dict.
+    Returns None if the user does not exist.
+    """
+    user = _store.get_user(mobile)
+    if user is None:
+        return None
+    user["terms_accepted"]    = accepted
+    user["terms_accepted_at"] = datetime.now(timezone.utc).isoformat()
+    _store.upsert_user(user)
+    logger.info("Terms acceptance recorded for %s: accepted=%s", mobile, accepted)
+    return user

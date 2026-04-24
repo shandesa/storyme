@@ -24,7 +24,7 @@ from services.auth_service import AuthService
 from core.session_tokens import (
     require_mobile_from_request, get_mobile_from_request, create_token,
 )
-from core.user_store import get_user
+from core.user_store import get_user, update_user_terms
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +48,22 @@ class RegisterRequest(BaseModel):
     mobile: str
     password: str
 
+class AcceptTermsRequest(BaseModel):
+    mobile: str
+    accepted: bool
+
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
 def _safe_user(user_dict: dict) -> dict:
     """Return user dict without sensitive fields for API responses."""
     return {
-        "mobile":       user_dict.get("mobile", ""),
-        "country_code": user_dict.get("country_code", "+91"),
-        "created_at":   user_dict.get("created_at", ""),
-        "last_login_at": user_dict.get("last_login_at", ""),
+        "mobile":           user_dict.get("mobile", ""),
+        "country_code":     user_dict.get("country_code", "+91"),
+        "created_at":       user_dict.get("created_at", ""),
+        "last_login_at":    user_dict.get("last_login_at", ""),
+        "terms_accepted":   user_dict.get("terms_accepted", False),
+        "terms_accepted_at": user_dict.get("terms_accepted_at", ""),
     }
 
 
@@ -176,3 +182,25 @@ async def get_me(request: Request):
         "status": "OK",
         "user":   _safe_user(user_dict),
     }
+
+
+@router.post("/accept-terms")
+async def accept_terms(body: AcceptTermsRequest):
+    """Record the authenticated user's decision on Terms & Conditions.
+
+    Called immediately after login/registration before the user reaches /home.
+
+    - accepted=True  → persists acceptance timestamp, returns updated user
+    - accepted=False → persists rejection for audit, returns TERMS_REJECTED
+                       (frontend should log the user out and show login)
+    """
+    user_dict = update_user_terms(body.mobile, body.accepted)
+    if user_dict is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not body.accepted:
+        logger.info("Terms REJECTED by %s — access denied", body.mobile)
+        return {"status": "TERMS_REJECTED"}
+
+    logger.info("Terms ACCEPTED by %s", body.mobile)
+    return {"status": "TERMS_ACCEPTED", "user": _safe_user(user_dict)}
