@@ -31,6 +31,7 @@ import {
   X, Download, RefreshCw, LogOut, Printer, CheckCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AppHeader from "@/components/AppHeader";
 
 // ─── API ────────────────────────────────────────────────────────────────────
 
@@ -270,16 +271,7 @@ export default function HomePage() {
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-9 h-9 text-emerald-600" />
-            <h1 className="text-4xl font-bold text-gray-900 tracking-tight">StoryMe</h1>
-            <Sparkles className="w-7 h-7 text-amber-500" />
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-400 hover:text-gray-600">
-            <LogOut className="w-4 h-4 mr-1" />Logout
-          </Button>
-        </div>
+        <AppHeader />
         <p className="text-base text-gray-500 text-center mb-6">AI-powered personalised storybooks for your child</p>
 
         {/* ── INPUT ── */}

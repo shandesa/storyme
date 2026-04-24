@@ -42,6 +42,7 @@ from routes.stories import router as stories_router, v2_router as stories_v2_rou
 from routes.review import router as review_router
 from routes.auth import router as auth_router
 from routes.print_orders import router as print_orders_router
+from routes.user_profile import router as user_profile_router
 
 # ── Step 6: Routes that NEED cv2/mediapipe — wrapped in try/except ────────────
 # generate and generate_v2 depend on native libs (cv2, mediapipe, libxcb, libGL).
@@ -193,6 +194,7 @@ app.include_router(review_router)        # /api/review
 app.include_router(auth_router)          # /api/auth/*
 app.include_router(health_router)        # /health
 app.include_router(print_orders_router)  # /api/v2/print/* and /api/v2/orders/* and /api/v2/admin/*
+app.include_router(user_profile_router)  # /api/v2/user/addresses
 
 if generate_router is not None:
     app.include_router(generate_router)       # /api/generate  (v1)
