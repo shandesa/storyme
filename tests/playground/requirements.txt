@@ -1,5 +1,10 @@
 opencv-python
 mediapipe==0.10.14
 numpy
+replicate
 Pillow
 scikit-image
+torch
+torchvision
+torchaudio
+pytorch3d

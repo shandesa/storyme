@@ -1,0 +1,331 @@
+{
+  "version": "v7",
+  "story_id": "forest_of_smiles",
+  "title": "{name} and the Forest of Smiles",
+  "generated_at": "2026-04-21T15:57:51.570342",
+  "global": {
+    "canvas": {
+      "size": [
+        1024,
+        819
+      ],
+      "aspect_ratio": "5:4"
+    },
+    "face_anchor": {
+      "center": [
+        0.4,
+        0.32
+      ],
+      "size_ratio": [
+        0.17,
+        0.2
+      ],
+      "rotation": {
+        "yaw": -5,
+        "pitch": -3,
+        "roll": 0
+      },
+      "safe_zone_padding": 0.08
+    },
+    "lighting": {
+      "key": {
+        "direction": "top_left",
+        "intensity": 0.7
+      },
+      "fill": 0.3,
+      "temperature": "warm",
+      "face_shadow_allowed": false
+    },
+    "camera": {
+      "angle": "eye_level",
+      "framing": "medium",
+      "lens": "35mm",
+      "depth_of_field": "shallow"
+    },
+    "consistency": {
+      "character_id": "main_child_v1",
+      "style_id": "pixar_soft_v1",
+      "camera_lock": true,
+      "lighting_lock": true
+    },
+    "page_rules": {
+      "character_policy": "odd_only_except_last",
+      "last_page_override": true
+    },
+    "character_gender": "male"
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "character_present": true,
+      "scene": "A magical jungle entrance with tall trees, soft mist, golden morning light filtering through leaves.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} stood at the edge of a bright green jungle. The trees shimmered in warm sunlight, and a soft mist floated gently in the air. It felt like something inside the forest needed help.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nA magical jungle entrance with tall trees, soft mist, golden morning light filtering through leaves.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 2,
+      "character_present": false,
+      "scene": "A peaceful jungle with tall trees swaying gently in soft glowing light, no humans.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "The forest was quiet\u2014but not peaceful. The leaves didn\u2019t sway as much, and the air felt a little still. It was as if the forest had forgotten how to smile.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nA peaceful jungle with tall trees swaying gently in soft glowing light, no humans.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 3,
+      "character_present": true,
+      "scene": "Forest with floating glowing particles, subtle magical curiosity atmosphere.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} stepped inside, looking around carefully. Tiny glowing lights floated in the air, but they flickered softly, not bright like they should. Something was not right.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nForest with floating glowing particles, subtle magical curiosity atmosphere.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 4,
+      "character_present": false,
+      "scene": "Cute rabbits giggling behind bushes in a lush forest.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "A little monkey sat quietly behind a bush, not laughing. It held a broken branch in its hands and looked sad. It tried to swing\u2014but couldn\u2019t.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nCute rabbits giggling behind bushes in a lush forest.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 5,
+      "character_present": true,
+      "scene": "Deeper forest with richer greens and magical light trails.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} picked up the branch and gently helped tie it back to the tree. The monkey tried again\u2014and this time, it swung smoothly! The monkey\u2019s face lit up with joy.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nDeeper forest with richer greens and magical light trails.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 6,
+      "character_present": false,
+      "scene": "Colorful birds flying across glowing jungle canopy.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "Above, birds fluttered slowly. Their nests had slipped out of place, and they didn\u2019t know where to rest.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nColorful birds flying across glowing jungle canopy.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 7,
+      "character_present": true,
+      "scene": "Child meeting a gentle deer in warm glowing forest.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} carefully helped place the nest back onto a strong branch. The birds chirped happily, their voices bright again.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nChild meeting a gentle deer in warm glowing forest.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 8,
+      "character_present": false,
+      "scene": "Deer walking gracefully through glowing forest path.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "Nearby, a big elephant stood still. A small thorn was stuck in its foot, and it couldn\u2019t walk properly.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nDeer walking gracefully through glowing forest path.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 9,
+      "character_present": true,
+      "scene": "Butterflies glowing and dancing around in magical light.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} gently removed the thorn. The elephant lifted its foot, then took a step\u2026 and another. It sprayed water happily into the air.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nButterflies glowing and dancing around in magical light.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 10,
+      "character_present": false,
+      "scene": "Close-up butterflies in sunlight beams.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "Butterflies floated nearby, but their wings moved slowly. The flowers around them had wilted.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nClose-up butterflies in sunlight beams.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 11,
+      "character_present": true,
+      "scene": "Child sitting under a large ancient tree.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} poured water onto the flowers beneath the big tree. Slowly, the petals opened again, fresh and colorful. The butterflies began to dance once more.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nChild sitting under a large ancient tree.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 12,
+      "character_present": false,
+      "scene": "Large glowing magical tree radiating warmth.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "The great tree in the center of the forest still looked dim. Its glow had faded, as if it was waiting for something.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nLarge glowing magical tree radiating warmth.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 13,
+      "character_present": true,
+      "scene": "Forest with faint magical music energy and glowing particles.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "{name} looked around and smiled at all the animals. One by one, they gathered near the tree. The monkey laughed, the birds chirped, the elephant trumpeted softly.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nForest with faint magical music energy and glowing particles.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 14,
+      "character_present": false,
+      "scene": "Animals gathered playing music in forest clearing.",
+      "overlay_contract": {
+        "face_required": false,
+        "occlusion_allowed": null,
+        "blend_mode": null,
+        "color_match": null
+      },
+      "story": "The forest filled with sound again\u2014gentle, happy, alive. The tree began to glow brighter\u2026 and brighter.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nAnimals gathered playing music in forest clearing.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 15,
+      "character_present": true,
+      "scene": "Bright joyful forest atmosphere, celebration mood.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "Then, from the glowing light, a lion stepped forward. Strong, calm, and kind. He looked at {name} and smiled. \u201cYou helped everyone,\u201d his eyes seemed to say.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nBright joyful forest atmosphere, celebration mood.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    },
+    {
+      "page_number": 16,
+      "character_present": true,
+      "scene": "Grand finale: glowing forest with all animals and warm golden light.",
+      "overlay_contract": {
+        "face_required": true,
+        "occlusion_allowed": false,
+        "blend_mode": "poisson",
+        "color_match": "lab"
+      },
+      "story": "The lion stood beside {name}, and all the animals gathered close. The forest was full of smiles again. As {name} walked out, one thing stayed forever: Helping others had turned the whole forest\u2014and {name}\u2014bright with happiness.",
+      "prompt": {
+        "final_text": "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nGrand finale: glowing forest with all animals and warm golden light.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n",
+        "deterministic": true,
+        "version": "v5_locked"
+      }
+    }
+  ]
+}
