@@ -36,8 +36,29 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, RefreshCw, ChevronDown, ChevronUp,
-  Truck, Package, CheckCircle, Clock, Home, X, Lock,
+  Truck, Package, CheckCircle, Clock, Home, X, Lock, FlaskConical,
 } from "lucide-react";
+
+function AdminNav({ active }) {
+  return (
+    <div className="flex gap-1 mb-6 bg-gray-900 rounded-lg p-1 w-fit">
+      <a href="/admin/orders"
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors
+          ${active === "orders"
+            ? "bg-gray-800 text-white"
+            : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+        <Package className="w-4 h-4" /> Orders
+      </a>
+      <a href="/admin/face-test"
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors
+          ${active === "face-test"
+            ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+            : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+        <FlaskConical className="w-4 h-4" /> Face Quality Test
+      </a>
+    </div>
+  );
+}
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_V2      = `${BACKEND_URL}/api/v2`;
@@ -224,6 +245,8 @@ export default function AdminOrdersPage() {
             Refresh
           </Button>
         </div>
+
+        <AdminNav active="orders" />
 
         {/* Summary cards */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">

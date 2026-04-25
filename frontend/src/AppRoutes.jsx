@@ -31,6 +31,7 @@ import PrintOrderPage   from "@/pages/PrintOrderPage";
 import PaymentPage      from "@/pages/PaymentPage";
 import OrderStatusPage  from "@/pages/OrderStatusPage";
 import AdminOrdersPage  from "@/pages/AdminOrdersPage";
+import AdminFaceTestPage from "@/pages/AdminFaceTestPage";
 
 export default function AppRoutes() {
   return (
@@ -57,7 +58,8 @@ export default function AppRoutes() {
         } />
 
         {/* ── Admin (internal auth via X-Admin-Key) ── */}
-        <Route path="/admin/orders" element={<AdminOrdersPage />} />
+        <Route path="/admin/orders"    element={<AdminOrdersPage />} />
+        <Route path="/admin/face-test" element={<AdminFaceTestPage />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
