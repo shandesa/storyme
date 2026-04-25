@@ -44,6 +44,14 @@ from routes.auth import router as auth_router
 from routes.print_orders import router as print_orders_router
 from routes.user_profile import router as user_profile_router
 
+# ── Admin face quality test (cv2/mediapipe — wrapped defensively) ─────────────
+try:
+    from routes.admin_face import router as admin_face_router
+except Exception as _e:
+    admin_face_router = None  # type: ignore[assignment]
+    import logging as _log
+    _log.warning("admin_face router unavailable: %s", _e)
+
 # ── Step 6: Routes that NEED cv2/mediapipe — wrapped in try/except ────────────
 # generate and generate_v2 depend on native libs (cv2, mediapipe, libxcb, libGL).
 # _install_system_deps (step 1) installs those libs first, but we still wrap
@@ -66,6 +74,12 @@ try:
 except Exception as _e:
     generate_v2_router = None   # type: ignore[assignment]
     _generate_v2_import_error = _e
+\n_generate_v3_import_error: Exception | None = None
+try:
+    from routes.generate_v3 import router as generate_v3_router
+except Exception as _e:
+    generate_v3_router = None   # type: ignore[assignment]
+    _generate_v3_import_error = _e
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -195,11 +209,15 @@ app.include_router(auth_router)          # /api/auth/*
 app.include_router(health_router)        # /health
 app.include_router(print_orders_router)  # /api/v2/print/* and /api/v2/orders/* and /api/v2/admin/*
 app.include_router(user_profile_router)  # /api/v2/user/addresses
+if admin_face_router is not None:
+    app.include_router(admin_face_router)    # /api/admin/face-test/*
 
 if generate_router is not None:
     app.include_router(generate_router)       # /api/generate  (v1)
 if generate_v2_router is not None:
     app.include_router(generate_v2_router)    # /api/v2/*      (v2)
+if generate_v3_router is not None:
+    app.include_router(generate_v3_router)    # /api/v3/generate  (v3 face pipeline)
 
 # ─── Static files (MUST come after CORS middleware) ───────────────────────────
 static_dir = ROOT_DIR / "static"
