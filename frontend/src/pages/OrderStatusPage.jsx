@@ -323,7 +323,7 @@ export default function OrderStatusPage() {
                 </div>
               </div>
               <p className="text-lg font-black text-amber-600">
-                {order.price_display || (isDigital ? "Free (Beta)" : paise_to_display(order.total_amount_paise))}
+                {order.price_display || (isDigital ? "₹199" : paise_to_display(order.total_amount_paise))}
               </p>
             </div>
 
@@ -332,10 +332,11 @@ export default function OrderStatusPage() {
             {/* Beta notice */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
               <p className="text-xs text-blue-700">
-                🎉 <strong>Beta period:</strong> This order is at no charge.
+                🎉 <strong>Beta period:</strong> This order was placed at no charge.
                 {isDigital
                   ? " Your PDF will be delivered shortly."
                   : " We will print and ship your storybook free of cost."}
+                {" "}The listed price will apply once we launch publicly.
               </p>
             </div>
 

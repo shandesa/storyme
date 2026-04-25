@@ -309,7 +309,7 @@ function MyOrdersTab({ onClose }) {
         const typeLabel = otype === "pdf_download" ? "PDF Download"
           : otype === "email_pdf" ? "Email PDF"
           : ((order.product_id || "").includes("hardcover") ? "Hardcover" : "Paperback");
-        const price = order.price_display || (isDigital ? "Free (Beta)" : "");
+        const price = order.price_display || (isDigital ? "₹199" : "");
 
         return (
           <button

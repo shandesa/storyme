@@ -39,6 +39,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v2", tags=["print_orders"])
 
+# ─── Pricing constants ─────────────────────────────────────────────────────────
+# These are the REAL prices that will be charged when payment is live.
+# During the beta period, orders are recorded at these prices but no
+# actual charge is made. payment_status is set to "beta_bypass" so that
+# post-payment-integration we can audit what was given for free.
+
+PDF_DOWNLOAD_PRICE_PAISE  = 19900   # ₹199
+EMAIL_PDF_PRICE_PAISE     = 19900   # ₹199 (same as download)
+# Print product prices are set in the catalog / environment.
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _paise_to_display(paise: int) -> str:
@@ -389,47 +399,54 @@ async def place_digital_order(body: PlaceDigitalOrderBody, request: Request):
     order_id     = uuid.uuid4().hex
     now          = datetime.now(timezone.utc).isoformat()
 
-    # Digital orders have a fixed low price (₹49); free during beta
-    digital_price_paise = 4900   # ₹49 — overridden to 0 for beta
+    # Price: always store the REAL price. Beta bypass is tracked via
+    # payment_status="beta_bypass" — NOT by zeroing the price.
+    price_paise = (
+        PDF_DOWNLOAD_PRICE_PAISE if body.order_type == "pdf_download"
+        else EMAIL_PDF_PRICE_PAISE
+    )
 
     order = {
         "order_id":           order_id,
         "order_type":         body.order_type,
         "user_mobile":        user_mobile or "anonymous",
         "generation_id":      body.generation_id,
-        "product_id":         body.order_type,   # use order_type as product key
+        "product_id":         body.order_type,
         "child_name":         session.get("child_name", ""),
         "story_id":           session.get("story_id", ""),
         "pdf_blob_path":      session.get("pdf_blob_path", ""),
         "quantity":           1,
-        "total_amount_paise": 0,      # beta: free
+        "total_amount_paise": price_paise,
+        "price_display":      _paise_to_display(price_paise),
         "currency":           "INR",
         "status":             "order_received",
         "delivery_email":     body.email or "",
         "payment_id":         "",
         "payment_gateway":    "",
-        "payment_status":     "",
+        "payment_status":     "beta_bypass",
         "created_at":         now,
         "emailed_at":         "",
         "cancelled_at":       "",
-        "notes":              "",
+        "notes":              "Beta period — no charge made.",
     }
     await session_store.write_order(order)
     logger.info(
-        "Digital order %s placed: type=%s child=%s",
-        order_id[:8], body.order_type, session.get("child_name", "?"),
+        "Digital order %s placed: type=%s child=%s price=₹%d (beta_bypass)",
+        order_id[:8], body.order_type, session.get("child_name", "?"), price_paise // 100,
     )
 
     type_label = "PDF Download" if body.order_type == "pdf_download" else "Email Delivery"
     return {
-        "order_id":     order_id,
-        "order_type":   body.order_type,
-        "status":       "order_received",
-        "child_name":   session.get("child_name", ""),
-        "type_label":   type_label,
-        "price_display": "Free (Beta)",
-        "created_at":   now,
-        "message":      f"Your digital order ({type_label}) has been recorded.",
+        "order_id":           order_id,
+        "order_type":         body.order_type,
+        "status":             "order_received",
+        "child_name":         session.get("child_name", ""),
+        "type_label":         type_label,
+        "total_amount_paise": price_paise,
+        "price_display":      _paise_to_display(price_paise),
+        "payment_status":     "beta_bypass",
+        "created_at":         now,
+        "message":            f"Your digital order ({type_label}) has been recorded.",
     }
 
 
@@ -442,8 +459,10 @@ async def get_order(order_id: str, request: Request):
     if order is None:
         raise HTTPException(status_code=404, detail=f"Order '{order_id[:8]}' not found.")
 
-    # Attach product display info
-    order["price_display"] = _paise_to_display(order.get("total_amount_paise", 0))
+    # price_display: prefer the stored value (digital orders store it correctly);
+    # fall back to computing from paise for print orders that predate this field.
+    if not order.get("price_display"):
+        order["price_display"] = _paise_to_display(order.get("total_amount_paise", 0))
     return order
 
 
@@ -458,7 +477,8 @@ async def list_user_orders(request: Request):
         )
     orders = await session_store.list_orders(user_mobile=user_mobile, limit=50)
     for o in orders:
-        o["price_display"] = _paise_to_display(o.get("total_amount_paise", 0))
+        if not o.get("price_display"):
+            o["price_display"] = _paise_to_display(o.get("total_amount_paise", 0))
     return {"orders": orders, "total": len(orders)}
 
 
@@ -480,7 +500,8 @@ async def admin_list_orders(
     _require_admin(x_admin_key)
     orders = await session_store.list_orders(status=status, limit=limit)
     for o in orders:
-        o["price_display"] = _paise_to_display(o.get("total_amount_paise", 0))
+        if not o.get("price_display"):
+            o["price_display"] = _paise_to_display(o.get("total_amount_paise", 0))
 
     # Group by status for dashboard summary
     summary: dict[str, int] = {}
@@ -505,7 +526,8 @@ async def admin_get_order(
     order = await session_store.read_order(order_id)
     if order is None:
         raise HTTPException(status_code=404, detail=f"Order '{order_id[:8]}' not found.")
-    order["price_display"] = _paise_to_display(order.get("total_amount_paise", 0))
+    if not order.get("price_display"):
+        order["price_display"] = _paise_to_display(order.get("total_amount_paise", 0))
     return order
 
 

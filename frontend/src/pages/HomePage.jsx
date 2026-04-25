@@ -481,7 +481,7 @@ export default function HomePage() {
                       <p className="text-sm text-gray-500">Get the digital PDF file to keep forever</p>
                     </div>
                     <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-xs flex-shrink-0">
-                      Free (Beta)
+                      ₹199
                     </Badge>
                   </div>
                 </button>
@@ -511,7 +511,7 @@ export default function HomePage() {
                       <p className="text-sm text-gray-500">Send directly to your inbox</p>
                     </div>
                     <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs flex-shrink-0">
-                      Coming Soon
+                      ₹199
                     </Badge>
                   </div>
                 </button>
