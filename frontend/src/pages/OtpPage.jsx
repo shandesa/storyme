@@ -76,8 +76,13 @@ export default function OtpPage() {
       navigate("/register", { state: { mobile } });
     } else {
       // Existing user — token already saved in api/auth.js verifyOtp
+      const user = result.data?.user;
       toast.success("Welcome back!");
-      navigate("/home");
+      if (!user?.terms_accepted) {
+        navigate("/terms", { state: { mobile } });
+      } else {
+        navigate("/home");
+      }
     }
   };
 

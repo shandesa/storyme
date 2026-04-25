@@ -103,8 +103,13 @@ export default function LoginPage() {
       return;
     }
 
+    const user = result.data?.user;
     toast.success("Welcome back!");
-    navigate("/home");
+    if (!user?.terms_accepted) {
+      navigate("/terms", { state: { mobile } });
+    } else {
+      navigate("/home");
+    }
   };
 
   // ── Warm-up banner ───────────────────────────────────────────────────────────

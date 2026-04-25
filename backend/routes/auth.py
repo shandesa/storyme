@@ -24,7 +24,8 @@ from services.auth_service import AuthService
 from core.session_tokens import (
     require_mobile_from_request, get_mobile_from_request, create_token,
 )
-from core.user_store import get_user
+from core.user_store import get_user, update_user_terms
+from core.user_store import update_user_profile, update_user_password, request_account_deletion
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,13 @@ class LoginPasswordRequest(BaseModel):
     password: str
 
 class RegisterRequest(BaseModel):
+    mobile:       str
+    password:     str
+    display_name: str = ""
+
+class AcceptTermsRequest(BaseModel):
     mobile: str
-    password: str
+    accepted: bool
 
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
@@ -54,10 +60,16 @@ class RegisterRequest(BaseModel):
 def _safe_user(user_dict: dict) -> dict:
     """Return user dict without sensitive fields for API responses."""
     return {
-        "mobile":       user_dict.get("mobile", ""),
-        "country_code": user_dict.get("country_code", "+91"),
-        "created_at":   user_dict.get("created_at", ""),
-        "last_login_at": user_dict.get("last_login_at", ""),
+        "mobile":                user_dict.get("mobile", ""),
+        "country_code":          user_dict.get("country_code", "+91"),
+        "display_name":          user_dict.get("display_name", ""),
+        "email":                 user_dict.get("email", ""),
+        "account_status":        user_dict.get("account_status", "active"),
+        "deletion_requested_at": user_dict.get("deletion_requested_at", ""),
+        "created_at":            user_dict.get("created_at", ""),
+        "last_login_at":         user_dict.get("last_login_at", ""),
+        "terms_accepted":        user_dict.get("terms_accepted", False),
+        "terms_accepted_at":     user_dict.get("terms_accepted_at", ""),
     }
 
 
@@ -116,7 +128,7 @@ async def register(body: RegisterRequest):
     Returns a session token immediately after registration.
     """
     try:
-        user_dict, token = AuthService.register(body.mobile, body.password)
+        user_dict, token = AuthService.register(body.mobile, body.password, body.display_name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -137,6 +149,11 @@ async def login_password(body: LoginPasswordRequest):
 
     if result is None:
         raise HTTPException(status_code=404, detail="No account found for this mobile number")
+    if result == "deleted":
+        raise HTTPException(
+            status_code=403,
+            detail="This account is scheduled for deletion. Contact support@storyme.app to cancel within 30 days.",
+        )
     if result is False:
         raise HTTPException(status_code=401, detail="Incorrect password")
 
@@ -176,3 +193,25 @@ async def get_me(request: Request):
         "status": "OK",
         "user":   _safe_user(user_dict),
     }
+
+
+@router.post("/accept-terms")
+async def accept_terms(body: AcceptTermsRequest):
+    """Record the authenticated user's decision on Terms & Conditions.
+
+    Called immediately after login/registration before the user reaches /home.
+
+    - accepted=True  → persists acceptance timestamp, returns updated user
+    - accepted=False → persists rejection for audit, returns TERMS_REJECTED
+                       (frontend should log the user out and show login)
+    """
+    user_dict = update_user_terms(body.mobile, body.accepted)
+    if user_dict is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not body.accepted:
+        logger.info("Terms REJECTED by %s — access denied", body.mobile)
+        return {"status": "TERMS_REJECTED"}
+
+    logger.info("Terms ACCEPTED by %s", body.mobile)
+    return {"status": "TERMS_ACCEPTED", "user": _safe_user(user_dict)}

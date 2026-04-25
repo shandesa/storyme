@@ -25,8 +25,10 @@ import ProtectedRoute   from "@/components/ProtectedRoute";
 import LoginPage        from "@/pages/LoginPage";
 import OtpPage          from "@/pages/OtpPage";
 import RegisterPage     from "@/pages/RegisterPage";
+import TermsPage        from "@/pages/TermsPage";
 import HomePage         from "@/pages/HomePage";
 import PrintOrderPage   from "@/pages/PrintOrderPage";
+import PaymentPage      from "@/pages/PaymentPage";
 import OrderStatusPage  from "@/pages/OrderStatusPage";
 import AdminOrdersPage  from "@/pages/AdminOrdersPage";
 
@@ -38,6 +40,7 @@ export default function AppRoutes() {
         <Route path="/"         element={<LoginPage />} />
         <Route path="/otp"      element={<OtpPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/terms"    element={<TermsPage />} />
 
         {/* ── Protected (require valid session token) ── */}
         <Route path="/home" element={
@@ -45,6 +48,9 @@ export default function AppRoutes() {
         } />
         <Route path="/print-order" element={
           <ProtectedRoute><PrintOrderPage /></ProtectedRoute>
+        } />
+        <Route path="/payment" element={
+          <ProtectedRoute><PaymentPage /></ProtectedRoute>
         } />
         <Route path="/order-status/:orderId" element={
           <ProtectedRoute><OrderStatusPage /></ProtectedRoute>

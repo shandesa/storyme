@@ -184,10 +184,19 @@ export async function loginWithPassword(mobile, password) {
  * Register a new user.
  * Returns { data: { status: "REGISTERED", user: {...} } }
  */
-export async function register(mobile, password) {
-  const result = await post("/register", { mobile, password });
+export async function register(mobile, password, displayName = "") {
+  const result = await post("/register", { mobile, password, display_name: displayName });
   if (!result.error && result.data?.token) {
     await _saveSession(result.data.token, mobile);
   }
   return result;
+}
+
+/**
+ * Record the user's Terms & Conditions decision.
+ * accepted=true  → { data: { status: "TERMS_ACCEPTED", user: {...} } }
+ * accepted=false → { data: { status: "TERMS_REJECTED" } }
+ */
+export async function acceptTerms(mobile, accepted) {
+  return post("/accept-terms", { mobile, accepted });
 }

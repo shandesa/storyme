@@ -36,8 +36,11 @@ import { Separator } from "@/components/ui/separator";
 import { Badge }     from "@/components/ui/badge";
 import {
   ArrowLeft, Loader2, Printer, ShieldCheck, Truck, BookOpen,
+  MapPin, ChevronDown, Check,
 } from "lucide-react";
 import PrintProductCard from "@/components/PrintProductCard";
+import AppHeader from "@/components/AppHeader";
+import { useSavedAddresses } from "@/components/UserAccountSheet";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_V2      = `${BACKEND_URL}/api/v2`;
@@ -82,6 +85,28 @@ export default function PrintOrderPage() {
 
   const [errors, setErrors] = useState({});
 
+  // ── Saved addresses (pre-fill) ─────────────────────────────────────────────
+  const { addresses: savedAddresses } = useSavedAddresses();
+  const [savedAddressOpen, setSavedAddressOpen] = useState(false);
+  const [saveAddress,      setSaveAddress]      = useState(true);
+
+  const handleUseSavedAddress = (addr) => {
+    setAddress({
+      full_name: addr.full_name || "",
+      line1:     addr.line1    || "",
+      line2:     addr.line2    || "",
+      city:      addr.city     || "",
+      state:     addr.state    || "",
+      pincode:   addr.pincode  || "",
+      phone:     addr.phone    || "",
+    });
+    setErrors({});
+    setSavedAddressOpen(false);
+    setSaveAddress(false);
+    toast.success('Address pre-filled from "' + addr.label + '"');
+    
+  };
+
   // ── Load products ──────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -124,47 +149,28 @@ export default function PrintOrderPage() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  // ── Place order ────────────────────────────────────────────────────────────
+  // ── Proceed to payment ────────────────────────────────────────────────────
 
-  const handlePlaceOrder = async () => {
+  const handleProceedToPayment = () => {
     if (!validate()) {
       toast.error("Please fix the highlighted fields.");
       return;
     }
 
-    setPlacing(true);
-    try {
-      const payload = {
-        generation_id:    generationId,
-        product_id:       selectedProduct,
-        quantity:         1,
-        delivery_address: {
-          full_name: address.full_name.trim(),
-          line1:     address.line1.trim(),
-          line2:     address.line2?.trim() || undefined,
-          city:      address.city.trim(),
-          state:     address.state.trim(),
-          pincode:   address.pincode.trim(),
-          phone:     address.phone.trim(),
-          country:   "India",
-        },
-      };
-
-      const res = await axios.post(`${API_V2}/orders`, payload, { headers: authHeaders() });
-      const order = res.data;
-
-      toast.success("Order placed successfully!");
-
-      navigate(`/order-status/${order.order_id}`, {
-        state: { order, childName, storyId },
-      });
-
-    } catch (err) {
-      const detail = err.response?.data?.detail || "Failed to place order. Please try again.";
-      toast.error(detail);
-    } finally {
-      setPlacing(false);
-    }
+    navigate("/payment", {
+      state: {
+        orderType:       "print",
+        generationId,
+        childName,
+        storyId,
+        storyTitle:      `Personalised Storybook for ${childName}`,
+        totalPages:      10,
+        selectedProduct,
+        product,
+        address,
+        saveAddress,
+      },
+    });
   };
 
   // ── Selected product details ───────────────────────────────────────────────
@@ -179,7 +185,10 @@ export default function PrintOrderPage() {
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <AppHeader />
+
+        {/* Sub-header with back navigation */}
+        <div className="flex items-center gap-3 mb-6 -mt-2">
           <Button variant="ghost" size="sm" onClick={() => navigate("/home")}
             className="text-gray-500 hover:text-gray-700 -ml-2">
             <ArrowLeft className="w-4 h-4 mr-1" />Back
@@ -247,6 +256,42 @@ export default function PrintOrderPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+
+            {/* ── Saved address selector ── */}
+            {savedAddresses.length > 0 && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setSavedAddressOpen(!savedAddressOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5
+                    text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Use a saved address
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${savedAddressOpen ? "rotate-180" : ""}`} />
+                </button>
+                {savedAddressOpen && (
+                  <div className="border-t border-emerald-200 divide-y divide-emerald-100">
+                    {savedAddresses.map((addr) => (
+                      <button
+                        key={addr.address_id}
+                        type="button"
+                        onClick={() => handleUseSavedAddress(addr)}
+                        className="w-full text-left px-4 py-3 hover:bg-emerald-100 transition-colors"
+                      >
+                        <p className="text-xs font-semibold text-emerald-800 mb-0.5">{addr.label}</p>
+                        <p className="text-xs text-gray-700">{addr.full_name}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {addr.line1}, {addr.city} — {addr.pincode}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label className="text-gray-700 font-medium">Full Name *</Label>
@@ -333,6 +378,21 @@ export default function PrintOrderPage() {
               {errors.state && <p className="text-red-500 text-xs">{errors.state}</p>}
             </div>
 
+            {/* Save address toggle */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+              <div
+                onClick={() => setSaveAddress(!saveAddress)}
+                className={`w-4 h-4 rounded border-2 flex items-center justify-center
+                  transition-colors cursor-pointer
+                  ${saveAddress
+                    ? "bg-emerald-600 border-emerald-600"
+                    : "bg-white border-gray-300"}`}
+              >
+                {saveAddress && <Check className="w-3 h-3 text-white" />}
+              </div>
+              <span className="text-sm text-gray-600">Save this address to my address book</span>
+            </label>
+
           </CardContent>
         </Card>
 
@@ -377,14 +437,14 @@ export default function PrintOrderPage() {
             </div>
 
             <Button
-              onClick={handlePlaceOrder}
-              disabled={placing || productsLoading || !selectedProduct}
+              onClick={handleProceedToPayment}
+              disabled={productsLoading || !selectedProduct}
               className="w-full bg-amber-500 hover:bg-amber-600 text-white py-6 text-base font-bold shadow-md"
             >
               {placing ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Placing Order…</>
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Please wait…</>
               ) : (
-                <><Printer className="mr-2 h-5 w-5" />Place Order — {priceDisplay || "Select format"}</>
+                <><Printer className="mr-2 h-5 w-5" />Proceed to Payment — {priceDisplay || "Select format"}</>
               )}
             </Button>
 
