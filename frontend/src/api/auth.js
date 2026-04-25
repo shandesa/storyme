@@ -184,8 +184,8 @@ export async function loginWithPassword(mobile, password) {
  * Register a new user.
  * Returns { data: { status: "REGISTERED", user: {...} } }
  */
-export async function register(mobile, password) {
-  const result = await post("/register", { mobile, password });
+export async function register(mobile, password, displayName = "") {
+  const result = await post("/register", { mobile, password, display_name: displayName });
   if (!result.error && result.data?.token) {
     await _saveSession(result.data.token, mobile);
   }

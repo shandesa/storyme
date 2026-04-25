@@ -111,16 +111,20 @@ class AzureUserStore:
         client = self._get_client()
         mobile = user_dict["mobile"]
         entity = {
-            "PartitionKey":       _PARTITION_KEY,
-            "RowKey":             mobile,
-            "mobile":             mobile,
-            "password_hash":      user_dict.get("password_hash", ""),
-            "country_code":       user_dict.get("country_code", "+91"),
-            "created_at":         user_dict.get("created_at",
-                                  datetime.now(timezone.utc).isoformat()),
-            "last_login_at":      user_dict.get("last_login_at", ""),
-            "terms_accepted":     user_dict.get("terms_accepted", False),
-            "terms_accepted_at":  user_dict.get("terms_accepted_at", ""),
+            "PartitionKey":           _PARTITION_KEY,
+            "RowKey":                 mobile,
+            "mobile":                 mobile,
+            "password_hash":          user_dict.get("password_hash", ""),
+            "country_code":           user_dict.get("country_code", "+91"),
+            "display_name":           user_dict.get("display_name", ""),
+            "email":                  user_dict.get("email", ""),
+            "account_status":         user_dict.get("account_status", "active"),
+            "deletion_requested_at":  user_dict.get("deletion_requested_at", ""),
+            "created_at":             user_dict.get("created_at",
+                                      datetime.now(timezone.utc).isoformat()),
+            "last_login_at":          user_dict.get("last_login_at", ""),
+            "terms_accepted":         user_dict.get("terms_accepted", False),
+            "terms_accepted_at":      user_dict.get("terms_accepted_at", ""),
         }
         client.upsert_entity(entity)
         logger.info("UserStore: upserted user %s", mobile)
@@ -135,13 +139,17 @@ class AzureUserStore:
     @staticmethod
     def _to_dict(entity) -> dict:
         return {
-            "mobile":           entity.get("mobile", entity.get("RowKey", "")),
-            "password_hash":    entity.get("password_hash", ""),
-            "country_code":     entity.get("country_code", "+91"),
-            "created_at":       entity.get("created_at", ""),
-            "last_login_at":    entity.get("last_login_at", ""),
-            "terms_accepted":   entity.get("terms_accepted", False),
-            "terms_accepted_at": entity.get("terms_accepted_at", ""),
+            "mobile":                entity.get("mobile", entity.get("RowKey", "")),
+            "password_hash":         entity.get("password_hash", ""),
+            "country_code":          entity.get("country_code", "+91"),
+            "display_name":          entity.get("display_name", ""),
+            "email":                 entity.get("email", ""),
+            "account_status":        entity.get("account_status", "active"),
+            "deletion_requested_at": entity.get("deletion_requested_at", ""),
+            "created_at":            entity.get("created_at", ""),
+            "last_login_at":         entity.get("last_login_at", ""),
+            "terms_accepted":        entity.get("terms_accepted", False),
+            "terms_accepted_at":     entity.get("terms_accepted_at", ""),
         }
 
 
@@ -178,9 +186,13 @@ class JsonUserStore:
         # Normalise: old records have 'password' instead of 'password_hash'
         if "password" in rec and "password_hash" not in rec:
             rec["password_hash"] = rec["password"]
-        # Normalise: ensure terms fields exist for legacy records
+        # Normalise: ensure all optional fields exist for legacy records
         rec.setdefault("terms_accepted", False)
         rec.setdefault("terms_accepted_at", "")
+        rec.setdefault("display_name", "")
+        rec.setdefault("email", "")
+        rec.setdefault("account_status", "active")
+        rec.setdefault("deletion_requested_at", "")
         return rec
 
     def upsert_user(self, user_dict: dict) -> None:
@@ -232,6 +244,41 @@ def touch_login(mobile: str) -> None:
 def user_exists(mobile: str) -> bool:
     """Return True if a user record exists for this mobile."""
     return _store.get_user(mobile) is not None
+
+
+def update_user_profile(mobile: str, display_name: str, email: str) -> Optional[dict]:
+    """Update display_name and/or email for an existing user. Returns updated dict or None."""
+    user = _store.get_user(mobile)
+    if user is None:
+        return None
+    user["display_name"] = display_name.strip()
+    user["email"]        = email.strip().lower()
+    _store.upsert_user(user)
+    logger.info("Profile updated for %s", mobile)
+    return user
+
+
+def update_user_password(mobile: str, new_hash: str) -> Optional[dict]:
+    """Replace the password hash for an existing user. Returns updated dict or None."""
+    user = _store.get_user(mobile)
+    if user is None:
+        return None
+    user["password_hash"] = new_hash
+    _store.upsert_user(user)
+    logger.info("Password updated for %s", mobile)
+    return user
+
+
+def request_account_deletion(mobile: str) -> Optional[dict]:
+    """Soft-delete: mark account_status=deletion_requested. Returns updated dict or None."""
+    user = _store.get_user(mobile)
+    if user is None:
+        return None
+    user["account_status"]        = "deletion_requested"
+    user["deletion_requested_at"] = datetime.now(timezone.utc).isoformat()
+    _store.upsert_user(user)
+    logger.info("Account deletion requested for %s", mobile)
+    return user
 
 
 def update_user_terms(mobile: str, accepted: bool) -> Optional[dict]:

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, Sparkles, Loader2, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { BookOpen, Sparkles, Loader2, Lock, Eye, EyeOff, ArrowLeft, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -56,11 +56,12 @@ export default function RegisterPage() {
 
   const mobile = location.state?.mobile ?? null;
 
-  const [password, setPassword]   = useState("");
-  const [confirm, setConfirm]     = useState("");
-  const [showPw, setShowPw]       = useState(false);
-  const [showCf, setShowCf]       = useState(false);
-  const [loading, setLoading]     = useState(false);
+  const [password, setPassword]       = useState("");
+  const [confirm, setConfirm]         = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [showPw, setShowPw]           = useState(false);
+  const [showCf, setShowCf]           = useState(false);
+  const [loading, setLoading]         = useState(false);
 
   // Guard
   useEffect(() => {
@@ -83,7 +84,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const result = await register(mobile, password);
+    const result = await register(mobile, password, displayName.trim());
     setLoading(false);
 
     if (result.error) {
@@ -121,6 +122,26 @@ export default function RegisterPage() {
 
           <CardContent className="pt-6">
             <form onSubmit={handleRegister} className="space-y-5">
+
+              {/* Your Name (optional) */}
+              <div className="space-y-1.5">
+                <Label htmlFor="displayName" className="text-gray-700 font-medium">
+                  Your Name <span className="text-xs text-gray-400 font-normal">(optional)</span>
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="displayName"
+                    type="text"
+                    placeholder="e.g. Shantanu Kumar"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="border-gray-300 pl-10"
+                    maxLength={60}
+                  />
+                </div>
+                <p className="text-xs text-gray-400">Shown in your account. You can change this later.</p>
+              </div>
 
               {/* Password */}
               <div className="space-y-1.5">
