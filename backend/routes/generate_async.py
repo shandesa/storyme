@@ -37,7 +37,7 @@ from pydantic import BaseModel
 from core.config import config
 from core.session_store import session_store
 from core.storage import storage
-from core.storage_paths import upload_path as make_upload_path, make_pdf_path
+from core.storage_paths import upload_path as make_upload_path, pdf_path as make_pdf_path
 
 logger = logging.getLogger(__name__)
 
