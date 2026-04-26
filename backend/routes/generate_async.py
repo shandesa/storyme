@@ -371,6 +371,12 @@ def _generate_sync(
     from pathlib import Path as _Path
     from datetime import datetime as _dt, timezone as _tz
 
+    # ── Startup banner ────────────────────────────────────────────────────
+    logger.info(
+        "━━━ ASYNC GENERATION START ━━━ gen_id=%s | child=%r | story=%s | mode=%s | gender=%s",
+        gen_id[:8], child_name, story_id, mode, gender,
+    )
+
     # ── Lazy imports (native libs may not be available) ────────────────────
     try:
         from services.story_service import story_registry, FACE_COORDS, SCENE_FILES
@@ -378,6 +384,7 @@ def _generate_sync(
         from services.generation_mode import generate_page
         from services.image_service import image_service
         from models.generation import GenerationMode
+        logger.debug("Async gen: all service imports OK")
     except Exception as e:
         logger.error("Async gen: import failure — %s", e)
         # Do NOT call async code here — we are in a thread executor.
@@ -394,13 +401,19 @@ def _generate_sync(
     # ── Story lookup ───────────────────────────────────────────────────────
     story = story_registry.get_story_by_id(story_id)
     if not story:
+        logger.warning("Async gen: story_id '%s' not found — trying index 0", story_id)
         story = story_registry.get_story_by_index(0)
     if not story:
+        logger.error("Async gen: no stories available in registry!")
         return {"status": "failed", "error": "No stories available"}
 
     total_pages = len(story.pages)
     gen_mode    = GenerationMode.OPENCV if mode == "opencv" else GenerationMode.AI
     pdf_svc     = PDFService(str(config.OUTPUT_DIR))
+    logger.info(
+        "Async gen: story loaded — pages=%d gen_mode=%s",
+        total_pages, gen_mode,
+    )
 
     pages_data:   list = []
     failed_pages: list = []
@@ -413,6 +426,11 @@ def _generate_sync(
         out_local  = str(config.OUTPUT_DIR / f"{gen_id}_{page.page_number:02d}.png")
         page_text  = page.text
 
+        logger.info(
+            "Async gen: page %d/%d | scene=%s | face_config=%s",
+            page.page_number, total_pages, scene_file, face_cfg,
+        )
+
         template_local  = str(
             config.BACKEND_DIR /
             f"templates/stories/{story.story_id}/{gender}/templates/{scene_file}"
@@ -423,7 +441,10 @@ def _generate_sync(
         )
 
         if not _Path(template_local).exists():
-            logger.warning("Async gen: template missing page %d at %s", page.page_number, template_local)
+            logger.error(
+                "✗ Async gen page %d: TEMPLATE MISSING at %s",
+                page.page_number, template_local,
+            )
             failed_pages.append(page.page_number)
             continue
 
@@ -439,11 +460,16 @@ def _generate_sync(
                 scene_text=page_text,
             )
             if result:
+                logger.info("✅ Async gen page %d: face_blend SUCCESS → %s", page.page_number, _Path(result).name)
                 pages_data.append({"text": page_text, "image_path": result,
                                     "page_number": page.page_number})
                 continue
 
-            # PIL fallback
+            # ── PIL Haar-cascade fallback ─────────────────────────────────
+            logger.warning(
+                "⚠ Async gen page %d: generate_page=None → FALLING BACK to PIL Haar-cascade",
+                page.page_number,
+            )
             face_img = image_service.extract_face(
                 local_image_path, (fp.width, fp.height), angle=fp.angle,
             )
@@ -452,14 +478,19 @@ def _generate_sync(
                 page.image_path, face_img, (fp.x, fp.y), fallback_out,
                 child_name=child_name,
             )
+            logger.info("⚠ Async gen page %d: PIL fallback COMPLETE → %s", page.page_number, _Path(composed).name)
             pages_data.append({"text": page_text, "image_path": composed,
                                 "page_number": page.page_number})
 
         except Exception as pe:
-            logger.warning("Async gen: page %d failed: %s", page.page_number, pe)
+            logger.error("✗ Async gen page %d EXCEPTION: %s", page.page_number, pe, exc_info=True)
             failed_pages.append(page.page_number)
 
     succeeded = len(pages_data)
+    logger.info(
+        "━━━ PAGE SUMMARY ━━━ gen_id=%s succeeded=%d failed=%d total=%d failed_pages=%s",
+        gen_id[:8], succeeded, len(failed_pages), total_pages, failed_pages,
+    )
     if succeeded == 0:
         # Do NOT call async code here — we are in a thread executor.
         return {
@@ -472,6 +503,7 @@ def _generate_sync(
         }
 
     # ── Build PDF ──────────────────────────────────────────────────────────
+    logger.info("Async gen: building PDF with %d pages for %r", succeeded, child_name)
     ts           = _dt.now(_tz.utc).strftime("%Y%m%d_%H%M%S")
     safe_n       = _re.sub(r"[^\w\-]", "_", child_name.strip().lower())[:32]
     pdf_filename = f"{safe_n}_{ts}_{gen_id[:8]}.pdf"
@@ -508,8 +540,8 @@ def _generate_sync(
     # Do NOT call async code here — we are in a thread executor.
     # Return updates dict; _run_generation_task (async) writes to session_store.
     logger.info(
-        "Async gen complete: gen_id=%s pages=%d/%d pdf=%s",
-        gen_id[:8], succeeded, total_pages, pdf_filename,
+        "━━━ ASYNC GENERATION COMPLETE ━━━ gen_id=%s | pages=%d/%d | pdf=%s | blob=%s",
+        gen_id[:8], succeeded, total_pages, pdf_filename, blob_pdf_path or "local-only",
     )
     return {
         "status":          "complete",

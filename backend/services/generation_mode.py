@@ -52,6 +52,10 @@ def generate_page(
     child_name: str = "",
     scene_text: str = "",
 ) -> Optional[str]:
+    logger.info(
+        "generate_page called | mode=%s | child=%r | template=%s",
+        mode, child_name, Path(template_path).name if template_path else "None",
+    )
     """
     Generate a single story page image using the specified mode.
 
@@ -98,25 +102,25 @@ def _generate_opencv(
     face_config: Dict[str, int],
     output_path: str,
 ) -> Optional[str]:
-    """
-    Generate page using the face_blend pipeline (OpenCV + MediaPipe).
-
-    Pipeline (ported from tests/playground/face_blend.py):
-      1. Detect MediaPipe FaceMesh landmarks on user photo
-      2. Align face to canonical frontal pose (7-point affine, LMEDS, flip-safe)
-      3. Re-detect landmarks on aligned image
-      4. Extract face region via ConvexHull bounding box
-      5. Resize and position at face_config coordinates
-      6. Match LAB-space colour statistics to template ROI
-      7. Match luminance to template ROI
-      8. Create Gaussian-feathered elliptical mask
-      9. cv2.seamlessClone into template
-
-    The reference_path is used for landmark-based alignment (the reference
-    contains a frontal face at the expected pose so alignment is stable).
-    Falls back to using user face directly if reference alignment fails.
-    """
+    """Generate page using the face_blend pipeline (OpenCV + MediaPipe)."""
     from services.face_blend_service import process_scene
+
+    template_exists = Path(template_path).exists()
+    face_exists     = Path(user_face_path).exists()
+    logger.info(
+        "▶ _generate_opencv | mode=opencv | template=%s (exists=%s) | "
+        "user_face=%s (exists=%s) | face_config=%s | output=%s",
+        Path(template_path).name, template_exists,
+        Path(user_face_path).name, face_exists,
+        face_config, Path(output_path).name,
+    )
+
+    if not template_exists:
+        logger.error("✗ opencv ABORTED: template not found: %s", template_path)
+        return None
+    if not face_exists:
+        logger.error("✗ opencv ABORTED: user face not found: %s", user_face_path)
+        return None
 
     try:
         result = process_scene(
@@ -126,10 +130,19 @@ def _generate_opencv(
             output_path=output_path,
         )
         if result:
-            logger.debug("opencv: generated %s", Path(output_path).name)
+            logger.info("✅ _generate_opencv SUCCESS: %s", Path(output_path).name)
+        else:
+            logger.warning(
+                "⚠ _generate_opencv RETURNED NONE (process_scene failed) | "
+                "template=%s — caller will use PIL Haar-cascade fallback",
+                Path(template_path).name,
+            )
         return result
     except Exception as e:
-        logger.warning("opencv generation failed: %s", e)
+        logger.error(
+            "✗ _generate_opencv EXCEPTION: %s | template=%s | face=%s",
+            e, Path(template_path).name, Path(user_face_path).name, exc_info=True,
+        )
         return None
 
 
