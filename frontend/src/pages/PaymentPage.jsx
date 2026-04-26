@@ -29,8 +29,9 @@
  * See docs/payment/PAYMENT_INTEGRATION.md
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { updateGenCache } from "@/lib/generationCache";
 import { authHeaders } from "@/lib/session";
 import axios from "axios";
 import { toast } from "sonner";
@@ -44,7 +45,7 @@ import {
 } from "@/components/ui/card";
 import {
   ArrowLeft, Loader2, Download, Mail, Printer, BookOpen,
-  CreditCard, ShieldCheck, Lock, CheckCircle2, Sparkles, MapPin,
+  CreditCard, ShieldCheck, Lock, CheckCircle2, Sparkles, MapPin, Clock,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 
@@ -87,7 +88,11 @@ export default function PaymentPage() {
     childName = "Your Child", storyTitle = "Personalised Storybook",
     totalPages = 10, pdfObjectUrl = null,
     selectedProduct = null, product = null, address = null, saveAddress = false,
+    bgGenStatus: initialBgGenStatus = null,
   } = state;
+
+  const [bgGenStatus, setBgGenStatus] = useState(initialBgGenStatus);
+  const pollRef = useRef(null);
 
   const conf      = ORDER_TYPE_CONFIG[orderType] || ORDER_TYPE_CONFIG.pdf_download;
   const { Icon }  = conf;
@@ -95,6 +100,23 @@ export default function PaymentPage() {
 
   const [placing, setPlacing] = useState(false);
   const [email,   setEmail]   = useState("");
+
+  // ── Poll generation status until complete ───────────────────────────────────
+  useEffect(() => {
+    if (!generationId || !initialBgGenStatus || initialBgGenStatus !== "generating") return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_V2}/generate/status/${generationId}`, { timeout: 10_000 });
+        const st = res.data.status;
+        setBgGenStatus(st);
+        updateGenCache({ bgGenStatus: st });
+        if (st === "complete" || st === "failed") clearInterval(poll);
+      } catch { /* keep polling */ }
+    }, 4000);
+    pollRef.current = poll;
+    return () => clearInterval(poll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generationId]);
 
   const priceDisplay = orderType === "print"
     ? (product?.price_display || "₹299")
@@ -132,16 +154,29 @@ export default function PaymentPage() {
         );
         const order = res.data;
 
-        if (orderType === "pdf_download" && pdfObjectUrl) {
-          const a = document.createElement("a");
-          a.href = pdfObjectUrl;
-          a.download = `${childName.replace(/\s+/g, "_")}_storybook.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => document.body.removeChild(a), 1_000);
-          toast.success("Download started! Your order has been recorded.");
+        if (orderType === "pdf_download") {
+          if (pdfObjectUrl) {
+            // Synchronous generation flow: blob URL in memory
+            const a = document.createElement("a");
+            a.href = pdfObjectUrl;
+            a.download = `${childName.replace(/\s+/g, "_")}_storybook.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => document.body.removeChild(a), 1_000);
+            toast.success("Download started! Your order has been recorded.");
+          } else {
+            // Async generation flow: download from server
+            const dlUrl = `${API_V2}/generate/download/${generationId}`;
+            const a = document.createElement("a");
+            a.href = dlUrl;
+            a.download = `${childName.replace(/\s+/g, "_")}_storybook.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => document.body.removeChild(a), 1_000);
+            toast.success("Download started! Your order has been recorded.");
+          }
         } else if (orderType === "email_pdf") {
-          toast.success("Order placed! Your PDF will be emailed shortly.");
+          toast.success("Order placed! Your PDF will be emailed to you shortly.");
         }
 
         navigate(`/order-status/${order.order_id}`, {
@@ -263,6 +298,26 @@ export default function PaymentPage() {
           </CardContent>
         </Card>
 
+        {/* ── Generation status banner (async flow) ── */}
+        {bgGenStatus === "generating" && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 mb-4 flex items-start gap-3">
+            <Loader2 className="w-5 h-5 text-amber-500 animate-spin flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Your storybook is still generating…</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                The "{storyTitle}" storybook is being personalised in the background.
+                The checkout button will unlock as soon as it's ready — usually within 1–2 minutes.
+              </p>
+            </div>
+            <Clock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          </div>
+        )}
+        {bgGenStatus === "failed" && (
+          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 mb-4 flex items-start gap-3">
+            <p className="text-sm text-red-700">Storybook generation failed. Please go back and try again.</p>
+          </div>
+        )}
+
         {/* ── Beta notice ── */}
         <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 px-4 py-3 mb-4 flex items-start gap-3">
           <Sparkles className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -350,7 +405,7 @@ export default function PaymentPage() {
 
             <Button
               onClick={handleConfirmPayment}
-              disabled={placing || (orderType === "email_pdf" && !email.trim())}
+              disabled={placing || (orderType === "email_pdf" && !email.trim()) || bgGenStatus === "generating"}
               className={`w-full bg-gradient-to-r ${conf.gradientCls} text-white py-6 text-base font-bold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {placing ? (

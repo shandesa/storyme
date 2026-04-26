@@ -82,6 +82,13 @@ except Exception as _e:
     generate_v3_router = None   # type: ignore[assignment]
     _generate_v3_import_error = _e
 
+_generate_async_import_error: Exception | None = None
+try:
+    from routes.generate_async import router as generate_async_router
+except Exception as _e:
+    generate_async_router = None  # type: ignore[assignment]
+    _generate_async_import_error = _e
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 ROOT_DIR = Path(__file__).parent
@@ -219,6 +226,8 @@ if generate_v2_router is not None:
     app.include_router(generate_v2_router)    # /api/v2/*      (v2)
 if generate_v3_router is not None:
     app.include_router(generate_v3_router)    # /api/v3/generate  (v3 face pipeline)
+if generate_async_router is not None:
+    app.include_router(generate_async_router)  # /api/v2/generate/async|status|download
 
 # ─── Static files (MUST come after CORS middleware) ───────────────────────────
 static_dir = ROOT_DIR / "static"

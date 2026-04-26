@@ -35,6 +35,14 @@ from core.session_store import session_store
 from core.storage_paths import product_cover_path
 from services.product_catalog import get_catalog_store
 
+# Email delivery — lazy import to avoid circular imports and missing-lib crashes
+def _get_email_service():
+    try:
+        from services.email_service import email_service
+        return email_service
+    except Exception:
+        return None
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v2", tags=["print_orders"])
@@ -434,6 +442,22 @@ async def place_digital_order(body: PlaceDigitalOrderBody, request: Request):
         "Digital order %s placed: type=%s child=%s price=₹%d (beta_bypass)",
         order_id[:8], body.order_type, session.get("child_name", "?"), price_paise // 100,
     )
+
+    # ── Fire email delivery for email_pdf orders ───────────────────────────
+    # Delegates to generate_async._wait_and_send_email which polls for PDF
+    # completion before sending — handles both sync and async generation flows.
+    if body.order_type == "email_pdf" and body.email:
+        try:
+            import asyncio as _aio
+            from routes.generate_async import _wait_and_send_email
+            _aio.create_task(_wait_and_send_email(
+                generation_id=body.generation_id,
+                email=body.email,
+                order_id=order_id,
+            ))
+            logger.info("Email delivery task queued for order %s → %s", order_id[:8], body.email)
+        except Exception as _ee:
+            logger.warning("Email task queue failed (non-fatal): %s", _ee)
 
     type_label = "PDF Download" if body.order_type == "pdf_download" else "Email Delivery"
     return {
