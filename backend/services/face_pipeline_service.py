@@ -140,12 +140,27 @@ class FacePipelineService:
             face_config["w"], face_config["h"],
         )
 
+        logger.info(
+            "▶ FacePipeline.process_character_page | template=%s | user=%s | "
+            "face_config=(%d,%d,%d,%d) | pose=%s | expr=%s",
+            Path(template_path).name, Path(user_face_path).name,
+            x, y, w, h, pose, expression,
+        )
+
         # ── Step 1: Extract & roll-align face ─────────────────────────────────
+        logger.debug("FacePipeline Step 1: MediaPipe FaceMesh extract + roll-align")
         face_crop, landmarks = self._extract_and_align_face(user_img)
         if face_crop is None:
-            logger.warning("Face extraction failed — using centre-crop fallback")
+            logger.warning(
+                "⚠ FacePipeline Step 1: face extraction FAILED — using centre-crop fallback"
+            )
             face_crop = self._centre_crop(user_img)
             landmarks = self._detect_landmarks(face_crop)
+        else:
+            logger.debug(
+                "FacePipeline Step 1 OK: face_crop=%s landmarks=%s",
+                face_crop.shape, len(landmarks) if landmarks is not None else None,
+            )
 
         # ── Step 2: Head pose warp  [GPU STUB] ────────────────────────────────
         yaw   = float(pose.get("yaw",   0.0))
@@ -153,14 +168,27 @@ class FacePipelineService:
         roll  = float(pose.get("roll",  0.0))
 
         if abs(yaw) + abs(pitch) + abs(roll) > 1.0:
+            logger.debug(
+                "FacePipeline Step 2: pose warp | yaw=%.1f pitch=%.1f roll=%.1f",
+                yaw, pitch, roll,
+            )
             face_crop = self._apply_pose_warp(face_crop, yaw, pitch, roll)
             landmarks = self._detect_landmarks(face_crop)
+            logger.debug("FacePipeline Step 2 OK: pose warp applied")
+        else:
+            logger.debug("FacePipeline Step 2: SKIP pose warp (all angles < 1°)")
 
         # ── Step 3: Expression morph  [GPU STUB] ──────────────────────────────
         expr = expression.lower() if expression else "neutral"
         if expr != "neutral" and landmarks is not None:
+            logger.debug("FacePipeline Step 3: expression morph | expr=%s", expr)
             face_crop = self._apply_expression_morph(face_crop, landmarks, expr)
             landmarks = self._detect_landmarks(face_crop)
+            logger.debug("FacePipeline Step 3 OK: expression=%s applied", expr)
+        elif expr == "neutral":
+            logger.debug("FacePipeline Step 3: SKIP expression morph (neutral)")
+        else:
+            logger.warning("FacePipeline Step 3: SKIP expression morph (no landmarks)")
 
         # ── Step 4: Resize to 92 % of target bbox ─────────────────────────────
         scale    = 0.92
@@ -175,7 +203,18 @@ class FacePipelineService:
             max(0, x): min(tw, x + w),
         ]
         if roi.size > 0:
+            logger.debug(
+                "FacePipeline Step 5: LAB colour+lighting match | "
+                "face=%s roi=%s",
+                face_resized.shape, roi.shape,
+            )
             face_resized = self._match_colour_and_lighting(face_resized, roi)
+            logger.debug("FacePipeline Step 5 OK: colour+lighting matched")
+        else:
+            logger.warning(
+                "⚠ FacePipeline Step 5: ROI empty (x=%d,y=%d,w=%d,h=%d out of bounds?) — "
+                "skipping colour match", x, y, w, h,
+            )
 
         # ── Step 6: Seamless clone ────────────────────────────────────────────
         output = self._blend_face_into_template(
@@ -187,7 +226,13 @@ class FacePipelineService:
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(output_path, output)
-        logger.info("Character page → %s", output_path)
+        logger.info(
+            "✅ FacePipeline.process_character_page COMPLETE | "
+            "child=%r expr=%s pose=(y=%.1f,p=%.1f,r=%.1f) → %s",
+            child_name, expression,
+            float(pose.get("yaw",0)), float(pose.get("pitch",0)), float(pose.get("roll",0)),
+            Path(output_path).name,
+        )
         return output_path
 
     def process_text_only_page(
@@ -207,7 +252,10 @@ class FacePipelineService:
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(output_path, output)
-        logger.info("Text-only page → %s", output_path)
+        logger.info(
+            "✅ FacePipeline.process_text_only_page COMPLETE | child=%r → %s",
+            child_name, Path(output_path).name,
+        )
         return output_path
 
     # ═══════════════════════════════════════════════════════════════════════════

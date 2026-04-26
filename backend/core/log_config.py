@@ -73,22 +73,25 @@ _MODULE_OVERRIDES: dict[str, str] = {
 }
 
 # ─── Defaults when env var is not set ─────────────────────────────────────────
+# ── DEVELOPMENT MODE: all modules at DEBUG ──────────────────────────────────
+# Set LOG_LEVEL_AZURE=WARNING in production to silence the Azure SDK noise.
+# Set LOG_LEVEL=INFO in production to reduce overall verbosity.
 _ENV_DEFAULTS: dict[str, str] = {
     "LOG_LEVEL_FACE_BLEND":      "DEBUG",
     "LOG_LEVEL_FACE_PIPELINE":   "DEBUG",
     "LOG_LEVEL_IMAGE_SERVICE":   "DEBUG",
     "LOG_LEVEL_GENERATION_MODE": "DEBUG",
-    "LOG_LEVEL_GENERATION_SVC":  "INFO",
+    "LOG_LEVEL_GENERATION_SVC":  "DEBUG",
     "LOG_LEVEL_GENERATE":        "DEBUG",
-    "LOG_LEVEL_ORDERS":          "INFO",
-    "LOG_LEVEL_AUTH":            "INFO",
-    "LOG_LEVEL_SESSION_STORE":   "INFO",
-    "LOG_LEVEL_STORAGE":         "INFO",
-    "LOG_LEVEL_USER_STORE":      "INFO",
-    "LOG_LEVEL_EMAIL":           "INFO",
-    "LOG_LEVEL_PDF":             "INFO",
-    "LOG_LEVEL_QUALITY":         "INFO",
-    "LOG_LEVEL_AZURE":           "WARNING",
+    "LOG_LEVEL_ORDERS":          "DEBUG",
+    "LOG_LEVEL_AUTH":            "DEBUG",
+    "LOG_LEVEL_SESSION_STORE":   "DEBUG",
+    "LOG_LEVEL_STORAGE":         "DEBUG",
+    "LOG_LEVEL_USER_STORE":      "DEBUG",
+    "LOG_LEVEL_EMAIL":           "DEBUG",
+    "LOG_LEVEL_PDF":             "DEBUG",
+    "LOG_LEVEL_QUALITY":         "DEBUG",
+    "LOG_LEVEL_AZURE":           "WARNING",   # keep Azure SDK quiet even in dev
 }
 
 
@@ -103,7 +106,7 @@ def configure_logging() -> None:
     Configure root logger and per-module overrides.
     Safe to call multiple times — idempotent.
     """
-    root_level = _resolve_level("LOG_LEVEL", "INFO")
+    root_level = _resolve_level("LOG_LEVEL", "DEBUG")
 
     # ── Root handler ──────────────────────────────────────────────────────────
     root = logging.getLogger()

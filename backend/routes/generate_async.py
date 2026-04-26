@@ -363,9 +363,17 @@ def _generate_sync(
     gender: str,
 ) -> dict:
     """
-    Synchronous generation — runs in thread executor.
-    Mirrors the core logic of routes/generate.py but does not return a
-    FileResponse; instead writes session and stores PDF in blob storage.
+    Synchronous generation using face_pipeline_service (yesterday's changes).
+
+    Pipeline per page:
+      Character pages  → FacePipelineService.process_character_page()
+        Steps: MediaPipe align → roll correction → pose warp → expression morph
+               → LAB colour match → seamlessClone → PIL text overlay
+      Text-only pages  → FacePipelineService.process_text_only_page()
+        Steps: copy template → PIL text overlay
+
+    Config source: data/stories/{story_id}.json via StoryJsonService
+    Template source: cache/dalle/{story_id}/page_NN.png (DALL-E cached art)
     """
     import re as _re
     from pathlib import Path as _Path
@@ -373,117 +381,150 @@ def _generate_sync(
 
     # ── Startup banner ────────────────────────────────────────────────────
     logger.info(
-        "━━━ ASYNC GENERATION START ━━━ gen_id=%s | child=%r | story=%s | mode=%s | gender=%s",
+        "━━━ ASYNC GENERATION START [face_pipeline_service] ━━━ "
+        "gen_id=%s | child=%r | story=%s | mode=%s | gender=%s",
         gen_id[:8], child_name, story_id, mode, gender,
     )
 
-    # ── Lazy imports (native libs may not be available) ────────────────────
+    # ── Imports ───────────────────────────────────────────────────────────
     try:
-        from services.story_service import story_registry, FACE_COORDS, SCENE_FILES
+        from services.story_json_service import story_json_service
+        from services.face_pipeline_service import face_pipeline_service
         from services.pdf_service import PDFService
-        from services.generation_mode import generate_page
-        from services.image_service import image_service
-        from models.generation import GenerationMode
-        logger.debug("Async gen: all service imports OK")
+        logger.debug("Async gen [pipeline]: all imports OK — using face_pipeline_service")
     except Exception as e:
-        logger.error("Async gen: import failure — %s", e)
-        # Do NOT call async code here — we are in a thread executor.
-        # _run_generation_task (async) will write the session from the updates dict.
+        logger.error(
+            "✗ Async gen IMPORT FAILURE — face_pipeline_service unavailable: %s", e,
+            exc_info=True,
+        )
         return {
             "status": "failed",
-            "error": str(e),
+            "error": f"face_pipeline_service import failed: {e}",
             "updates": {
                 "status": "failed",
                 "completed_at": _dt.now(_tz.utc).isoformat(),
             },
         }
 
-    # ── Story lookup ───────────────────────────────────────────────────────
-    story = story_registry.get_story_by_id(story_id)
+    # ── Load story config from JSON ────────────────────────────────────────
+    story = story_json_service.get_story(story_id)
     if not story:
-        logger.warning("Async gen: story_id '%s' not found — trying index 0", story_id)
-        story = story_registry.get_story_by_index(0)
-    if not story:
-        logger.error("Async gen: no stories available in registry!")
-        return {"status": "failed", "error": "No stories available"}
+        logger.error("✗ Async gen: story '%s' not found in story_json_service", story_id)
+        return {
+            "status": "failed",
+            "error": f"Story '{story_id}' not found",
+            "updates": {
+                "status": "failed",
+                "completed_at": _dt.now(_tz.utc).isoformat(),
+            },
+        }
 
-    total_pages = len(story.pages)
-    gen_mode    = GenerationMode.OPENCV if mode == "opencv" else GenerationMode.AI
     pdf_svc     = PDFService(str(config.OUTPUT_DIR))
+    total_pages = story.total_pages
+    char_pages  = len(story.character_pages())
+    text_pages  = len(story.text_only_pages())
+
     logger.info(
-        "Async gen: story loaded — pages=%d gen_mode=%s",
-        total_pages, gen_mode,
+        "Async gen: story loaded — title=%r total=%d char=%d text-only=%d",
+        story.title, total_pages, char_pages, text_pages,
     )
 
     pages_data:   list = []
     failed_pages: list = []
 
-    # ── Page generation ────────────────────────────────────────────────────
+    # ── Process each page ─────────────────────────────────────────────────
     for page in story.pages:
-        fp         = page.face_placement
-        scene_file = SCENE_FILES[page.page_number - 1]
-        face_cfg   = FACE_COORDS[scene_file]
-        out_local  = str(config.OUTPUT_DIR / f"{gen_id}_{page.page_number:02d}.png")
-        page_text  = page.text
+        out_local = str(config.OUTPUT_DIR / f"{gen_id}_p{page.page_number:02d}.png")
 
-        logger.info(
-            "Async gen: page %d/%d | scene=%s | face_config=%s",
-            page.page_number, total_pages, scene_file, face_cfg,
-        )
-
-        template_local  = str(
-            config.BACKEND_DIR /
-            f"templates/stories/{story.story_id}/{gender}/templates/{scene_file}"
-        )
-        reference_local = str(
-            config.BACKEND_DIR /
-            f"templates/stories/{story.story_id}/{gender}/references/{scene_file}"
-        )
-
-        if not _Path(template_local).exists():
+        if not page.template_path:
             logger.error(
-                "✗ Async gen page %d: TEMPLATE MISSING at %s",
-                page.page_number, template_local,
+                "✗ Page %d: NO TEMPLATE PATH resolved "
+                "(missing from cache/dalle and templates/stories)",
+                page.page_number,
             )
             failed_pages.append(page.page_number)
             continue
 
-        try:
-            result = generate_page(
-                mode=gen_mode,
-                template_path=template_local,
-                reference_path=reference_local,
-                user_face_path=local_image_path,
-                face_config=face_cfg,
-                output_path=out_local,
-                child_name=child_name,
-                scene_text=page_text,
+        if not _Path(page.template_path).exists():
+            logger.error(
+                "✗ Page %d: template file MISSING on disk: %s",
+                page.page_number, page.template_path,
             )
-            if result:
-                logger.info("✅ Async gen page %d: face_blend SUCCESS → %s", page.page_number, _Path(result).name)
-                pages_data.append({"text": page_text, "image_path": result,
-                                    "page_number": page.page_number})
-                continue
+            failed_pages.append(page.page_number)
+            continue
 
-            # ── PIL Haar-cascade fallback ─────────────────────────────────
-            logger.warning(
-                "⚠ Async gen page %d: generate_page=None → FALLING BACK to PIL Haar-cascade",
-                page.page_number,
-            )
-            face_img = image_service.extract_face(
-                local_image_path, (fp.width, fp.height), angle=fp.angle,
-            )
-            fallback_out = str(config.OUTPUT_DIR / f"{gen_id}_{page.page_number:02d}_fb.png")
-            composed = image_service.compose_page(
-                page.image_path, face_img, (fp.x, fp.y), fallback_out,
-                child_name=child_name,
-            )
-            logger.info("⚠ Async gen page %d: PIL fallback COMPLETE → %s", page.page_number, _Path(composed).name)
-            pages_data.append({"text": page_text, "image_path": composed,
-                                "page_number": page.page_number})
+        ta = {
+            "x": page.text_area.x, "y": page.text_area.y,
+            "w": page.text_area.w, "h": page.text_area.h,
+        }
+
+        try:
+            if page.character_present:
+                fc = {
+                    "x": page.face_config.x, "y": page.face_config.y,
+                    "w": page.face_config.w, "h": page.face_config.h,
+                } if page.face_config else {"x": 430, "y": 220, "w": 170, "h": 190}
+
+                hp = {
+                    "yaw":   page.head_pose.yaw,
+                    "pitch": page.head_pose.pitch,
+                    "roll":  page.head_pose.roll,
+                } if page.head_pose else {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}
+
+                logger.info(
+                    "▶ Page %d/%d [CHARACTER] | template=%s | "
+                    "face_config=%s | pose=%s | expression=%s | lines=%d",
+                    page.page_number, total_pages,
+                    _Path(page.template_path).name,
+                    fc, hp, page.expression, len(page.story_lines),
+                )
+
+                face_pipeline_service.process_character_page(
+                    template_path  = page.template_path,
+                    user_face_path = local_image_path,
+                    face_config    = fc,
+                    pose           = hp,
+                    expression     = page.expression or "neutral",
+                    story_lines    = page.story_lines,
+                    text_area      = ta,
+                    child_name     = child_name,
+                    output_path    = out_local,
+                )
+                logger.info(
+                    "✅ Page %d: face_pipeline_service.process_character_page DONE → %s",
+                    page.page_number, _Path(out_local).name,
+                )
+
+            else:
+                logger.info(
+                    "▶ Page %d/%d [TEXT-ONLY] | template=%s | lines=%d",
+                    page.page_number, total_pages,
+                    _Path(page.template_path).name, len(page.story_lines),
+                )
+
+                face_pipeline_service.process_text_only_page(
+                    template_path = page.template_path,
+                    story_lines   = page.story_lines,
+                    text_area     = ta,
+                    child_name    = child_name,
+                    output_path   = out_local,
+                )
+                logger.info(
+                    "✅ Page %d: face_pipeline_service.process_text_only_page DONE → %s",
+                    page.page_number, _Path(out_local).name,
+                )
+
+            pages_data.append({
+                "text":        " ".join(page.story_lines),
+                "image_path":  out_local,
+                "page_number": page.page_number,
+            })
 
         except Exception as pe:
-            logger.error("✗ Async gen page %d EXCEPTION: %s", page.page_number, pe, exc_info=True)
+            logger.error(
+                "✗ Page %d EXCEPTION in face_pipeline_service: %s",
+                page.page_number, pe, exc_info=True,
+            )
             failed_pages.append(page.page_number)
 
     succeeded = len(pages_data)
