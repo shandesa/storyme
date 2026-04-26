@@ -74,7 +74,8 @@ try:
 except Exception as _e:
     generate_v2_router = None   # type: ignore[assignment]
     _generate_v2_import_error = _e
-\n_generate_v3_import_error: Exception | None = None
+
+_generate_v3_import_error: Exception | None = None
 try:
     from routes.generate_v3 import router as generate_v3_router
 except Exception as _e:

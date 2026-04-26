@@ -375,7 +375,7 @@ export default function AdminFaceTestPage() {
             <p className="text-gray-400 text-sm">Face Quality Test</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAuth} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-gray-300 text-sm">Admin Key</Label>
                 <Input
@@ -385,13 +385,14 @@ export default function AdminFaceTestPage() {
                   onChange={e => setAdminKey(e.target.value)}
                   className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-600"
                   autoFocus
+                  onKeyDown={e => e.key === "Enter" && handleAuth(e)}
                 />
                 {authError && <p className="text-red-400 text-xs">{authError}</p>}
               </div>
-              <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white">
+              <Button onClick={handleAuth} className="w-full bg-amber-500 hover:bg-amber-600 text-white">
                 Sign In
               </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </div>
