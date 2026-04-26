@@ -327,6 +327,13 @@ async def _run_generation_task(
             _generate_sync,
             gen_id, child_name, local_image_path, story_id, mode, gender,
         )
+        # ── Write session from async context (thread cannot call async code) ──
+        updates = result.get("updates")
+        if updates:
+            try:
+                await session_store.update_session(gen_id, updates)
+            except Exception as _se:
+                logger.warning("Session update failed for %s: %s", gen_id[:8], _se)
         if gen_id in _active_jobs:
             _active_jobs[gen_id]["status"] = result["status"]
         logger.info(
@@ -373,14 +380,16 @@ def _generate_sync(
         from models.generation import GenerationMode
     except Exception as e:
         logger.error("Async gen: import failure — %s", e)
-        import asyncio as _aio
-        _aio.get_event_loop().run_until_complete(
-            session_store.update_session(gen_id, {
+        # Do NOT call async code here — we are in a thread executor.
+        # _run_generation_task (async) will write the session from the updates dict.
+        return {
+            "status": "failed",
+            "error": str(e),
+            "updates": {
                 "status": "failed",
                 "completed_at": _dt.now(_tz.utc).isoformat(),
-            })
-        )
-        return {"status": "failed", "error": str(e)}
+            },
+        }
 
     # ── Story lookup ───────────────────────────────────────────────────────
     story = story_registry.get_story_by_id(story_id)
@@ -452,14 +461,15 @@ def _generate_sync(
 
     succeeded = len(pages_data)
     if succeeded == 0:
-        import asyncio as _aio
-        _aio.get_event_loop().run_until_complete(
-            session_store.update_session(gen_id, {
+        # Do NOT call async code here — we are in a thread executor.
+        return {
+            "status": "failed",
+            "error": "All pages failed",
+            "updates": {
                 "status": "failed",
                 "completed_at": _dt.now(_tz.utc).isoformat(),
-            })
-        )
-        return {"status": "failed", "error": "All pages failed"}
+            },
+        }
 
     # ── Build PDF ──────────────────────────────────────────────────────────
     ts           = _dt.now(_tz.utc).strftime("%Y%m%d_%H%M%S")
@@ -495,16 +505,19 @@ def _generate_sync(
         "total_pages":     total_pages,
         "completed_at":    _dt.now(_tz.utc).isoformat(),
     }
-    import asyncio as _aio
-    _aio.get_event_loop().run_until_complete(
-        session_store.update_session(gen_id, updates)
-    )
+    # Do NOT call async code here — we are in a thread executor.
+    # Return updates dict; _run_generation_task (async) writes to session_store.
     logger.info(
         "Async gen complete: gen_id=%s pages=%d/%d pdf=%s",
         gen_id[:8], succeeded, total_pages, pdf_filename,
     )
-    return {"status": "complete", "pages_succeeded": succeeded,
-            "total_pages": total_pages, "pdf_filename": pdf_filename}
+    return {
+        "status":          "complete",
+        "pages_succeeded": succeeded,
+        "total_pages":     total_pages,
+        "pdf_filename":    pdf_filename,
+        "updates":         updates,
+    }
 
 
 async def _wait_and_send_email(
