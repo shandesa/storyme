@@ -38,33 +38,39 @@ _mp_face_mesh = mp.solutions.face_mesh
 # dy: negative = move up,  positive = move down
 # dx: negative = move left, positive = move right
 # Fractions are relative to face bounding-box height / width respectively.
+#
+# B3-FIX: _DS = 2.5 — all non-zero deltas multiplied by this scale factor so
+# the expression morph survives seamlessClone Poisson smoothing and remains
+# perceptible at PDF rendering scale (~78px wide face in the output).
+_DS = 2.5
+
 _EXPRESSION_DELTAS: Dict[str, Dict[int, Tuple[float, float]]] = {
     "neutral":    {},
-    "smile":      {61: (-0.030,  0.010), 291: (-0.030, -0.010),
-                   116: (-0.012, 0.000), 345: (-0.012,  0.000)},
-    "joyful":     {61: (-0.050,  0.015), 291: (-0.050, -0.015),
-                   116: (-0.022, 0.000), 345: (-0.022,  0.000)},
-    "sad":        {61:  ( 0.025,  0.010), 291: ( 0.025, -0.010),
-                   105: (-0.012,  0.005), 334: (-0.012, -0.005)},
-    "curious":    {105: (-0.010,  0.005), 334: (-0.010, -0.005),
-                   70:  (-0.008,  0.000), 300: (-0.008,  0.000),
-                   61:  (-0.005,  0.003), 291: (-0.005, -0.003)},
-    "determined": {105: ( 0.008,  0.005), 334: ( 0.008, -0.005)},
-    "caring":     {61: (-0.020,  0.008), 291: (-0.020, -0.008),
-                   116: (-0.008, 0.000), 345: (-0.008,  0.000)},
-    "delighted":  {61: (-0.060,  0.020), 291: (-0.060, -0.020),
-                   116: (-0.025, 0.000), 345: (-0.025,  0.000),
-                   17:  ( 0.020, 0.000)},
-    "focused":    {105: ( 0.005,  0.003), 334: ( 0.005, -0.003)},
-    "gentle":     {61: (-0.015,  0.005), 291: (-0.015, -0.005),
-                   116: (-0.005, 0.000), 345: (-0.005,  0.000)},
-    "awed":       {105: (-0.015,  0.005), 334: (-0.015, -0.005),
-                   70:  (-0.012,  0.000), 300: (-0.012,  0.000),
-                   17:  ( 0.018,  0.000)},
-    "welcoming":  {61: (-0.040,  0.015), 291: (-0.040, -0.015),
-                   116: (-0.015, 0.000), 345: (-0.015,  0.000)},
-    "proud":      {61: (-0.020,  0.008), 291: (-0.020, -0.008),
-                   116: (-0.008, 0.000), 345: (-0.008,  0.000)},
+    "smile":      {61: (-0.030*_DS,  0.010*_DS), 291: (-0.030*_DS, -0.010*_DS),
+                   116: (-0.012*_DS, 0.000),      345: (-0.012*_DS,  0.000)},
+    "joyful":     {61: (-0.050*_DS,  0.015*_DS), 291: (-0.050*_DS, -0.015*_DS),
+                   116: (-0.022*_DS, 0.000),      345: (-0.022*_DS,  0.000)},
+    "sad":        {61:  ( 0.025*_DS,  0.010*_DS), 291: ( 0.025*_DS, -0.010*_DS),
+                   105: (-0.012*_DS,  0.005*_DS), 334: (-0.012*_DS, -0.005*_DS)},
+    "curious":    {105: (-0.010*_DS,  0.005*_DS), 334: (-0.010*_DS, -0.005*_DS),
+                   70:  (-0.008*_DS,  0.000),      300: (-0.008*_DS,  0.000),
+                   61:  (-0.005*_DS,  0.003*_DS), 291: (-0.005*_DS, -0.003*_DS)},
+    "determined": {105: ( 0.008*_DS,  0.005*_DS), 334: ( 0.008*_DS, -0.005*_DS)},
+    "caring":     {61: (-0.020*_DS,  0.008*_DS), 291: (-0.020*_DS, -0.008*_DS),
+                   116: (-0.008*_DS, 0.000),      345: (-0.008*_DS,  0.000)},
+    "delighted":  {61: (-0.060*_DS,  0.020*_DS), 291: (-0.060*_DS, -0.020*_DS),
+                   116: (-0.025*_DS, 0.000),      345: (-0.025*_DS,  0.000),
+                   17:  ( 0.020*_DS, 0.000)},
+    "focused":    {105: ( 0.005*_DS,  0.003*_DS), 334: ( 0.005*_DS, -0.003*_DS)},
+    "gentle":     {61: (-0.015*_DS,  0.005*_DS), 291: (-0.015*_DS, -0.005*_DS),
+                   116: (-0.005*_DS, 0.000),      345: (-0.005*_DS,  0.000)},
+    "awed":       {105: (-0.015*_DS,  0.005*_DS), 334: (-0.015*_DS, -0.005*_DS),
+                   70:  (-0.012*_DS,  0.000),      300: (-0.012*_DS,  0.000),
+                   17:  ( 0.018*_DS,  0.000)},
+    "welcoming":  {61: (-0.040*_DS,  0.015*_DS), 291: (-0.040*_DS, -0.015*_DS),
+                   116: (-0.015*_DS, 0.000),      345: (-0.015*_DS,  0.000)},
+    "proud":      {61: (-0.020*_DS,  0.008*_DS), 291: (-0.020*_DS, -0.008*_DS),
+                   116: (-0.008*_DS, 0.000),      345: (-0.008*_DS,  0.000)},
 }
 
 # ─── Font ─────────────────────────────────────────────────────────────────────
@@ -221,8 +227,11 @@ class FacePipelineService:
             template, face_resized, x, y, w, h, target_w, target_h
         )
 
-        # ── Step 7: Text overlay ──────────────────────────────────────────────
-        output = self._overlay_text(output, story_lines, text_area, child_name)
+        # ── Step 7: Text overlay ─────────────────────────────────────────────
+        # B2-FIX: text is NOT baked into the PNG. The output is a pure
+        # illustration. Story text is rendered exclusively by pdf_service at
+        # 22pt bold in the PDF layer, immediately below the image.
+        # _overlay_text() is preserved below for potential future use.
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(output_path, output)
@@ -248,10 +257,11 @@ class FacePipelineService:
         if template is None:
             raise FileNotFoundError(f"Template not found: {template_path}")
 
-        output = self._overlay_text(template, story_lines, text_area, child_name)
+        # B2-FIX: save raw template PNG — no text baked in.
+        # Text is rendered by pdf_service at 22pt bold in the PDF layer.
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(output_path, output)
+        cv2.imwrite(output_path, template)
         logger.info(
             "✅ FacePipeline.process_text_only_page COMPLETE | child=%r → %s",
             child_name, Path(output_path).name,
@@ -321,9 +331,11 @@ class FacePipelineService:
         hull = cv2.convexHull(pts)
         x, y, fw, fh = cv2.boundingRect(hull)
 
-        pad_top    = int(0.40 * fh)
-        pad_bottom = int(0.12 * fh)
-        pad_side   = int(0.18 * fw)
+        # B1-FIX: face-only canvas — generous forehead/hair padding.
+        # Spec: top=55%, sides=20%, bottom=15% of face bbox dimensions.
+        pad_top    = int(0.55 * fh)
+        pad_bottom = int(0.15 * fh)
+        pad_side   = int(0.20 * fw)
 
         ih, iw = image.shape[:2]
         x0 = max(0, x - pad_side)
@@ -570,13 +582,15 @@ class FacePipelineService:
         """
         th, tw = template.shape[:2]
 
-        # Elliptical mask (44 % × 48 % of crop to avoid ear bleed)
+        # Elliptical mask — B1-FIX: wider axes (50%×55%) and softer feather.
+        # 50%×55% covers the full face oval. sigma=20 gives invisible edges on
+        # Pixar-style illustrated backgrounds.
         mask = np.zeros((target_h, target_w), dtype=np.uint8)
-        ax = max(1, int(target_w * 0.44))
-        ay = max(1, int(target_h * 0.48))
+        ax = max(1, int(target_w * 0.50))
+        ay = max(1, int(target_h * 0.55))
         cv2.ellipse(mask, (target_w // 2, target_h // 2), (ax, ay),
                     0, 0, 360, 255, -1)
-        mask = cv2.GaussianBlur(mask, (31, 31), 15)
+        mask = cv2.GaussianBlur(mask, (51, 51), 20)
 
         # Position (centre face within target bbox)
         x_off = x + (w - target_w) // 2
@@ -599,7 +613,17 @@ class FacePipelineService:
         if canvas_mask.max() == 0:
             return template
 
-        center = (x + w // 2, y + h // 2)
+        # B1-FIX: center = centroid of non-zero mask pixels, not face_config
+        # midpoint. The 0.92 scale factor shifts painted pixels away from the
+        # config center; using the config midpoint causes Poisson mis-convergence.
+        nz = cv2.findNonZero(canvas_mask)
+        if nz is None:
+            return template
+        center = (int(nz[:, 0, 0].mean()), int(nz[:, 0, 1].mean()))
+        logger.debug(
+            "seamlessClone center (mask centroid)=%s  face_config_mid=(%d,%d)",
+            center, x + w // 2, y + h // 2,
+        )
 
         try:
             return cv2.seamlessClone(
@@ -616,7 +640,9 @@ class FacePipelineService:
             ).astype(np.uint8)
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # STEP 6  — Text overlay
+    # STEP 6  — Text overlay (UNUSED — reserved for future in-image text)
+    # B2-FIX: text is now rendered exclusively by pdf_service at 22pt bold.
+    # This method is preserved for potential future use (e.g. speech bubbles).
     # ═══════════════════════════════════════════════════════════════════════════
 
     def _overlay_text(
@@ -627,11 +653,9 @@ class FacePipelineService:
         child_name: str,
     ) -> np.ndarray:
         """
-        Render story text in the designated area.
-        • Replaces {name} with child_name.
-        • Auto-sizes font to fill area.
-        • Word-wraps to width.
-        • White text with dark outline for readability on any background.
+        UNUSED: preserved for future in-image text (e.g. speech bubbles).
+        B2-FIX: story text is rendered by pdf_service, not baked into the PNG.
+        Original behaviour: renders story text at text_area coords inside image.
         """
         lines = [
             line.replace("{name}", child_name).replace('\\"', '"')
