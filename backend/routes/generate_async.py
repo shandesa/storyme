@@ -30,14 +30,17 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.config import config
 from core.session_store import session_store
+from core.session_tokens import get_mobile_from_request
 from core.storage import storage
 from core.storage_paths import upload_path as make_upload_path, pdf_path as make_pdf_path
+from core.kid_profile_store import get_profile as get_kid_profile
+from core.generated_book_store import upsert_book, find_book
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +62,13 @@ def _safe_name(s: str) -> str:
 
 @router.post("/generate/async")
 async def start_async_generation(
-    name:     str        = Form(...),
-    image:    UploadFile = File(...),
-    story_id: str        = Form("forest_of_smiles"),
-    mode:     str        = Form("opencv"),
-    gender:   str        = Form("neutral"),
+    request:    Request,
+    name:       str                  = Form(...),
+    image:      Optional[UploadFile] = File(default=None),
+    story_id:   str                  = Form("forest_of_smiles"),
+    mode:       str                  = Form("opencv"),
+    gender:     str                  = Form("neutral"),
+    profile_id: Optional[str]        = Form(default=None),
 ):
     """
     Start a background PDF generation job.
@@ -71,27 +76,60 @@ async def start_async_generation(
     Returns immediately with a generation_id. The client should poll
     GET /api/v2/generate/status/{generation_id} until status = "complete".
 
-    Same form fields as POST /api/generate.
+    Either profile_id OR image must be provided (not both required):
+      - profile_id: use the kid profile's stored photo (no re-upload needed)
+      - image:      legacy ad-hoc upload (unchanged behaviour)
     """
+    # Extract user mobile (optional — anonymous generation still allowed)
+    user_mobile = get_mobile_from_request(request)
+
     if not name or not name.strip():
         raise HTTPException(status_code=400, detail="Child's name is required")
-    if image.content_type not in config.ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(config.ALLOWED_IMAGE_TYPES)}",
-        )
 
     child_name = name.strip()
     gen_id     = uuid.uuid4().hex
     now        = datetime.now(timezone.utc).isoformat()
 
-    # Save uploaded image to disk before returning (UploadFile cannot be read later)
-    ext               = Path(image.filename or "upload.jpg").suffix or ".jpg"
-    uploaded_path     = make_upload_path(ext, gen_id)
-    storage.save_file(image.file, uploaded_path)
+    if profile_id and user_mobile:
+        # ── Profile-based generation: use stored photo, no re-upload ──────────
+        profile = get_kid_profile(user_mobile, profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail="Kid profile not found.")
+        if not profile.get("photo_blob_path"):
+            raise HTTPException(
+                status_code=400,
+                detail="This profile has no photo. Please add a photo to the profile first.",
+            )
+        # Use profile's name and gender (override form values)
+        child_name = profile["name"]
+        gender     = profile.get("gender", gender)
+        local_image_path = _resolve_local_path(profile["photo_blob_path"])
+        logger.info(
+            "Async generation (profile): gen_id=%s profile=%s child=%r",
+            gen_id[:8], profile_id[:8], child_name,
+        )
 
-    # Resolve to a local filesystem path for the generation thread
-    local_image_path = _resolve_local_path(uploaded_path)
+    elif image and image.filename:
+        # ── Legacy ad-hoc upload ─────────────────────────────────────────────
+        if image.content_type not in config.ALLOWED_IMAGE_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Allowed: {', '.join(config.ALLOWED_IMAGE_TYPES)}",
+            )
+        ext              = Path(image.filename or "upload.jpg").suffix or ".jpg"
+        uploaded_path    = make_upload_path(ext, gen_id)
+        storage.save_file(image.file, uploaded_path)
+        local_image_path = _resolve_local_path(uploaded_path)
+        logger.info(
+            "Async generation (upload): gen_id=%s child=%r",
+            gen_id[:8], child_name,
+        )
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Either profile_id (for a saved profile) or an image upload is required.",
+        )
 
     # Write initial session — status "generating"
     session_dict = {
@@ -117,10 +155,12 @@ async def start_async_generation(
 
     # Track in-memory
     _active_jobs[gen_id] = {
-        "status":    "generating",
-        "started_at": now,
-        "child_name": child_name,
-        "story_id":   story_id,
+        "status":      "generating",
+        "started_at":  now,
+        "child_name":  child_name,
+        "story_id":    story_id,
+        "profile_id":  profile_id or "",
+        "user_mobile": user_mobile or "",
     }
 
     # Fire background task
@@ -132,6 +172,8 @@ async def start_async_generation(
             story_id=story_id,
             mode=mode,
             gender=gender,
+            profile_id=profile_id or "",
+            user_mobile=user_mobile or "",
         )
     )
 
@@ -318,6 +360,8 @@ async def _run_generation_task(
     story_id: str,
     mode: str,
     gender: str,
+    profile_id: str = "",
+    user_mobile: str = "",
 ) -> None:
     """Async wrapper — runs synchronous generation in thread executor."""
     loop = asyncio.get_event_loop()
@@ -334,6 +378,36 @@ async def _run_generation_task(
                 await session_store.update_session(gen_id, updates)
             except Exception as _se:
                 logger.warning("Session update failed for %s: %s", gen_id[:8], _se)
+
+        # ── Save GeneratedBook record if profile-based generation ─────────────
+        if profile_id and user_mobile and result.get("status") == "complete":
+            try:
+                now_iso  = datetime.now(timezone.utc).isoformat()
+                existing = find_book(user_mobile, profile_id, story_id)
+                book_id  = existing["book_id"] if existing else uuid.uuid4().hex
+                book_upd = updates or {}
+                upsert_book(user_mobile, {
+                    "book_id":             book_id,
+                    "user_mobile":         user_mobile,
+                    "profile_id":          profile_id,
+                    "story_id":            story_id,
+                    "generation_id":       gen_id,
+                    "child_name":          child_name,
+                    "pdf_blob_path":       book_upd.get("pdf_blob_path", ""),
+                    "pdf_filename":        book_upd.get("pdf_filename", ""),
+                    "status":              "complete",
+                    "download_count":      0,
+                    "first_downloaded_at": "",
+                    "created_at":          existing["created_at"] if existing else now_iso,
+                    "completed_at":        now_iso,
+                })
+                logger.info(
+                    "GeneratedBook saved: book_id=%s profile=%s story=%s",
+                    book_id[:8], profile_id[:8], story_id,
+                )
+            except Exception as _be:
+                logger.error("Failed to save GeneratedBook for %s: %s", gen_id[:8], _be)
+
         if gen_id in _active_jobs:
             _active_jobs[gen_id]["status"] = result["status"]
         logger.info(

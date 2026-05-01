@@ -240,3 +240,24 @@ def product_cover_path(product_id: str, side: str) -> str:
 def product_cover_prefix(product_id: str) -> str:
     """Blob prefix for all cover images of a product."""
     return f"products/{product_id}/"
+
+
+# ─── Kid profile photo paths ───────────────────────────────────────────────────
+
+def profile_photo_path(user_mobile: str, profile_id: str) -> str:
+    """
+    Permanent blob path for a kid profile's primary photo.
+
+    Unlike uploads/, these are NOT deleted after generation —
+    they persist for the entire lifetime of the kid profile.
+
+    Format: profiles/{user_mobile}/{profile_id}/photo.jpg
+
+    Args:
+        user_mobile: 10-digit mobile number
+        profile_id:  UUID hex (32 chars)
+
+    Returns:
+        e.g. "profiles/9160570733/a1b2c3d4e5f6.../photo.jpg"
+    """
+    return f"profiles/{user_mobile}/{profile_id}/photo.jpg"

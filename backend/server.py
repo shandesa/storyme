@@ -44,6 +44,8 @@ from routes.review import router as review_router
 from routes.auth import router as auth_router
 from routes.print_orders import router as print_orders_router
 from routes.user_profile import router as user_profile_router
+from routes.kid_profiles import router as kid_profiles_router
+from routes.generated_books import router as generated_books_router
 
 # ── Admin face quality test (cv2/mediapipe — wrapped defensively) ─────────────
 try:
@@ -221,6 +223,8 @@ app.include_router(auth_router)          # /api/auth/*
 app.include_router(health_router)        # /health
 app.include_router(print_orders_router)  # /api/v2/print/* and /api/v2/orders/* and /api/v2/admin/*
 app.include_router(user_profile_router)  # /api/v2/user/addresses
+app.include_router(kid_profiles_router)  # /api/v2/kids/*
+app.include_router(generated_books_router)  # /api/v2/books/*
 if admin_face_router is not None:
     app.include_router(admin_face_router)    # /api/admin/face-test/*
 

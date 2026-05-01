@@ -32,6 +32,7 @@ import PaymentPage      from "@/pages/PaymentPage";
 import OrderStatusPage  from "@/pages/OrderStatusPage";
 import AdminOrdersPage  from "@/pages/AdminOrdersPage";
 import AdminFaceTestPage from "@/pages/AdminFaceTestPage";
+import KidProfilesPage  from "@/pages/KidProfilesPage";
 
 export default function AppRoutes() {
   return (
@@ -52,6 +53,9 @@ export default function AppRoutes() {
         } />
         <Route path="/payment" element={
           <ProtectedRoute><PaymentPage /></ProtectedRoute>
+        } />
+        <Route path="/profiles" element={
+          <ProtectedRoute><KidProfilesPage /></ProtectedRoute>
         } />
         <Route path="/order-status/:orderId" element={
           <ProtectedRoute><OrderStatusPage /></ProtectedRoute>

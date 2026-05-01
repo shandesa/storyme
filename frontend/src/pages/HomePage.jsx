@@ -31,9 +31,10 @@ import { toast }    from "sonner";
 import {
   Loader2, Upload, BookOpen, Sparkles, ChevronRight,
   X, Download, RefreshCw, Printer, CheckCircle,
-  Mail, Zap, Clock,
+  Mail, Zap, Clock, User, Plus, Settings, BookMarked, ArrowDownCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { updateGenCache } from "@/lib/generationCache";
 import AppHeader from "@/components/AppHeader";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -42,6 +43,7 @@ const API_V2      = `${BACKEND_URL}/api/v2`;
 const PREVIEW_TIMEOUT_MS = 120_000;
 
 const STEPS = {
+  PROFILE_SELECT: "profile_select",  // NEW: choose a kid profile
   INPUT:         "input",
   PREVIEWING:    "previewing",
   PREVIEW:       "preview",
@@ -66,7 +68,7 @@ const GENDER_OPTIONS = [
 export default function HomePage() {
   const navigate = useNavigate();
 
-  const [step, setStep]                     = useState(STEPS.INPUT);
+  const [step, setStep]                     = useState(STEPS.PROFILE_SELECT);
   const [childName, setChildName]           = useState("");
   const [selectedFile, setSelectedFile]     = useState(null);
   const [previewUrl, setPreviewUrl]         = useState(null);
@@ -83,6 +85,13 @@ export default function HomePage() {
   const [storyId, setStoryId]               = useState(null);
   const [bgGenStatus, setBgGenStatus]       = useState(null);
 
+  // Profile state
+  const [profiles,          setProfiles]          = useState([]);
+  const [selectedProfile,   setSelectedProfile]   = useState(null);  // {profile_id, name, gender, ...}
+  const [pendingBooks,      setPendingBooks]       = useState([]);
+  const [resumeDismissed,   setResumeDismissed]    = useState(false);
+  const [profilesLoading,   setProfilesLoading]   = useState(false);
+
   const pollRef = useRef(null);
 
   const selectedStoryTitle =
@@ -93,11 +102,33 @@ export default function HomePage() {
     axios.get(`${API_V2}/stories`).then((r) => setStories(r.data.stories || [])).catch(() => {});
   }, []);
 
+  // ── Load profiles and pending downloads on mount ───────────────────────────
+  useEffect(() => {
+    const token = sessionStorage.getItem("storyme_token");
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // Load profiles
+    setProfilesLoading(true);
+    axios.get(`${API_V2.replace("/api/v2", "")}/api/v2/kids`, { headers })
+      .then(r => {
+        setProfiles(r.data.profiles || []);
+        setProfilesLoading(false);
+      })
+      .catch(() => setProfilesLoading(false));
+
+    // Load pending downloads (resume banner)
+    axios.get(`${API_V2.replace("/api/v2", "")}/api/v2/books/pending-downloads`, { headers })
+      .then(r => setPendingBooks(r.data.books || []))
+      .catch(() => {});
+  }, []);
+
   // ── Restore from cache (Back from PrintOrderPage / PaymentPage) ──────────────
   useEffect(() => {
     const cached = getGenCache();
     if (!cached || step !== STEPS.INPUT) return;
-    if (![STEPS.FORMAT_SELECT, STEPS.COMPLETE, STEPS.PREVIEW].includes(cached.step)) return;
+    const restorable = [STEPS.FORMAT_SELECT, STEPS.COMPLETE, STEPS.PREVIEW];
+    if (!restorable.includes(cached.step)) return;
 
     setGenerationId(cached.generationId  || null);
     setStoryId(     cached.storyId       || null);
@@ -161,16 +192,24 @@ export default function HomePage() {
 
   // ── Continue to format select + fire background generation ───────────────────
   const handleContinueToOptions = async () => {
-    if (!selectedFile || !childName.trim()) {
-      toast.error("Missing photo or name — please start over."); setStep(STEPS.INPUT); return;
+    if (!selectedProfile && !selectedFile) {
+      toast.error("Please select a profile or upload a photo."); setStep(STEPS.INPUT); return;
+    }
+    if (!selectedProfile && !childName.trim()) {
+      toast.error("Missing name — please start over."); setStep(STEPS.INPUT); return;
     }
     setStep(STEPS.FORMAT_SELECT);
     setBgGenStatus("generating");
     try {
       const fd = new FormData();
-      fd.append("name", childName.trim()); fd.append("image", selectedFile);
+      fd.append("name", selectedProfile ? selectedProfile.name : childName.trim());
       fd.append("story_id", selectedStory); fd.append("mode", generationMode);
-      fd.append("gender", gender);
+      fd.append("gender", selectedProfile ? selectedProfile.gender : gender);
+      if (selectedProfile) {
+        fd.append("profile_id", selectedProfile.profile_id);
+      } else if (selectedFile) {
+        fd.append("image", selectedFile);
+      }
       const res = await axios.post(`${API_V2}/generate/async`, fd, {
         headers: { "Content-Type": "multipart/form-data" }, timeout: 30_000,
       });
@@ -240,7 +279,8 @@ export default function HomePage() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     clearGenCache();
     if (pdfObjectUrl) window.URL.revokeObjectURL(pdfObjectUrl);
-    setStep(STEPS.INPUT); setChildName(""); setSelectedFile(null);
+    setSelectedProfile(null);
+    setStep(STEPS.PROFILE_SELECT); setChildName(""); setSelectedFile(null);
     setPreviewUrl(null); setPreviewImage(null); setPdfBlob(null);
     setPdfObjectUrl(null); setTotalPages(0); setStatusMessage("");
     setGenerationId(null); setStoryId(null); setBgGenStatus(null);
@@ -329,12 +369,158 @@ export default function HomePage() {
         <AppHeader />
         <p className="text-base text-gray-500 text-center mb-6">AI-powered personalised storybooks for your child</p>
 
+
+        {/* PROFILE_SELECT — choose existing profile or start with new photo */}
+        {step === STEPS.PROFILE_SELECT && (
+          <div className="space-y-4">
+
+            {/* Resume Banner — undownloaded completed book */}
+            {!resumeDismissed && pendingBooks.length > 0 && (() => {
+              const book = pendingBooks[0];
+              const handleResume = async () => {
+                const token = sessionStorage.getItem("storyme_token");
+                if (!token) return;
+                const link = document.createElement("a");
+                link.href = `${BACKEND_URL || API_V2.replace("/api/v2","")}${book.download_url}`;
+                link.download = "";
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => document.body.removeChild(link), 1000);
+                // Acknowledge download
+                axios.post(
+                  `${API_V2.replace("/api/v2", "")}/api/v2/books/${book.book_id}/downloaded`,
+                  {},
+                  { headers: { Authorization: `Bearer ${token}` } }
+                ).catch(() => {});
+                setPendingBooks([]);
+              };
+              return (
+                <Card className="border-2 border-emerald-300 bg-emerald-50 shadow-md">
+                  <CardContent className="py-4 px-4">
+                    <div className="flex items-start gap-3">
+                      <BookMarked className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-emerald-800">
+                          Your storybook is ready to download!
+                        </p>
+                        <p className="text-xs text-emerald-700 mt-0.5 truncate">
+                          "{book.story_title}" for {book.child_name || book.profile_name}
+                        </p>
+                      </div>
+                      <button onClick={() => setResumeDismissed(true)}
+                        className="text-emerald-500 hover:text-emerald-700 flex-shrink-0">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button onClick={handleResume} size="sm"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                        <ArrowDownCircle className="w-3.5 h-3.5 mr-1" />Download Now
+                      </Button>
+                      <Button onClick={() => setResumeDismissed(true)} size="sm"
+                        variant="outline" className="text-xs text-gray-500">
+                        Dismiss
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* Profiles header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Whose story?</h2>
+                <p className="text-xs text-gray-500">Select a profile or create a new one</p>
+              </div>
+              <button onClick={() => navigate("/profiles")}
+                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                <Settings className="w-3 h-3" />Manage
+              </button>
+            </div>
+
+            {/* Profile grid */}
+            {profilesLoading ? (
+              <div className="flex items-center justify-center h-24 text-gray-400">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />Loading profiles…
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {profiles.map(p => (
+                  <button
+                    key={p.profile_id}
+                    onClick={() => {
+                      setSelectedProfile(p);
+                      setChildName(p.name);
+                      setGender(p.gender);
+                      setStep(STEPS.INPUT);
+                    }}
+                    className="flex flex-col items-center gap-2 rounded-xl border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all p-4 text-center"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden border-2 border-emerald-200">
+                      {p.has_photo ? (
+                        <img
+                          src={`${API_V2.replace("/api/v2", "")}/api/v2/kids/${p.profile_id}/photo`}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                          onError={e => { e.target.style.display="none"; }}
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-emerald-700">
+                          {p.name?.[0]?.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{p.name}</p>
+                      {p.age > 0 && (
+                        <p className="text-xs text-gray-400">{p.age} yrs</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+
+                {/* Create new profile shortcut */}
+                <button
+                  onClick={() => navigate("/profiles")}
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 transition-all p-4 text-center text-gray-400 hover:text-emerald-600"
+                >
+                  <div className="w-14 h-14 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <Plus className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-medium">New Profile</p>
+                </button>
+              </div>
+            )}
+
+            {/* Skip — use new photo without a profile */}
+            <button
+              onClick={() => { setSelectedProfile(null); setStep(STEPS.INPUT); }}
+              className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 text-center"
+            >
+              Skip — use a one-time photo without saving a profile
+            </button>
+          </div>
+        )}
+
         {/* INPUT */}
         {step === STEPS.INPUT && (
           <Card className="shadow-lg border-emerald-100">
             <CardHeader className="bg-gradient-to-r from-emerald-50 to-amber-50 pb-4">
-              <CardTitle className="text-xl text-gray-800">Create Your Story</CardTitle>
-              <CardDescription>Upload a photo and choose a story to begin</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl text-gray-800">
+                    {selectedProfile ? `${selectedProfile.name}'s Story` : "Create Your Story"}
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedProfile ? "Choose a story to generate" : "Upload a photo and choose a story to begin"}
+                  </CardDescription>
+                </div>
+                <button onClick={() => { setSelectedProfile(null); setStep(STEPS.PROFILE_SELECT); }}
+                  className="text-xs text-gray-400 hover:text-gray-600">
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="pt-5">
               <div className="space-y-5">
@@ -377,30 +563,48 @@ export default function HomePage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="childName" className="text-gray-700 font-medium">Child's Name</Label>
                   <Input id="childName" placeholder="Enter your child's name" value={childName}
-                    onChange={(e) => setChildName(e.target.value)}
+                    onChange={(e) => !selectedProfile && setChildName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handlePreview(e)}
-                    className="border-gray-300" />
+                    className={`border-gray-300 ${selectedProfile ? "bg-gray-50 text-gray-500" : ""}`}
+                    readOnly={!!selectedProfile} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-gray-700 font-medium">Upload Photo</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-emerald-400 transition-colors">
-                    {previewUrl ? (
-                      <div className="space-y-3">
-                        <img src={previewUrl} alt="Preview" className="w-28 h-28 object-cover rounded-full mx-auto border-4 border-emerald-200" />
-                        <Button type="button" variant="outline" size="sm"
-                          onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}>Remove Photo</Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Upload className="w-10 h-10 text-gray-400 mx-auto" />
-                        <Label htmlFor="photoUpload" className="cursor-pointer text-emerald-600 hover:text-emerald-700 font-medium">Click to upload</Label>
-                        <p className="text-xs text-gray-500">PNG, JPG, WEBP — Max 5MB</p>
-                      </div>
-                    )}
-                    <input id="photoUpload" type="file" accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handleFileChange} className="hidden" />
+                {!selectedProfile && (
+                  <div className="space-y-1.5">
+                    <Label className="text-gray-700 font-medium">Upload Photo</Label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-emerald-400 transition-colors">
+                      {previewUrl ? (
+                        <div className="space-y-3">
+                          <img src={previewUrl} alt="Preview" className="w-28 h-28 object-cover rounded-full mx-auto border-4 border-emerald-200" />
+                          <Button type="button" variant="outline" size="sm"
+                            onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}>Remove Photo</Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Upload className="w-10 h-10 text-gray-400 mx-auto" />
+                          <Label htmlFor="photoUpload" className="cursor-pointer text-emerald-600 hover:text-emerald-700 font-medium">Click to upload</Label>
+                          <p className="text-xs text-gray-500">PNG, JPG, WEBP — Max 5MB</p>
+                        </div>
+                      )}
+                      <input id="photoUpload" type="file" accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleFileChange} className="hidden" />
+                    </div>
                   </div>
-                </div>
+                )}
+                {selectedProfile && selectedProfile.has_photo && (
+                  <div className="flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-300 flex-shrink-0">
+                      <img
+                        src={`${API_V2.replace("/api/v2","")}/api/v2/kids/${selectedProfile.profile_id}/photo`}
+                        alt={selectedProfile.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-800">Using {selectedProfile.name}'s saved photo</p>
+                      <p className="text-xs text-emerald-600">No re-upload needed</p>
+                    </div>
+                  </div>
+                )}
                 <Button onClick={handlePreview} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base font-semibold">
                   <Sparkles className="mr-2 h-4 w-4" />Generate Preview
                 </Button>
