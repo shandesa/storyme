@@ -34,7 +34,6 @@ import {
   Mail, Zap, Clock, User, Plus, Settings, BookMarked, ArrowDownCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { updateGenCache } from "@/lib/generationCache";
 import AppHeader from "@/components/AppHeader";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -110,7 +109,7 @@ export default function HomePage() {
 
     // Load profiles
     setProfilesLoading(true);
-    axios.get(`${API_V2.replace("/api/v2", "")}/api/v2/kids`, { headers })
+    axios.get(`${BACKEND_URL}/api/v2/kids`, { headers })
       .then(r => {
         setProfiles(r.data.profiles || []);
         setProfilesLoading(false);
@@ -118,7 +117,7 @@ export default function HomePage() {
       .catch(() => setProfilesLoading(false));
 
     // Load pending downloads (resume banner)
-    axios.get(`${API_V2.replace("/api/v2", "")}/api/v2/books/pending-downloads`, { headers })
+    axios.get(`${BACKEND_URL}/api/v2/books/pending-downloads`, { headers })
       .then(r => setPendingBooks(r.data.books || []))
       .catch(() => {});
   }, []);
@@ -381,14 +380,14 @@ export default function HomePage() {
                 const token = sessionStorage.getItem("storyme_token");
                 if (!token) return;
                 const link = document.createElement("a");
-                link.href = `${BACKEND_URL || API_V2.replace("/api/v2","")}${book.download_url}`;
+                link.href = `${BACKEND_URL}${book.download_url}`;
                 link.download = "";
                 document.body.appendChild(link);
                 link.click();
                 setTimeout(() => document.body.removeChild(link), 1000);
                 // Acknowledge download
                 axios.post(
-                  `${API_V2.replace("/api/v2", "")}/api/v2/books/${book.book_id}/downloaded`,
+                  `${BACKEND_URL}/api/v2/books/${book.book_id}/downloaded`,
                   {},
                   { headers: { Authorization: `Bearer ${token}` } }
                 ).catch(() => {});
@@ -460,7 +459,7 @@ export default function HomePage() {
                     <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden border-2 border-emerald-200">
                       {p.has_photo ? (
                         <img
-                          src={`${API_V2.replace("/api/v2", "")}/api/v2/kids/${p.profile_id}/photo`}
+                          src={`${BACKEND_URL}/api/v2/kids/${p.profile_id}/photo`}
                           alt={p.name}
                           className="w-full h-full object-cover"
                           onError={e => { e.target.style.display="none"; }}
@@ -594,7 +593,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-300 flex-shrink-0">
                       <img
-                        src={`${API_V2.replace("/api/v2","")}/api/v2/kids/${selectedProfile.profile_id}/photo`}
+                        src={`${BACKEND_URL}/api/v2/kids/${selectedProfile.profile_id}/photo`}
                         alt={selectedProfile.name}
                         className="w-full h-full object-cover"
                       />
