@@ -32,6 +32,7 @@ import {
   Loader2, Upload, BookOpen, Sparkles, ChevronRight,
   X, Download, RefreshCw, Printer, CheckCircle,
   Mail, Zap, Clock, User, Plus, Settings, BookMarked, ArrowDownCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -165,6 +166,22 @@ export default function HomePage() {
   // ── Preview ───────────────────────────────────────────────────────────────────
   const handlePreview = async (e) => {
     e.preventDefault();
+
+    // ── Profile-based flow: skip preview, go straight to async generation ─────
+    // The preview API requires a raw image upload; profiles use a stored photo.
+    // Rather than adding preview support to the backend profile endpoint, we
+    // skip the preview step and begin background generation immediately.
+    if (selectedProfile) {
+      if (!selectedProfile.profile_id) {
+        toast.error("Profile data is missing. Please go back and select a profile again.");
+        return;
+      }
+      // Jump directly to FORMAT_SELECT and start async generation
+      await handleContinueFromProfile();
+      return;
+    }
+
+    // ── Ad-hoc upload flow: standard preview ─────────────────────────────────
     if (!childName.trim()) { toast.error("Please enter your child's name"); return; }
     if (!selectedFile)     { toast.error("Please upload a photo"); return; }
     setStep(STEPS.PREVIEWING);
@@ -189,26 +206,53 @@ export default function HomePage() {
     }
   };
 
-  // ── Continue to format select + fire background generation ───────────────────
+  // ── Profile-based: skip preview, start background generation directly ────────
+  const handleContinueFromProfile = async () => {
+    setStep(STEPS.FORMAT_SELECT);
+    setBgGenStatus("generating");
+    const story = stories.find((s) => s.story_id === selectedStory);
+    setTotalPages(story?.total_pages || 10);
+    setStoryId(selectedStory);
+    try {
+      const fd = new FormData();
+      fd.append("name",       selectedProfile.name);
+      fd.append("story_id",   selectedStory);
+      fd.append("mode",       generationMode);
+      fd.append("gender",     selectedProfile.gender);
+      fd.append("profile_id", selectedProfile.profile_id);
+      const res = await axios.post(`${API_V2}/generate/async`, fd, {
+        headers: { "Content-Type": "multipart/form-data" }, timeout: 30_000,
+      });
+      const newGenId = res.data.generation_id;
+      setGenerationId(newGenId);
+      _startPolling(newGenId);
+      toast.success("Your storybook is generating — choose your format below.");
+    } catch {
+      toast.error("Generation start failed. Please try again.");
+      setBgGenStatus("failed");
+    }
+  };
+
+  // ── Continue to format select (ad-hoc upload path, called after PREVIEW) ────
   const handleContinueToOptions = async () => {
-    if (!selectedProfile && !selectedFile) {
+    if (!selectedFile && !selectedProfile) {
       toast.error("Please select a profile or upload a photo."); setStep(STEPS.INPUT); return;
     }
     if (!selectedProfile && !childName.trim()) {
       toast.error("Missing name — please start over."); setStep(STEPS.INPUT); return;
     }
+
+    // Profile path is handled by handleContinueFromProfile (called from handlePreview)
+    // This function handles only the ad-hoc upload path
     setStep(STEPS.FORMAT_SELECT);
     setBgGenStatus("generating");
     try {
       const fd = new FormData();
-      fd.append("name", selectedProfile ? selectedProfile.name : childName.trim());
-      fd.append("story_id", selectedStory); fd.append("mode", generationMode);
-      fd.append("gender", selectedProfile ? selectedProfile.gender : gender);
-      if (selectedProfile) {
-        fd.append("profile_id", selectedProfile.profile_id);
-      } else if (selectedFile) {
-        fd.append("image", selectedFile);
-      }
+      fd.append("name",     childName.trim());
+      fd.append("story_id", selectedStory);
+      fd.append("mode",     generationMode);
+      fd.append("gender",   gender);
+      fd.append("image",    selectedFile);
       const res = await axios.post(`${API_V2}/generate/async`, fd, {
         headers: { "Content-Type": "multipart/form-data" }, timeout: 30_000,
       });
@@ -605,7 +649,8 @@ export default function HomePage() {
                   </div>
                 )}
                 <Button onClick={handlePreview} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base font-semibold">
-                  <Sparkles className="mr-2 h-4 w-4" />Generate Preview
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {selectedProfile ? "Generate Story" : "Generate Preview"}
                 </Button>
               </div>
             </CardContent>
