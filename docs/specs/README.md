@@ -11,7 +11,8 @@ implementation commits reference the spec number.
 | ID | Title | Status | Branch |
 |----|-------|--------|--------|
 | [SPEC-002](SPEC-002-image-pipeline-fixes.md) | Image Pipeline Fixes — face overlay, text layout, expression morph | ✅ Implemented | `beta` |
-| [SPEC-003](SPEC-003-kid-profiles-and-pdf-persistence.md) | Kid Profiles & PDF Persistence — per-child profiles, resume download after logout | 📋 Ready for implementation | `beta` |
+| [SPEC-003](SPEC-003-kid-profiles-and-pdf-persistence.md) | Kid Profiles & PDF Persistence — per-child profiles, resume download after logout | ✅ Implemented | `beta` |
+| [SPEC-004](SPEC-004-ai-book-generation.md) | AI-Based Full Book Generation — DALL-E gpt-image-1, global background cache, per-user character pages | 📋 Ready for implementation | `beta` |
 
 ---
 
