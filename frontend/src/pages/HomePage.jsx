@@ -53,10 +53,12 @@ const STEPS = {
 };
 
 const GENERATION_MODES = [
-  { value: "opencv", label: "Classic Storybook",
+  { value: "opencv",   label: "Classic Storybook",
     description: "Fast face personalisation using computer vision (recommended)" },
-  { value: "ai",     label: "AI-Powered Storybook",
+  { value: "ai",       label: "AI-Powered Storybook",
     description: "AI generates each scene — slower but highly creative" },
+  { value: "ai_book",  label: "AI Generated Book (Premium)",
+    description: "Full 18-page AI-illustrated book using DALL-E — best quality" },
 ];
 
 const GENDER_OPTIONS = [
@@ -167,16 +169,24 @@ export default function HomePage() {
   const handlePreview = async (e) => {
     e.preventDefault();
 
+    // ── AI Book mode: skip preview, go to format select immediately ───────────
+    if (generationMode === "ai_book") {
+      if (!selectedProfile && !selectedFile) {
+        toast.error("Please select a profile or upload a photo."); return;
+      }
+      if (!selectedProfile && !childName.trim()) {
+        toast.error("Please enter your child's name."); return;
+      }
+      await handleContinueAIBook();
+      return;
+    }
+
     // ── Profile-based flow: skip preview, go straight to async generation ─────
-    // The preview API requires a raw image upload; profiles use a stored photo.
-    // Rather than adding preview support to the backend profile endpoint, we
-    // skip the preview step and begin background generation immediately.
     if (selectedProfile) {
       if (!selectedProfile.profile_id) {
         toast.error("Profile data is missing. Please go back and select a profile again.");
         return;
       }
-      // Jump directly to FORMAT_SELECT and start async generation
       await handleContinueFromProfile();
       return;
     }
@@ -203,6 +213,45 @@ export default function HomePage() {
     } catch (err) {
       toast.error(err.response?.data?.detail || "Preview generation failed");
       setStep(STEPS.INPUT);
+    }
+  };
+
+  // ── AI Book: direct to format select + fire ai-book generation ───────────────
+  const handleContinueAIBook = async () => {
+    setStep(STEPS.FORMAT_SELECT);
+    setBgGenStatus("generating");
+    const story = stories.find((s) => s.story_id === selectedStory);
+    setTotalPages(18);
+    setStoryId(selectedStory);
+    try {
+      const token = sessionStorage.getItem("storyme_token");
+      if (!token) {
+        toast.error("Your session has expired. Please log in again.");
+        setBgGenStatus("failed"); return;
+      }
+      const fd = new FormData();
+      fd.append("name",     selectedProfile ? selectedProfile.name : childName.trim());
+      fd.append("story_id", selectedStory);
+      fd.append("quality",  "medium");
+      if (selectedProfile) {
+        fd.append("profile_id", selectedProfile.profile_id);
+      } else {
+        fd.append("image", selectedFile);
+      }
+      const res = await axios.post(`${API_V2}/generate/ai-book`, fd, {
+        headers: {
+          "Content-Type":  "multipart/form-data",
+          "Authorization": `Bearer ${token}`,
+        },
+        timeout: 30_000,
+      });
+      setGenerationId(res.data.generation_id);
+      _startPolling(res.data.generation_id);
+      toast.success("AI book generating — 18 pages being illustrated, choose your format below.");
+    } catch (err) {
+      const detail = err.response?.data?.detail || "AI generation start failed.";
+      toast.error(detail);
+      setBgGenStatus("failed");
     }
   };
 
@@ -672,7 +721,9 @@ export default function HomePage() {
                 )}
                 <Button onClick={handlePreview} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base font-semibold">
                   <Sparkles className="mr-2 h-4 w-4" />
-                  {selectedProfile ? "Generate Story" : "Generate Preview"}
+                  {selectedProfile
+                    ? (generationMode === "ai_book" ? "Generate AI Book" : "Generate Story")
+                    : (generationMode === "ai_book" ? "Generate AI Book" : "Generate Preview")}
                 </Button>
               </div>
             </CardContent>

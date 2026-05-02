@@ -252,12 +252,90 @@ def profile_photo_path(user_mobile: str, profile_id: str) -> str:
     they persist for the entire lifetime of the kid profile.
 
     Format: profiles/{user_mobile}/{profile_id}/photo.jpg
-
-    Args:
-        user_mobile: 10-digit mobile number
-        profile_id:  UUID hex (32 chars)
-
-    Returns:
-        e.g. "profiles/9160570733/a1b2c3d4e5f6.../photo.jpg"
     """
     return f"profiles/{user_mobile}/{profile_id}/photo.jpg"
+
+
+# ─── AI-generated page paths ──────────────────────────────────────────────────
+
+def ai_background_page_path(story_id: str, story_version: str, page_number: int) -> str:
+    """
+    Global AI background page — generated once, shared across ALL users.
+    Cache-invalidated by changing story_version or prompt_hash in the DB.
+
+    Format: ai-pages/background/{story_id}/v{story_version}/page_{NN:02d}.png
+    """
+    return f"ai-pages/background/{story_id}/v{story_version}/page_{page_number:02d}.png"
+
+
+def ai_character_raw_path(generation_id: str, page_number: int) -> str:
+    """
+    Raw AI-generated character page — before face blend and text overlay.
+    Page 1 raw is used as style anchor for pages 3–16.
+
+    Format: ai-pages/character/{generation_id}/page_{NN:02d}_raw.png
+    """
+    return f"ai-pages/character/{generation_id}/page_{page_number:02d}_raw.png"
+
+
+def ai_character_final_path(generation_id: str, page_number: int) -> str:
+    """
+    Final character page — after face blend + story text burned in.
+    This is the page that goes into the PDF.
+
+    Format: ai-pages/character/{generation_id}/page_{NN:02d}_final.png
+    """
+    return f"ai-pages/character/{generation_id}/page_{page_number:02d}_final.png"
+
+
+def ai_background_final_path(generation_id: str, page_number: int) -> str:
+    """
+    Per-generation background page with story text burned in.
+    Derived from the global cached image — never overwrites the global cache.
+
+    Format: ai-pages/background-final/{generation_id}/page_{NN:02d}.png
+    """
+    return f"ai-pages/background-final/{generation_id}/page_{page_number:02d}.png"
+
+
+# ─── AI-generated page paths (SPEC-004) ──────────────────────────────────────
+
+def ai_background_page_path(story_id: str, story_version: str, page_number: int) -> str:
+    """
+    Global AI-generated background page — shared across ALL users.
+    Generated once per (story, version, page). Never overwritten.
+
+    Format: ai-pages/background/{story_id}/v{version}/page_{NN:02d}.png
+    """
+    return f"ai-pages/background/{story_id}/v{story_version}/page_{page_number:02d}.png"
+
+
+def ai_character_raw_path(generation_id: str, page_number: int) -> str:
+    """
+    Raw AI-generated character page before face blend and text overlay.
+    Stored so page 1 can be reused as style anchor for pages 3-16.
+
+    Format: ai-pages/character/{generation_id}/page_{NN:02d}_raw.png
+    """
+    return f"ai-pages/character/{generation_id}/page_{page_number:02d}_raw.png"
+
+
+def ai_character_final_path(generation_id: str, page_number: int) -> str:
+    """
+    Final character page after face blend + story text rendered in-image.
+    This is the version that goes into the PDF.
+
+    Format: ai-pages/character/{generation_id}/page_{NN:02d}_final.png
+    """
+    return f"ai-pages/character/{generation_id}/page_{page_number:02d}_final.png"
+
+
+def ai_background_final_path(generation_id: str, page_number: int) -> str:
+    """
+    Per-generation background page with story text + child name burned in.
+    Derived from the global cached image — NOT the same as the global cache path.
+    The global cache image is never modified.
+
+    Format: ai-pages/background-final/{generation_id}/page_{NN:02d}.png
+    """
+    return f"ai-pages/background-final/{generation_id}/page_{page_number:02d}.png"
