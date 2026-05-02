@@ -214,6 +214,17 @@ export default function HomePage() {
     setTotalPages(story?.total_pages || 10);
     setStoryId(selectedStory);
     try {
+      // Auth header is required so the backend can resolve user_mobile and
+      // look up the kid profile's stored photo by profile_id.
+      // Without it, get_mobile_from_request() returns None and the backend
+      // returns HTTP 400 ("Either profile_id or image is required").
+      const token = sessionStorage.getItem("storyme_token");
+      if (!token) {
+        toast.error("Your session has expired. Please log in again.");
+        setBgGenStatus("failed");
+        return;
+      }
+
       const fd = new FormData();
       fd.append("name",       selectedProfile.name);
       fd.append("story_id",   selectedStory);
@@ -221,14 +232,25 @@ export default function HomePage() {
       fd.append("gender",     selectedProfile.gender);
       fd.append("profile_id", selectedProfile.profile_id);
       const res = await axios.post(`${API_V2}/generate/async`, fd, {
-        headers: { "Content-Type": "multipart/form-data" }, timeout: 30_000,
+        headers: {
+          "Content-Type":  "multipart/form-data",
+          "Authorization": `Bearer ${token}`,
+        },
+        timeout: 30_000,
       });
       const newGenId = res.data.generation_id;
       setGenerationId(newGenId);
       _startPolling(newGenId);
       toast.success("Your storybook is generating — choose your format below.");
-    } catch {
-      toast.error("Generation start failed. Please try again.");
+    } catch (err) {
+      const detail = err.response?.data?.detail || "";
+      if (err.response?.status === 401) {
+        toast.error("Your session has expired. Please log in again.");
+      } else if (err.response?.status === 404) {
+        toast.error("Profile not found. Please go back and select a profile again.");
+      } else {
+        toast.error(detail || "Generation start failed. Please try again.");
+      }
       setBgGenStatus("failed");
     }
   };

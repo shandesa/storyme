@@ -70,6 +70,14 @@ _MODULE_OVERRIDES: dict[str, str] = {
     "azure":                         "LOG_LEVEL_AZURE",
     "azure.core":                    "LOG_LEVEL_AZURE",
     "azure.core.pipeline":           "LOG_LEVEL_AZURE",
+    # pymongo / Motor — logs a heartbeat failure every 500ms when MongoDB is
+    # not configured (Azure App Service uses Azure Tables, not MongoDB).
+    # Without this override they inherit root DEBUG and flood the log stream,
+    # making it impossible to see real errors.
+    "pymongo":                       "LOG_LEVEL_PYMONGO",
+    "pymongo.topology":              "LOG_LEVEL_PYMONGO",
+    "pymongo.serverSelection":       "LOG_LEVEL_PYMONGO",
+    "motor":                         "LOG_LEVEL_PYMONGO",
 }
 
 # ─── Defaults when env var is not set ─────────────────────────────────────────
@@ -92,6 +100,7 @@ _ENV_DEFAULTS: dict[str, str] = {
     "LOG_LEVEL_PDF":             "DEBUG",
     "LOG_LEVEL_QUALITY":         "DEBUG",
     "LOG_LEVEL_AZURE":           "WARNING",   # keep Azure SDK quiet even in dev
+    "LOG_LEVEL_PYMONGO":         "WARNING",   # silence MongoDB heartbeat failures (no MongoDB on Azure)
 }
 
 
