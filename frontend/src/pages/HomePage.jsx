@@ -574,7 +574,7 @@ export default function HomePage() {
                     <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden border-2 border-emerald-200">
                       {p.has_photo ? (
                         <img
-                          src={`${BACKEND_URL}/api/v2/kids/${p.profile_id}/photo`}
+                          src={`${BACKEND_URL}/api/v2/kids/${p.profile_id}/photo?token=${sessionStorage.getItem("storyme_token") || ""}`}
                           alt={p.name}
                           className="w-full h-full object-cover"
                           onError={e => { e.target.style.display="none"; }}
@@ -708,7 +708,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-300 flex-shrink-0">
                       <img
-                        src={`${BACKEND_URL}/api/v2/kids/${selectedProfile.profile_id}/photo`}
+                        src={`${BACKEND_URL}/api/v2/kids/${selectedProfile.profile_id}/photo?token=${sessionStorage.getItem("storyme_token") || ""}`}
                         alt={selectedProfile.name}
                         className="w-full h-full object-cover"
                       />

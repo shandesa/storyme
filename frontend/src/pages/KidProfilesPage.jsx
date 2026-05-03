@@ -53,7 +53,7 @@ function authHeader() {
 function ProfileAvatar({ profile, size = 56 }) {
   const [err, setErr] = useState(false);
   const src = profile.has_photo && !err
-    ? `${BACKEND}${profile.photo_url}`
+    ? `${BACKEND}${profile.photo_url}?token=${sessionStorage.getItem("storyme_token") || ""}`
     : null;
 
   return (
@@ -187,7 +187,7 @@ function ProfileForm({ profile, onSave, onCancel }) {
               <img src={preview} alt="preview" className="w-full h-full object-cover" />
             ) : profile?.has_photo ? (
               <img
-                src={`${BACKEND}${profile.photo_url}`}
+                src={`${BACKEND}${profile.photo_url}?token=${sessionStorage.getItem("storyme_token") || ""}`}
                 alt={profile.name}
                 className="w-full h-full object-cover"
               />

@@ -27,6 +27,7 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from typing import Optional
 
 from core.session_tokens import require_mobile_from_request
 from core.kid_profile_store import (
@@ -299,13 +300,39 @@ async def delete_kid_profile(profile_id: str, request: Request):
 # ─── GET /api/v2/kids/{profile_id}/photo ─────────────────────────────────────
 
 @router.get("/{profile_id}/photo")
-async def serve_kid_profile_photo(profile_id: str, request: Request):
+async def serve_kid_profile_photo(
+    profile_id: str,
+    request:    Request,
+    token:      Optional[str] = None,     # query param for <img src> requests
+):
     """
     Serve the kid profile photo as an image response.
-    Auth-gated: the authenticated user must own the profile.
-    Returns 404 if no photo has been uploaded.
+
+    Auth: standard Authorization: Bearer header OR ?token= query param.
+    The query param exists because browser <img src> tags cannot send custom
+    headers, so the frontend appends ?token=<jwt> to the URL.
+
+    Returns 401 if unauthenticated, 404 if no photo uploaded.
     """
-    mobile  = require_mobile_from_request(request)
+    from core.session_tokens import get_token_from_request, validate_token
+
+    # Try header first, then query param
+    mobile = None
+    try:
+        from core.session_tokens import require_mobile_from_request
+        mobile = require_mobile_from_request(request)
+    except Exception:
+        pass
+
+    if not mobile and token:
+        try:
+            mobile = validate_token(token)
+        except Exception:
+            pass
+
+    if not mobile:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
     profile = get_profile(mobile, profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found.")

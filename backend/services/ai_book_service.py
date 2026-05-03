@@ -286,6 +286,10 @@ class AIBookService:
         pages_succeeded = 0
         pages_failed:   list[int] = []
 
+        # Write user photo to a single temp file — reused across all character pages.
+        # Avoids creating a new temp file per page (9× leak).
+        user_photo_path = _bytes_to_temp(user_photo_bytes, ".jpg")
+
         # ── Phase 0: Covers ───────────────────────────────────────────────────
         logger.info("━ AI Book Phase 0: covers [gen=%s]", gen_id[:8])
         try:
@@ -376,7 +380,7 @@ class AIBookService:
 
             face_pipeline_service.process_character_page(
                 template_path  = textd_local,
-                user_face_path = _bytes_to_temp(user_photo_bytes, ".jpg"),
+                user_face_path = user_photo_path,   # reuse single temp file
                 face_config    = fc,
                 pose           = pose,
                 expression     = "curious",
@@ -464,7 +468,7 @@ class AIBookService:
 
                 face_pipeline_service.process_character_page(
                     template_path  = textd_local,
-                    user_face_path = _bytes_to_temp(user_photo_bytes, ".jpg"),
+                    user_face_path = user_photo_path,   # reuse single temp file
                     face_config    = fc,
                     pose           = pose,
                     expression     = _EXPR.get(pn, "gentle"),
@@ -513,6 +517,12 @@ class AIBookService:
         except Exception as exc:
             logger.error("Cover Phase 0b back failed: %s", exc)
             pages_failed.append(17)
+
+        # Clean up single user photo temp file
+        try:
+            Path(user_photo_path).unlink(missing_ok=True)
+        except Exception:
+            pass
 
         # ── Phase 4: PDF ──────────────────────────────────────────────────────
         logger.info("━ AI Book Phase 4: PDF assembly [gen=%s] %d pages", gen_id[:8], len(pages_for_pdf))
@@ -580,13 +590,13 @@ class AIBookService:
         tmp = _bytes_to_temp(image_bytes, ".png")
         try:
             response = self._openai.images.edit(
-                model   = "gpt-image-1",
-                image   = open(tmp, "rb"),
-                prompt  = prompt,
-                size    = "1024x1024",
-                quality = quality,
-                n       = 1,
-                seed    = seed,
+                model      = "gpt-image-1",
+                image      = open(tmp, "rb"),
+                prompt     = prompt,
+                size       = "1024x1024",
+                quality    = quality,
+                n          = 1,
+                extra_body = {"seed": seed},
             )
         finally:
             try:
@@ -612,13 +622,16 @@ class AIBookService:
         """Call gpt-image-1 images.generate (for background pages)."""
         import httpx
 
+        # seed passed via extra_body — the installed openai SDK does not
+        # expose seed as a named param for images.generate / images.edit,
+        # but gpt-image-1 supports it through the raw request body.
         response = self._openai.images.generate(
-            model   = "gpt-image-1",
-            prompt  = prompt,
-            size    = "1024x1024",
-            quality = quality,
-            n       = 1,
-            seed    = seed,
+            model      = "gpt-image-1",
+            prompt     = prompt,
+            size       = "1024x1024",
+            quality    = quality,
+            n          = 1,
+            extra_body = {"seed": seed},
         )
         img_data = response.data[0]
         if getattr(img_data, "b64_json", None):
