@@ -3,11 +3,17 @@ routes/ai_generate.py
 ======================
 AI-based full book generation endpoints (SPEC-004).
 
-POST /api/v2/generate/ai-book      Start AI book generation
-GET  /api/v2/ai-book/cache-status  Background page cache status
+POST /api/v2/generate/ai-book      Start AI book generation (18 pages)
+GET  /api/v2/ai-book/cache-status  Background page cache status for a story
 
 Auth: JWT required for all endpoints.
 Status polling: reuse existing GET /api/v2/generate/status/{id}
+Download:       reuse existing GET /api/v2/generate/download/{id}
+
+force_regen:
+  Accepted only when the authenticated mobile is 9160570733.
+  Bypasses background-page cache so DALL-E is called for every page.
+  Generated images are still written to cache afterwards.
 """
 from __future__ import annotations
 import logging
@@ -20,26 +26,38 @@ from core.config import config
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v2", tags=["ai_generate"])
 
+# Mobile number allowed to use force_regen (developer / QA user)
+_FORCE_REGEN_ALLOWED_MOBILE = "9160570733"
+
 
 @router.post("/generate/ai-book")
 async def start_ai_book_generation(
-    request:    Request,
-    name:       str                  = Form(...),
-    story_id:   str                  = Form("forest_of_smiles"),
-    profile_id: Optional[str]        = Form(default=None),
-    image:      Optional[UploadFile] = File(default=None),
-    quality:    str                  = Form("medium"),
+    request:      Request,
+    name:         str                  = Form(...),
+    story_id:     str                  = Form("forest_of_smiles"),
+    profile_id:   Optional[str]        = Form(default=None),
+    image:        Optional[UploadFile] = File(default=None),
+    quality:      str                  = Form("medium"),
+    force_regen:  bool                 = Form(default=False),
 ):
     """
     Start AI-based full book generation (18 pages).
 
-    Either profile_id (uses stored profile photo) or image upload required.
+    Either profile_id (stored profile photo) or image upload is required.
     Returns generation_id immediately; poll /api/v2/generate/status/{id}.
+
+    force_regen: if True (and mobile == 9160570733), bypass all caches and
+    regenerate every page fresh. Generated pages are still saved to cache.
     """
     mobile = require_mobile_from_request(request)
 
     if quality not in ("medium", "high"):
         raise HTTPException(status_code=400, detail="quality must be 'medium' or 'high'")
+
+    # Only the designated developer mobile may use force_regen
+    if force_regen and mobile != _FORCE_REGEN_ALLOWED_MOBILE:
+        logger.warning("force_regen denied for mobile %s", mobile)
+        force_regen = False  # silently ignore rather than reject
 
     # Lazy import — service raises RuntimeError if OPENAI_API_KEY not set
     try:
@@ -57,7 +75,7 @@ async def start_ai_book_generation(
     if not child_name:
         raise HTTPException(status_code=400, detail="Child's name is required.")
 
-    # Resolve user photo
+    # ── Resolve user photo ────────────────────────────────────────────────────
     user_photo_bytes: Optional[bytes] = None
 
     if profile_id:
@@ -71,7 +89,7 @@ async def start_ai_book_generation(
                 status_code=400,
                 detail="This profile has no photo. Add a photo to the profile first.",
             )
-        # Use profile name
+        # Use profile name (authoritative for child_name)
         child_name = profile.get("name", child_name)
         try:
             from core.storage import storage
@@ -102,11 +120,12 @@ async def start_ai_book_generation(
         story_id         = story_id,
         user_photo_bytes = user_photo_bytes,
         quality          = quality,
+        force_regen      = force_regen,
     )
 
     logger.info(
-        "AI book generation started: gen_id=%s child=%r story=%s quality=%s",
-        result["generation_id"][:8], child_name, story_id, quality,
+        "AI book generation started: gen_id=%s child=%r story=%s quality=%s force_regen=%s",
+        result["generation_id"][:8], child_name, story_id, quality, force_regen,
     )
     return result
 

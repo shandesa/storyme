@@ -86,6 +86,7 @@ export default function HomePage() {
   const [generationId, setGenerationId]     = useState(null);
   const [storyId, setStoryId]               = useState(null);
   const [bgGenStatus, setBgGenStatus]       = useState(null);
+  const [forceRegen,  setForceRegen]        = useState(false);
 
   // Profile state
   const [profiles,          setProfiles]          = useState([]);
@@ -230,9 +231,10 @@ export default function HomePage() {
         setBgGenStatus("failed"); return;
       }
       const fd = new FormData();
-      fd.append("name",     selectedProfile ? selectedProfile.name : childName.trim());
-      fd.append("story_id", selectedStory);
-      fd.append("quality",  "medium");
+      fd.append("name",        selectedProfile ? selectedProfile.name : childName.trim());
+      fd.append("story_id",    selectedStory);
+      fd.append("quality",     "medium");
+      fd.append("force_regen", forceRegen ? "true" : "false");
       if (selectedProfile) {
         fd.append("profile_id", selectedProfile.profile_id);
       } else {
@@ -653,7 +655,7 @@ export default function HomePage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-gray-700 font-medium">Generation Style</Label>
-                  <Select value={generationMode} onValueChange={setGenerationMode}>
+                  <Select value={generationMode} onValueChange={(v) => { setGenerationMode(v); if (v !== "ai_book") setForceRegen(false); }}>
                     <SelectTrigger className="border-gray-300"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {GENERATION_MODES.map((m) => (
@@ -665,6 +667,20 @@ export default function HomePage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {generationMode === "ai_book" && (
+                  <div className="flex items-center gap-2 px-1">
+                    <input
+                      id="forceRegen"
+                      type="checkbox"
+                      checked={forceRegen}
+                      onChange={(e) => setForceRegen(e.target.checked)}
+                      className="w-4 h-4 accent-orange-500 cursor-pointer"
+                    />
+                    <label htmlFor="forceRegen" className="text-xs text-orange-700 font-medium cursor-pointer select-none">
+                      Force Regenerate (bypass cache — developer only)
+                    </label>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label className="text-gray-700 font-medium">Character Style</Label>
                   <Select value={gender} onValueChange={setGender}>

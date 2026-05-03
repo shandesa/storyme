@@ -54,12 +54,39 @@ _CONSISTENCY_SUFFIX = """
 
 CONSISTENCY REQUIREMENTS (MANDATORY):
 - Maintain EXACT same character as the reference image provided
-- Same child: same hair colour, same hair length, same face oval placeholder
+- Same child: same hair colour, same hair length, same face shape
 - Same clothing: light yellow t-shirt, beige shorts, brown hat with black lace
 - Same art style: identical colour palette, lighting temperature, rendering quality
 - Same background atmosphere and depth layering as the reference
-- Face oval MUST remain featureless: skin tone #E8C4A0, no eyes/nose/mouth
+- Keep the cartoon face consistent with the reference character
 """
+
+# Cartoon face injection — replaces the featureless oval requirement
+# Used for page 1 where user photo is the reference
+_FACE_CARTOON_OVERRIDE = """
+
+=== CHARACTER FACE (MANDATORY — OVERRIDES ALL OTHER FACE INSTRUCTIONS) ===
+The reference image is a real person's photo. Generate the MAIN CHARACTER's face
+as a fully cartoonized Pixar 3D CGI animated version of this person:
+• VISUALLY RESEMBLE the person in the reference photo — same face shape, hair
+• Pixar cartoon style: smooth animated skin, expressive rounded eyes, warm features
+• Integrate naturally with the cartoon body and the scene lighting/palette
+• Generate a COMPLETE expressive cartoon face — NOT a featureless oval or placeholder
+• Ignore any earlier instruction to draw a smooth oval with no features
+"""
+
+# Expression descriptions used in the per-page prompt for character pages
+_EXPR_DESCRIPTIONS = {
+    "curious":    "The character looks curious and wondering, with wide questioning eyes and a slightly open mouth.",
+    "determined": "The character looks determined and focused, eyes steady, chin slightly raised.",
+    "caring":     "The character shows warmth and care, with gentle eyes and a soft reassuring smile.",
+    "gentle":     "The character has a gentle, kind expression with a quiet, peaceful smile.",
+    "delighted":  "The character radiates pure delight, eyes sparkling, showing a wide bright smile.",
+    "welcoming":  "The character has an open welcoming expression with a warm inviting smile.",
+    "joyful":     "The character beams with joy, eyes crinkled with happiness, showing a big smile.",
+    "proud":      "The character looks satisfied and proud, standing straight with a calm content smile.",
+    "neutral":    "The character has a calm, thoughtful, neutral expression.",
+}
 
 # Story config path
 _STORY_JSON = (
@@ -127,6 +154,7 @@ class AIBookService:
         story_id: str,
         user_photo_bytes: bytes,
         quality: str = "medium",
+        force_regen: bool = False,
     ) -> dict:
         """
         Begin background AI generation. Returns immediately with generation_id.
@@ -188,6 +216,7 @@ class AIBookService:
                 user_photo_bytes=user_photo_bytes,
                 quality=quality,
                 generation_seed=seed,
+                force_regen=force_regen,
             )
         )
 
@@ -223,16 +252,15 @@ class AIBookService:
         user_photo_bytes: bytes,
         quality: str,
         generation_seed: int,
+        force_regen: bool = False,
     ) -> None:
-        # get_running_loop() is the correct call inside a coroutine (Python 3.10+).
-        # get_event_loop() is deprecated in Python 3.10+ when a running loop exists.
         loop = asyncio.get_running_loop()
         try:
             result = await loop.run_in_executor(
                 None,
                 self._run_sync,
                 gen_id, user_mobile, child_name, story_id,
-                user_photo_bytes, quality, generation_seed,
+                user_photo_bytes, quality, generation_seed, force_regen,
             )
             updates = result.get("updates", {})
             if updates:
@@ -262,6 +290,7 @@ class AIBookService:
         user_photo_bytes: bytes,
         quality: str,
         generation_seed: int,
+        force_regen: bool = False,
     ) -> dict:
         from core.config import config
         from core.storage import storage
@@ -340,91 +369,67 @@ class AIBookService:
                 logger.error("✗ Phase 1 p%02d failed: %s", pn, exc, exc_info=True)
                 pages_failed.append(pn)
 
-        # ── Phase 2: Character page 1 (style anchor) ─────────────────────────
-        logger.info("━ AI Book Phase 2: character page 1 anchor [gen=%s]", gen_id[:8])
+        # ── Phase 2: Character page 1 — cartoon face from user photo ─────────
+        logger.info("━ AI Book Phase 2: character page 1 [gen=%s]", gen_id[:8])
         page1_raw_bytes: Optional[bytes] = None
 
         p1_cfg = next(p for p in pages if p["page_number"] == 1)
         try:
-            t0     = time.time()
-            # Use images.generate() for page 1.
-            # images.edit(user_photo) instructed gpt-image-1 to "edit a selfie"
-            # into a Pixar scene — the model treated each call as independent and
-            # produced a different character every time. images.generate() with the
-            # full character description in the prompt is more reliable and
-            # consistent. The face overlay via face_pipeline_service then places
-            # the actual user face onto the generated character oval.
-            prompt = p1_cfg["prompt"]["final_text"]
-            raw_bytes = self._dalle_generate(prompt, quality, generation_seed)
+            t0 = time.time()
+            # images.edit(user_photo, prompt + _FACE_CARTOON_OVERRIDE):
+            #   gpt-image-1 receives the user's selfie and a prompt asking it to
+            #   draw the character's face as a Pixar cartoon version of that person.
+            #   The result is a cartoon face that resembles the user — no seamlessClone needed.
+            #   Expression is set to "curious" for the opening scene.
+            expr_note = _EXPR_DESCRIPTIONS.get("curious", "")
+            prompt = (
+                p1_cfg["prompt"]["final_text"]
+                + f"\nCHARACTER EXPRESSION: {expr_note}"
+                + _FACE_CARTOON_OVERRIDE
+            )
+            raw_bytes = self._dalle_edit(user_photo_bytes, prompt, quality, generation_seed)
             gen_ms = int((time.time() - t0) * 1000)
 
-            # Save raw
+            # Save raw (used as style anchor for pages 3+)
             raw_local = str(out_dir / f"{gen_id}_p01_raw.png")
             Path(raw_local).write_bytes(raw_bytes)
-            page1_raw_bytes = raw_bytes  # keep in memory as anchor
+            page1_raw_bytes = raw_bytes
 
-            # Upload raw
             raw_blob = ai_character_raw_path(gen_id, 1)
             _upload_bytes(storage, raw_bytes, raw_blob)
 
-            # Extract face coords — GPT-4o for face_bbox only.
-            # text_area is always DEFAULT_TEXT_ZONE: GPT-4o frequently gives a
-            # tiny bottom-right zone (e.g. 680,700,300,200) which places text
-            # in the wrong region. The DALL-E prompts explicitly reserve the
-            # right side for text, so DEFAULT_TEXT_ZONE is always correct.
-            face_bbox, _ = self._extract_coords(raw_bytes)
-            text_area    = DEFAULT_TEXT_ZONE.copy()
+            # Render story text in right-side text zone — no GPT-4o extraction needed
+            text_area  = DEFAULT_TEXT_ZONE.copy()
+            story_text = p1_cfg.get("story", "")
+            textd_bytes = render_text_on_image(raw_bytes, story_text, child_name, text_area)
 
-            # Burn story text onto raw
-            story_text    = p1_cfg.get("story", "")
-            textd_bytes   = render_text_on_image(raw_bytes, story_text, child_name, text_area)
-            textd_local   = str(out_dir / f"{gen_id}_p01_textd.png")
-            Path(textd_local).write_bytes(textd_bytes)
-
-            # Face blend
+            # The textd image IS the final image — cartoon face already in the illustration
             final_local = str(out_dir / f"{gen_id}_p01_final.png")
-            fa          = p1_cfg.get("face_anchor", {})
-            pose        = fa.get("rotation", {"yaw": 0, "pitch": 0, "roll": 0})
-            fc          = _anchor_to_face_config(fa) if fa else face_bbox
+            Path(final_local).write_bytes(textd_bytes)
 
-            face_pipeline_service.process_character_page(
-                template_path  = textd_local,
-                user_face_path = user_photo_path,   # reuse single temp file
-                face_config    = fc,
-                pose           = pose,
-                expression     = "curious",
-                story_lines    = [],      # text already burned in
-                text_area      = {"x": 0, "y": 0, "w": 0, "h": 0},
-                child_name     = child_name,
-                output_path    = final_local,
-            )
+            final_blob  = ai_character_final_path(gen_id, 1)
+            _upload_bytes(storage, textd_bytes, final_blob)
 
-            # Upload final
-            final_blob = ai_character_final_path(gen_id, 1)
-            final_bytes = Path(final_local).read_bytes()
-            _upload_bytes(storage, final_bytes, final_blob)
-
-            # Save to AICharacterPages
             save_character_page(gen_id, 1, {
-                "story_id":       story_id,
-                "user_mobile":    user_mobile,
-                "blob_path_raw":  raw_blob,
+                "story_id":        story_id,
+                "user_mobile":     user_mobile,
+                "blob_path_raw":   raw_blob,
                 "blob_path_final": final_blob,
-                "face_bbox":      face_bbox,
-                "text_area":      text_area,
-                "is_anchor":      True,
-                "is_placeholder": True,   # page 1 = front story placeholder
-                "seed":           generation_seed,
-                "model":          "gpt-image-1",
-                "quality":        quality,
-                "generation_ms":  gen_ms,
+                "face_bbox":       {},          # not extracted — no seamlessClone
+                "text_area":       text_area,
+                "is_anchor":       True,
+                "is_placeholder":  True,
+                "seed":            generation_seed,
+                "model":           "gpt-image-1",
+                "quality":         quality,
+                "generation_ms":   gen_ms,
             })
 
             pages_for_pdf.append({
                 "image_path": final_local, "text": "", "page_number": 1,
             })
             pages_succeeded += 1
-            logger.info("✅ Phase 2 p01 anchor complete [gen=%s]", gen_id[:8])
+            logger.info("✅ Phase 2 p01 complete [gen=%s]", gen_id[:8])
 
         except Exception as exc:
             logger.error("✗ Phase 2 p01 FAILED: %s", exc, exc_info=True)
@@ -434,68 +439,63 @@ class AIBookService:
         logger.info("━ AI Book Phase 3: remaining character pages [gen=%s]", gen_id[:8])
         char_remaining = [p for p in pages if p["character_present"] and p["page_number"] != 1]
 
-        # Expression map (one per character page for emotional arc)
-        _EXPR = {3:"curious",5:"determined",7:"caring",9:"gentle",
-                 11:"delighted",13:"welcoming",15:"joyful",16:"proud"}
+        _EXPR = {3:"curious", 5:"determined", 7:"caring", 9:"gentle",
+                 11:"delighted", 13:"welcoming", 15:"joyful", 16:"proud"}
 
         for page_cfg in sorted(char_remaining, key=lambda p: p["page_number"]):
             pn = page_cfg["page_number"]
             try:
-                t0     = time.time()
-                # Use images.generate() with full character description + consistency suffix.
-                # images.edit(page_1_raw) was unreliable — gpt-image-1 would partially
-                # ignore the anchor image and generate a different character. The detailed
-                # character description in every page's final_text prompt (same clothing,
-                # same face oval, same Pixar style) provides better consistency than
-                # passing a reference image that the model may ignore.
-                prompt = page_cfg["prompt"]["final_text"] + _CONSISTENCY_SUFFIX
+                t0 = time.time()
+                expr_name = _EXPR.get(pn, "gentle")
+                expr_note = _EXPR_DESCRIPTIONS.get(expr_name, "")
 
-                raw_bytes = self._dalle_generate(prompt, quality, generation_seed)
+                # Use page 1 raw as anchor — it already contains the cartoonized
+                # version of the user's face in Pixar style. images.edit() with
+                # page1_raw ensures the same cartoon character (face + clothing) appears
+                # consistently across all pages, with scene-appropriate expression.
+                # Falls back to user photo + face override if page 1 failed.
+                if page1_raw_bytes is not None:
+                    prompt = (
+                        page_cfg["prompt"]["final_text"]
+                        + f"\nCHARACTER EXPRESSION: {expr_note}"
+                        + _CONSISTENCY_SUFFIX
+                    )
+                    raw_bytes = self._dalle_edit(
+                        page1_raw_bytes, prompt, quality, generation_seed
+                    )
+                else:
+                    prompt = (
+                        page_cfg["prompt"]["final_text"]
+                        + f"\nCHARACTER EXPRESSION: {expr_note}"
+                        + _FACE_CARTOON_OVERRIDE
+                    )
+                    raw_bytes = self._dalle_edit(
+                        user_photo_bytes, prompt, quality, generation_seed
+                    )
+
                 gen_ms = int((time.time() - t0) * 1000)
 
-                # Save raw
                 raw_local = str(out_dir / f"{gen_id}_p{pn:02d}_raw.png")
                 Path(raw_local).write_bytes(raw_bytes)
                 raw_blob = ai_character_raw_path(gen_id, pn)
                 _upload_bytes(storage, raw_bytes, raw_blob)
 
-                face_bbox, _ = self._extract_coords(raw_bytes)
-                text_area    = DEFAULT_TEXT_ZONE.copy()  # always use spec-defined zone
-
-                # Burn text
-                story_text  = page_cfg.get("story", "")
+                text_area  = DEFAULT_TEXT_ZONE.copy()
+                story_text = page_cfg.get("story", "")
                 textd_bytes = render_text_on_image(raw_bytes, story_text, child_name, text_area)
-                textd_local = str(out_dir / f"{gen_id}_p{pn:02d}_textd.png")
-                Path(textd_local).write_bytes(textd_bytes)
 
-                # Face blend
                 final_local = str(out_dir / f"{gen_id}_p{pn:02d}_final.png")
-                fa          = page_cfg.get("face_anchor", {})
-                pose        = fa.get("rotation", {"yaw": 0, "pitch": 0, "roll": 0})
-                fc          = _anchor_to_face_config(fa) if fa else face_bbox
-
-                face_pipeline_service.process_character_page(
-                    template_path  = textd_local,
-                    user_face_path = user_photo_path,   # reuse single temp file
-                    face_config    = fc,
-                    pose           = pose,
-                    expression     = _EXPR.get(pn, "gentle"),
-                    story_lines    = [],
-                    text_area      = {"x": 0, "y": 0, "w": 0, "h": 0},
-                    child_name     = child_name,
-                    output_path    = final_local,
-                )
+                Path(final_local).write_bytes(textd_bytes)
 
                 final_blob = ai_character_final_path(gen_id, pn)
-                final_bytes = Path(final_local).read_bytes()
-                _upload_bytes(storage, final_bytes, final_blob)
+                _upload_bytes(storage, textd_bytes, final_blob)
 
                 save_character_page(gen_id, pn, {
                     "story_id":        story_id,
                     "user_mobile":     user_mobile,
                     "blob_path_raw":   raw_blob,
                     "blob_path_final": final_blob,
-                    "face_bbox":       face_bbox,
+                    "face_bbox":       {},
                     "text_area":       text_area,
                     "is_anchor":       False,
                     "is_placeholder":  pn in PLACEHOLDER_PAGES,
@@ -687,10 +687,14 @@ class AIBookService:
         p_hash: str,
         quality: str,
         page_cfg: dict,
+        force_regen: bool = False,
     ) -> tuple[bytes, dict]:
         """
-        3-tier cache lookup for background pages.
+        3-tier cache lookup for background (non-character) pages.
         Returns (image_bytes, text_area_dict).
+
+        When force_regen=True, tiers 1 and 2 are skipped — always calls DALL-E.
+        Generated images are still saved to cache afterwards regardless of force_regen.
         """
         from core.ai_page_store import get_background_page, save_background_page
         from core.storage import storage
@@ -699,23 +703,24 @@ class AIBookService:
 
         cache_key = f"{story_id}:{page_number}:{p_hash}"
 
-        # Tier 1: in-memory
-        if cache_key in self._bg_cache:
-            logger.debug("BG cache Tier-1 HIT: %s p%02d", story_id, page_number)
-            return self._bg_cache[cache_key]
+        if not force_regen:
+            # Tier 1: in-memory hot cache
+            if cache_key in self._bg_cache:
+                logger.debug("BG cache Tier-1 HIT: %s p%02d", story_id, page_number)
+                return self._bg_cache[cache_key]
 
-        # Tier 2: Azure Table
-        row = get_background_page(story_id, page_number)
-        if row and row.get("prompt_hash") == p_hash and row.get("blob_path"):
-            try:
-                img_bytes = storage.read_file(row["blob_path"])
-                ta_raw    = row.get("text_area", "{}")
-                text_area = json.loads(ta_raw) if isinstance(ta_raw, str) else ta_raw
-                self._bg_cache[cache_key] = (img_bytes, text_area)
-                logger.info("BG cache Tier-2 HIT: %s p%02d", story_id, page_number)
-                return img_bytes, text_area
-            except Exception as exc:
-                logger.warning("Tier-2 blob read failed for p%02d: %s", page_number, exc)
+            # Tier 2: Azure Table + blob storage
+            row = get_background_page(story_id, page_number)
+            if row and row.get("prompt_hash") == p_hash and row.get("blob_path"):
+                try:
+                    img_bytes = storage.read_file(row["blob_path"])
+                    ta_raw    = row.get("text_area", "{}")
+                    text_area = json.loads(ta_raw) if isinstance(ta_raw, str) else ta_raw
+                    self._bg_cache[cache_key] = (img_bytes, text_area)
+                    logger.info("BG cache Tier-2 HIT: %s p%02d", story_id, page_number)
+                    return img_bytes, text_area
+                except Exception as exc:
+                    logger.warning("Tier-2 blob read failed p%02d: %s — regenerating", page_number, exc)
 
         # Tier 3: DALL-E generate
         logger.info("BG cache MISS — calling DALL-E for %s p%02d", story_id, page_number)
