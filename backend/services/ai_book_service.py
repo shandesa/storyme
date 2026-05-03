@@ -224,7 +224,9 @@ class AIBookService:
         quality: str,
         generation_seed: int,
     ) -> None:
-        loop = asyncio.get_event_loop()
+        # get_running_loop() is the correct call inside a coroutine (Python 3.10+).
+        # get_event_loop() is deprecated in Python 3.10+ when a running loop exists.
+        loop = asyncio.get_running_loop()
         try:
             result = await loop.run_in_executor(
                 None,
@@ -587,7 +589,19 @@ class AIBookService:
         """Call gpt-image-1 images.edit with the given image bytes as reference."""
         import httpx
 
-        tmp = _bytes_to_temp(image_bytes, ".png")
+        # Detect image format from magic bytes so the temp file gets the
+        # correct extension. The openai SDK uses the filename to set
+        # Content-Type on the multipart upload — sending JPEG bytes with a
+        # .png extension makes the API receive Content-Type: image/png for
+        # JPEG data, which causes "Invalid image format" rejection.
+        #   JPEG magic: FF D8 FF
+        #   PNG  magic: 89 50 4E 47
+        if image_bytes[:3] == b'\xff\xd8\xff':
+            suffix = ".jpg"
+        else:
+            suffix = ".png"  # DALL-E output is always PNG
+
+        tmp = _bytes_to_temp(image_bytes, suffix)
         try:
             response = self._openai.images.edit(
                 model      = "gpt-image-1",
@@ -703,10 +717,10 @@ class AIBookService:
         img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
         gen_ms    = int((time.time() - t0) * 1000)
 
-        # Extract text_area via GPT-4o
-        _, text_area = self._extract_coords(img_bytes)
-        if not text_area:
-            text_area = DEFAULT_TEXT_ZONE.copy()
+        # Background pages have NO character — skip GPT-4o coord extraction.
+        # face_bbox is unused for background pages. text_area uses the
+        # hard-coded right-side zone that the DALL-E prompts reserve.
+        text_area = DEFAULT_TEXT_ZONE.copy()
 
         # Upload to blob
         blob_path = ai_background_page_path(story_id, version, page_number)
