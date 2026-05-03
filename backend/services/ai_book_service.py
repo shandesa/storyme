@@ -604,13 +604,12 @@ class AIBookService:
         tmp = _bytes_to_temp(image_bytes, suffix)
         try:
             response = self._openai.images.edit(
-                model      = "gpt-image-1",
-                image      = open(tmp, "rb"),
-                prompt     = prompt,
-                size       = "1024x1024",
-                quality    = quality,
-                n          = 1,
-                extra_body = {"seed": seed},
+                model   = "gpt-image-1",
+                image   = open(tmp, "rb"),
+                prompt  = prompt,
+                size    = "1024x1024",
+                quality = quality,
+                n       = 1,
             )
         finally:
             try:
@@ -636,16 +635,17 @@ class AIBookService:
         """Call gpt-image-1 images.generate (for background pages)."""
         import httpx
 
-        # seed passed via extra_body — the installed openai SDK does not
-        # expose seed as a named param for images.generate / images.edit,
-        # but gpt-image-1 supports it through the raw request body.
+        # NOTE: seed is intentionally omitted. The installed openai SDK sends
+        # extra_body as a separate 'extra_json' field rather than merging it
+        # into the main request body, causing HTTP 400 from the API.
+        # Character page consistency is achieved via the page-1-as-anchor
+        # mechanism (page 1 raw image fed as input to all subsequent pages).
         response = self._openai.images.generate(
-            model      = "gpt-image-1",
-            prompt     = prompt,
-            size       = "1024x1024",
-            quality    = quality,
-            n          = 1,
-            extra_body = {"seed": seed},
+            model   = "gpt-image-1",
+            prompt  = prompt,
+            size    = "1024x1024",
+            quality = quality,
+            n       = 1,
         )
         img_data = response.data[0]
         if getattr(img_data, "b64_json", None):
