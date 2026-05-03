@@ -346,14 +346,16 @@ class AIBookService:
 
         p1_cfg = next(p for p in pages if p["page_number"] == 1)
         try:
-            t0      = time.time()
-            prompt  = p1_cfg["prompt"]["final_text"]
-            raw_bytes = self._dalle_edit(
-                image_bytes=user_photo_bytes,
-                prompt=prompt,
-                quality=quality,
-                seed=generation_seed,
-            )
+            t0     = time.time()
+            # Use images.generate() for page 1.
+            # images.edit(user_photo) instructed gpt-image-1 to "edit a selfie"
+            # into a Pixar scene — the model treated each call as independent and
+            # produced a different character every time. images.generate() with the
+            # full character description in the prompt is more reliable and
+            # consistent. The face overlay via face_pipeline_service then places
+            # the actual user face onto the generated character oval.
+            prompt = p1_cfg["prompt"]["final_text"]
+            raw_bytes = self._dalle_generate(prompt, quality, generation_seed)
             gen_ms = int((time.time() - t0) * 1000)
 
             # Save raw
@@ -365,8 +367,13 @@ class AIBookService:
             raw_blob = ai_character_raw_path(gen_id, 1)
             _upload_bytes(storage, raw_bytes, raw_blob)
 
-            # Extract face coords
-            face_bbox, text_area = self._extract_coords(raw_bytes)
+            # Extract face coords — GPT-4o for face_bbox only.
+            # text_area is always DEFAULT_TEXT_ZONE: GPT-4o frequently gives a
+            # tiny bottom-right zone (e.g. 680,700,300,200) which places text
+            # in the wrong region. The DALL-E prompts explicitly reserve the
+            # right side for text, so DEFAULT_TEXT_ZONE is always correct.
+            face_bbox, _ = self._extract_coords(raw_bytes)
+            text_area    = DEFAULT_TEXT_ZONE.copy()
 
             # Burn story text onto raw
             story_text    = p1_cfg.get("story", "")
@@ -435,17 +442,15 @@ class AIBookService:
             pn = page_cfg["page_number"]
             try:
                 t0     = time.time()
+                # Use images.generate() with full character description + consistency suffix.
+                # images.edit(page_1_raw) was unreliable — gpt-image-1 would partially
+                # ignore the anchor image and generate a different character. The detailed
+                # character description in every page's final_text prompt (same clothing,
+                # same face oval, same Pixar style) provides better consistency than
+                # passing a reference image that the model may ignore.
                 prompt = page_cfg["prompt"]["final_text"] + _CONSISTENCY_SUFFIX
 
-                # Use page 1 raw as anchor if available; fall back to user photo
-                anchor = page1_raw_bytes if page1_raw_bytes is not None else user_photo_bytes
-
-                raw_bytes = self._dalle_edit(
-                    image_bytes=anchor,
-                    prompt=prompt,
-                    quality=quality,
-                    seed=generation_seed,
-                )
+                raw_bytes = self._dalle_generate(prompt, quality, generation_seed)
                 gen_ms = int((time.time() - t0) * 1000)
 
                 # Save raw
@@ -454,7 +459,8 @@ class AIBookService:
                 raw_blob = ai_character_raw_path(gen_id, pn)
                 _upload_bytes(storage, raw_bytes, raw_blob)
 
-                face_bbox, text_area = self._extract_coords(raw_bytes)
+                face_bbox, _ = self._extract_coords(raw_bytes)
+                text_area    = DEFAULT_TEXT_ZONE.copy()  # always use spec-defined zone
 
                 # Burn text
                 story_text  = page_cfg.get("story", "")

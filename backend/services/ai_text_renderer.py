@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_TEXT_ZONE = {"x": 634, "y": 65, "w": 368, "h": 687}
 
 # ─── Font settings ────────────────────────────────────────────────────────────
-_FONT_MAX_PT   = 28
-_FONT_MIN_PT   = 14
+_FONT_MAX_PT   = 36   # start large — children's books need big text
+_FONT_MIN_PT   = 20   # never go below 20pt; smaller is unreadable for children
 _FONT_STEP_PT  = 2
 _LINE_SPACING  = 1.45    # multiplier
 _ZONE_PADDING  = 18      # px inside text zone edges
@@ -44,23 +44,43 @@ _OUTLINE_OFFSETS = [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0)
 
 # Font search order — first found is used
 _FONT_CANDIDATES = [
+    # DejaVu (common on Ubuntu/Debian, usually on Azure App Service)
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    # Liberation Sans (often installed alongside dejavu)
     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    "/System/Library/Fonts/Helvetica.ttc",        # macOS
-    "C:/Windows/Fonts/arialbd.ttf",               # Windows
+    "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
+    # FreeSans (freefont package on Ubuntu)
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    # macOS
+    "/System/Library/Fonts/Helvetica.ttc",
+    # Windows
+    "C:/Windows/Fonts/arialbd.ttf",
 ]
 
 
 def _get_font(size: int) -> ImageFont.FreeTypeFont:
-    """Load a font at the given size; fall back to PIL default if none found."""
+    """
+    Load a bold font at the given pt size.
+    Falls back to load_default(size=N) which works on Pillow >= 10.1.0 (bundled font).
+    This is always a properly-sized rasterisable font, unlike the old bitmap default.
+    """
     for path in _FONT_CANDIDATES:
         if Path(path).exists():
             try:
                 return ImageFont.truetype(path, size)
             except Exception:
                 continue
-    logger.warning("No TrueType font found — using PIL default (rendering quality reduced)")
+
+    # Pillow >= 10.1.0 (released 2023): load_default accepts a size parameter
+    # and returns a properly-sized FreeType font, not the old 1-pt bitmap.
+    import PIL
+    pil_ver = tuple(int(x) for x in PIL.__version__.split(".")[:2])
+    if pil_ver >= (10, 1):
+        return ImageFont.load_default(size=size)
+
+    # Last resort — old bitmap default. Text will be tiny but at least visible.
+    logger.warning("No TrueType font and Pillow < 10.1 — text quality degraded")
     return ImageFont.load_default()
 
 
