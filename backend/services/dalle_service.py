@@ -207,6 +207,23 @@ class DalleService:
             logger.error(f"DALL-E generation failed for page {page_number}: {e}")
             raise
 
+    @classmethod
+    def _extract_coordinates_static(cls, image_bytes: bytes) -> dict:
+        """
+        Class method wrapper for coordinate extraction — callable without an instance.
+        Used by ai_book_service.py which creates its own OpenAI client.
+        """
+        import os
+        from openai import OpenAI
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        if not api_key:
+            return {"face_bbox": {"x":380,"y":250,"w":190,"h":210},
+                    "text_area": {"x":634,"y":65,"w":368,"h":687}}
+        tmp_instance = cls.__new__(cls)
+        tmp_instance._client = OpenAI(api_key=api_key)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        return tmp_instance._extract_coordinates(image_bytes)
+
     def clear_cache(self, story_id: str):
         d = CACHE_DIR / story_id
         if d.exists():

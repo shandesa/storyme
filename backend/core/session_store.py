@@ -43,6 +43,10 @@ class SessionStore(ABC):
     @abstractmethod
     async def delete_cart_item(self, user_mobile: str, cart_item_id: str) -> None: ...
 
+    # Session update (for async generation status)
+    @abstractmethod
+    async def update_session(self, generation_id: str, updates: dict) -> bool: ...
+
     # Orders
     @abstractmethod
     async def write_order(self, order_dict: dict) -> None: ...
@@ -144,6 +148,23 @@ class AzureTableSessionStore(SessionStore):
                 "pages_succeeded":int(e.get("pages_succeeded",0)),"pages_failed":int(e.get("pages_failed",0)),
                 "total_pages":int(e.get("total_pages",0)),"completed_at":e.get("completed_at",""),
                 "page_results":pr}
+
+    async def update_session(self, generation_id: str, updates: dict) -> bool:
+        """Merge updates into an existing GenerationSession row (same PK/RK)."""
+        c = self._client(self._SESSION_TABLE)
+        try:
+            rows = list(c.query_entities(f"generation_id eq '{generation_id}'"))
+            if not rows:
+                logger.warning("update_session: generation_id %s not found", generation_id[:8])
+                return False
+            entity = dict(rows[0])   # includes PartitionKey, RowKey from table
+            entity.update(updates)   # merge in the caller's changes
+            c.upsert_entity(entity)  # write back — same PK/RK so it replaces in-place
+            logger.info("AzureTable: session %s updated %s", generation_id[:8], list(updates.keys()))
+            return True
+        except Exception as e:
+            logger.warning("update_session %s: %s", generation_id[:8], e)
+            return False
 
     # ── Cart ──────────────────────────────────────────────────────────────────
 
@@ -302,6 +323,11 @@ class MongoSessionStore(SessionStore):
         if gender:     q["gender"]     = gender
         return await self._get_db().generation_sessions.find(q,{"_id":0}).to_list(limit)
 
+    async def update_session(self, generation_id: str, updates: dict) -> bool:
+        result = await self._get_db().generation_sessions.update_one(
+            {"generation_id": generation_id}, {"$set": updates})
+        return result.matched_count > 0
+
     async def write_cart_item(self, d):
         await self._get_db().cart_items.replace_one(
             {"cart_item_id":d["cart_item_id"]},d,upsert=True)
@@ -336,6 +362,7 @@ class NullSessionStore(SessionStore):
     async def write_session(self,d): pass
     async def read_session(self,i):  return None
     async def list_sessions(self,**k): return []
+    async def update_session(self,g,u): return False
     async def write_cart_item(self,d): pass
     async def read_cart_items(self,*a,**k): return []
     async def delete_cart_item(self,*a): pass

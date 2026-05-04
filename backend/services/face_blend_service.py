@@ -279,6 +279,11 @@ def process_scene(
     face_config: Dict[str, int],
     output_path: str,
 ) -> Optional[str]:
+    """See module docstring for full pipeline description."""
+    logger.info(
+        "▶ process_scene START | template=%s | user_face=%s | face_config=%s",
+        Path(template_path).name, Path(user_face_path).name, face_config,
+    )
     """
     Blend user face into a template page using the full playground pipeline.
 
@@ -327,31 +332,51 @@ def process_scene(
     th, tw = template.shape[:2]
 
     # ── Step 1: Landmark detection on original user photo ───────────────────
+    logger.debug("Step 1: MediaPipe landmark detection on user photo (%dx%d)", user_img.shape[1], user_img.shape[0])
     user_pts = get_landmarks(user_img)
 
     if user_pts is None:
-        logger.warning("No face detected in user photo — falling back to PIL pipeline")
+        logger.warning(
+            "⚠ Step 1 FAILED: No face detected in user photo '%s' — "
+            "process_scene returns None → PIL Haar-cascade fallback will run",
+            Path(user_face_path).name,
+        )
         return None
+    logger.debug("Step 1 OK: %d landmarks detected in user photo", len(user_pts))
 
     # ── Step 2: Affine-align to canonical pose on a canvas = template size ──
+    logger.debug("Step 2: 7-point affine align to canonical pose (target canvas %dx%d)", tw, th)
     aligned = align_face_to_canonical(user_img, user_pts, target_size=(tw, th))
+    logger.debug("Step 2 OK: aligned shape=%s", aligned.shape)
 
     # ── Step 3: Re-detect landmarks on the aligned image ────────────────────
+    logger.debug("Step 3: Re-detecting landmarks on aligned image")
     aligned_pts = get_landmarks(aligned)
 
     if aligned_pts is None:
-        logger.warning("No landmarks on aligned image — using pre-alignment landmarks")
+        logger.warning(
+            "⚠ Step 3: No landmarks on aligned image — "
+            "using original pre-alignment landmarks as fallback"
+        )
         aligned_pts = user_pts
         aligned = user_img
+    else:
+        logger.debug("Step 3 OK: %d landmarks on aligned image", len(aligned_pts))
 
     # ── Step 4: Extract face via ConvexHull ──────────────────────────────────
+    logger.debug("Step 4: ConvexHull face extraction on aligned image")
     face, fx, fy, fw, fh = extract_face_hull(aligned, aligned_pts)
 
     if face is None:
-        logger.warning("Face hull extraction failed — falling back to PIL pipeline")
+        logger.warning(
+            "⚠ Step 4 FAILED: ConvexHull extraction returned None — "
+            "process_scene returns None → PIL Haar-cascade fallback will run"
+        )
         return None
+    logger.debug("Step 4 OK: face crop=%dx%d extracted at (%d,%d)", fw, fh, fx, fy)
 
     # ── Step 5: Resize + position using face_config ──────────────────────────
+    logger.debug("Step 5: Resizing face crop to target placement")
     tx      = face_config["x"]
     ty      = face_config["y"]
     target_w = face_config["w"]
@@ -362,6 +387,10 @@ def process_scene(
         return None
 
     face = cv2.resize(face, (target_w, target_h))
+    logger.debug(
+        "Step 5 OK: face resized %dx%d → %dx%d, placed at (%d,%d)",
+        fw, fh, target_w, target_h, tx, ty,
+    )
 
     # ── Step 6: Colour + luminance match to template ROI ─────────────────────
     roi_y1 = max(0, ty)
@@ -372,6 +401,10 @@ def process_scene(
     roi = template[roi_y1:roi_y2, roi_x1:roi_x2]
 
     if roi.size > 0:
+        logger.debug(
+            "Step 6: Colour+luminance match | ROI shape=%s face shape=%s",
+            roi.shape, face.shape,
+        )
         # Resize ROI to match face dimensions if clamped to canvas edge
         if roi.shape[:2] != (target_h, target_w):
             roi_for_match = cv2.resize(roi, (target_w, target_h))
@@ -380,6 +413,9 @@ def process_scene(
 
         face = match_color(face, roi_for_match)
         face = match_light(face, roi_for_match)
+        logger.debug("Step 6 OK: colour + luminance matched to template ROI")
+    else:
+        logger.warning("⚠ Step 6: ROI is empty (placement out of bounds?) — skipping colour match")
 
     # ── Step 7: Build canvas + Gaussian elliptical mask ──────────────────────
     mask = create_blend_mask(target_w, target_h)
@@ -408,25 +444,39 @@ def process_scene(
         logger.error("Empty blend mask — seamlessClone cannot proceed")
         return None
 
+    logger.debug("Step 7: Gaussian elliptical mask created (%dx%d)", target_w, target_h)
+
     # ── Step 8: seamlessClone (Poisson blending) ──────────────────────────────
     center = (tx + target_w // 2, ty + target_h // 2)
+    logger.debug(
+        "Step 8: seamlessClone | center=%s | mask_nonzero_px=%d",
+        center, int((canvas_mask > 0).sum()),
+    )
 
     try:
         blended = cv2.seamlessClone(
             canvas_face, template, canvas_mask, center, cv2.NORMAL_CLONE
         )
+        logger.debug("Step 8 OK: seamlessClone succeeded, output shape=%s", blended.shape)
     except cv2.error as e:
-        logger.error(f"seamlessClone failed: {e}")
+        logger.error(
+            "✗ Step 8 FAILED: seamlessClone error: %s | center=%s | "
+            "canvas_mask max=%d | template=%s",
+            e, center, int(canvas_mask.max()), Path(template_path).name,
+        )
         return None
 
     # ── Step 9: Save ──────────────────────────────────────────────────────────
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     success = cv2.imwrite(output_path, blended)
     if not success:
-        logger.error(f"cv2.imwrite failed: {output_path}")
+        logger.error("✗ Step 9 FAILED: cv2.imwrite failed: %s", output_path)
         return None
 
-    logger.info(f"✅ Blended scene saved → {output_path}")
+    logger.info(
+        "✅ process_scene COMPLETE: %s → %s",
+        Path(user_face_path).name, Path(output_path).name,
+    )
     return output_path
 
 

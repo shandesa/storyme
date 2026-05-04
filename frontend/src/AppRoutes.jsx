@@ -31,6 +31,8 @@ import PrintOrderPage   from "@/pages/PrintOrderPage";
 import PaymentPage      from "@/pages/PaymentPage";
 import OrderStatusPage  from "@/pages/OrderStatusPage";
 import AdminOrdersPage  from "@/pages/AdminOrdersPage";
+import AdminFaceTestPage from "@/pages/AdminFaceTestPage";
+import KidProfilesPage  from "@/pages/KidProfilesPage";
 
 export default function AppRoutes() {
   return (
@@ -52,12 +54,16 @@ export default function AppRoutes() {
         <Route path="/payment" element={
           <ProtectedRoute><PaymentPage /></ProtectedRoute>
         } />
+        <Route path="/profiles" element={
+          <ProtectedRoute><KidProfilesPage /></ProtectedRoute>
+        } />
         <Route path="/order-status/:orderId" element={
           <ProtectedRoute><OrderStatusPage /></ProtectedRoute>
         } />
 
         {/* ── Admin (internal auth via X-Admin-Key) ── */}
-        <Route path="/admin/orders" element={<AdminOrdersPage />} />
+        <Route path="/admin/orders"    element={<AdminOrdersPage />} />
+        <Route path="/admin/face-test" element={<AdminFaceTestPage />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />

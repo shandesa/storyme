@@ -23,6 +23,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { setGenCache } from "@/lib/generationCache";
 import { authHeaders } from "@/lib/session";
 import axios from "axios";
 import { toast } from "sonner";
@@ -66,6 +67,9 @@ export default function PrintOrderPage() {
     childName    = "Your Child",
     storyId      = "forest_of_smiles",
     pdfBlobPath  = null,
+    bgGenStatus  = null,
+    totalPages   = 10,
+    storyTitle   = null,
   } = location.state || {};
 
   const [products,         setProducts]         = useState([]);
@@ -163,12 +167,13 @@ export default function PrintOrderPage() {
         generationId,
         childName,
         storyId,
-        storyTitle:      `Personalised Storybook for ${childName}`,
-        totalPages:      10,
+        storyTitle:      storyTitle || `Personalised Storybook for ${childName}`,
+        totalPages,
         selectedProduct,
         product,
         address,
         saveAddress,
+        bgGenStatus,
       },
     });
   };
@@ -189,7 +194,20 @@ export default function PrintOrderPage() {
 
         {/* Sub-header with back navigation */}
         <div className="flex items-center gap-3 mb-6 -mt-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/home")}
+          <Button variant="ghost" size="sm"
+            onClick={() => {
+              setGenCache({
+                step:          "format_select",
+                generationId,
+                childName,
+                storyId,
+                storyTitle:    storyTitle || `Personalised Storybook for ${childName}`,
+                totalPages,
+                bgGenStatus,
+                pdfBlobUrl:    null,
+              });
+              navigate("/home");
+            }}
             className="text-gray-500 hover:text-gray-700 -ml-2">
             <ArrowLeft className="w-4 h-4 mr-1" />Back
           </Button>

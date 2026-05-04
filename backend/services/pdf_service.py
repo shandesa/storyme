@@ -2,15 +2,18 @@
 
 Builds a multi-page PDF storybook from generated page images and story text.
 
-Key fix (2026-04-20):
-  {name} is now replaced with the child's name in ALL page text, not just
-  the title page. Previously page text showed literal "{name}" in the PDF.
+B2-FIX (2026-04-30):
+  Images now fill full page width (7.5 inch). Story text rendered at 22pt
+  Helvetica-Bold immediately below each image. KeepTogether prevents image
+  and its text from splitting across pages. Text is no longer baked into the
+  PNG by face_pipeline_service — all text lives exclusively in the PDF layer.
 """
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, PageBreak
+    SimpleDocTemplate, Paragraph, Spacer, Image as RLImage,
+    PageBreak, KeepTogether,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -38,30 +41,36 @@ class PDFService:
         """
         Create a multi-page PDF storybook.
 
+        Layout per story page:
+          ┌──────────────────────────────────────────┐
+          │  Image — 7.5 inch wide (full page width)  │
+          │  1024×1024 PNG, square, top-aligned        │
+          ├──────────────────────────────────────────┤
+          │  Story text — Helvetica-Bold 22pt          │
+          │  Line height 32pt, dark navy #1a1a2e       │
+          │  KeepTogether with image — never split     │
+          └──────────────────────────────────────────┘
+
         Args:
-            child_name:      Child's name (used for {name} replacement in text)
-            story_title:     Story title — may contain {name} placeholder
+            child_name:      Child's name (replaces {name} in story text)
+            story_title:     Story title (may contain {name})
             pages_data:      List of dicts: {'text': str, 'image_path': str}
-            output_filename: Output PDF filename (e.g. "Niku_storybook.pdf")
+            output_filename: Output PDF filename
 
         Returns:
             Absolute path to the generated PDF file.
-
-        Note on {name} replacement:
-            All {name} occurrences in BOTH title and page text are replaced
-            with child_name. This happens here rather than at story-definition
-            time so the same story object can be reused for different children.
         """
         try:
             pdf_path = self.output_dir / output_filename
 
+            # Letter = 8.5×11 inch. Margins 0.5 inch → usable 7.5×10 inch.
             doc = SimpleDocTemplate(
                 str(pdf_path),
                 pagesize=letter,
-                rightMargin=50,
-                leftMargin=50,
-                topMargin=50,
-                bottomMargin=50,
+                rightMargin=36,   # 0.5 inch
+                leftMargin=36,
+                topMargin=36,
+                bottomMargin=36,
             )
 
             styles = getSampleStyleSheet()
@@ -75,74 +84,68 @@ class PDFService:
                 alignment=TA_CENTER,
                 fontName="Helvetica-Bold",
             )
-            page_number_style = ParagraphStyle(
-                "PageNumber",
-                parent=styles["Normal"],
-                fontSize=10,
-                textColor="#6b7280",
-                spaceAfter=12,
-                alignment=TA_CENTER,
-            )
+
+            # B2-FIX: 22pt bold, 32pt leading, dark navy — minimum for children's book
             story_text_style = ParagraphStyle(
                 "StoryText",
                 parent=styles["Normal"],
-                fontSize=14,
-                leading=20,
-                textColor="#1f2937",
-                spaceAfter=20,
+                fontSize=22,
+                leading=32,
+                textColor="#1a1a2e",
+                spaceAfter=12,
+                spaceBefore=16,
                 alignment=TA_LEFT,
-                fontName="Helvetica",
+                fontName="Helvetica-Bold",
             )
 
             content = []
 
             # ── Title page ────────────────────────────────────────────────────
-            # Replace {name} in title
             title_text = story_title.replace("{name}", child_name)
             content.append(Paragraph(title_text, title_style))
             content.append(Spacer(1, 0.5 * inch))
             content.append(PageBreak())
 
             # ── Story pages ───────────────────────────────────────────────────
-            for i, page_data in enumerate(pages_data, 1):
-                content.append(Paragraph(f"Page {i}", page_number_style))
+            # B2-FIX: image fills full usable width (7.5 inch).
+            # KeepTogether ensures image + text never split across pages.
+            img_side = 7.5 * inch  # 1024×1024 PNG → square at full width
 
-                # Image
+            for i, page_data in enumerate(pages_data, 1):
+                page_elements = []
+
                 img_path = page_data.get("image_path", "")
                 if img_path and Path(img_path).exists():
-                    img = RLImage(img_path, width=6 * inch, height=6 * inch)
-                    content.append(img)
-                    content.append(Spacer(1, 0.25 * inch))
+                    page_elements.append(
+                        RLImage(img_path, width=img_side, height=img_side)
+                    )
+                    page_elements.append(Spacer(1, 0.15 * inch))
                 else:
                     logger.warning(
-                        "PDF page %d: image not found at %r — skipping image",
-                        i, img_path,
+                        "PDF page %d: image not found at %r — skipping image", i, img_path,
                     )
 
-                # Story text — replace {name} with the child's actual name
-                raw_text = page_data.get("text", "")
-                page_text = raw_text.replace("{name}", child_name)
-
-                if page_text:
-                    for line in page_text.split("\n"):
+                raw_text = page_data.get("text", "").replace("{name}", child_name)
+                if raw_text.strip():
+                    for line in raw_text.split("\n"):
                         if line.strip():
-                            # Escape XML special chars for ReportLab
-                            safe_line = (
+                            safe = (
                                 line.replace("&", "&amp;")
                                     .replace("<", "&lt;")
                                     .replace(">", "&gt;")
                             )
-                            content.append(Paragraph(safe_line, story_text_style))
+                            page_elements.append(Paragraph(safe, story_text_style))
 
-                if i < len(pages_data):
-                    content.append(PageBreak())
+                if page_elements:
+                    content.append(KeepTogether(page_elements))
+                content.append(PageBreak())
 
             doc.build(content)
 
             pdf_size = pdf_path.stat().st_size
             logger.info(
-                "PDF created: %s (%d pages, %d bytes)",
-                output_filename, len(pages_data), pdf_size,
+                "PDF created: %s (%d pages, %.1f KB)",
+                output_filename, len(pages_data), pdf_size / 1024,
             )
             return str(pdf_path)
 

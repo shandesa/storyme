@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 # ── Step 4: Internal — core config ───────────────────────────────────────────
 from core.config import config
+from core.log_config import configure_logging
 
 # ── Step 5: Routes that never depend on cv2/mediapipe ─────────────────────────
 from health_check import router as health_router
@@ -43,6 +44,16 @@ from routes.review import router as review_router
 from routes.auth import router as auth_router
 from routes.print_orders import router as print_orders_router
 from routes.user_profile import router as user_profile_router
+from routes.kid_profiles import router as kid_profiles_router
+from routes.generated_books import router as generated_books_router
+
+# ── Admin face quality test (cv2/mediapipe — wrapped defensively) ─────────────
+try:
+    from routes.admin_face import router as admin_face_router
+except Exception as _e:
+    admin_face_router = None  # type: ignore[assignment]
+    import logging as _log
+    _log.warning("admin_face router unavailable: %s", _e)
 
 # ── Step 6: Routes that NEED cv2/mediapipe — wrapped in try/except ────────────
 # generate and generate_v2 depend on native libs (cv2, mediapipe, libxcb, libGL).
@@ -67,10 +78,34 @@ except Exception as _e:
     generate_v2_router = None   # type: ignore[assignment]
     _generate_v2_import_error = _e
 
+_generate_v3_import_error: Exception | None = None
+try:
+    from routes.generate_v3 import router as generate_v3_router
+except Exception as _e:
+    generate_v3_router = None   # type: ignore[assignment]
+    _generate_v3_import_error = _e
+
+_generate_async_import_error: Exception | None = None
+try:
+    from routes.generate_async import router as generate_async_router
+except Exception as _e:
+    generate_async_router = None  # type: ignore[assignment]
+    _generate_async_import_error = _e
+
+_ai_generate_import_error: Exception | None = None
+try:
+    from routes.ai_generate import router as ai_generate_router
+except Exception as _e:
+    ai_generate_router = None  # type: ignore[assignment]
+    _ai_generate_import_error = _e
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# ── Logging configuration (env-controlled per-module levels) ─────────────────
+configure_logging()
 
 # MongoDB — lazy connection (Motor connects on first use, not at import time)
 mongo_url = os.environ.get('MONGO_URL', config.MONGO_URL)
@@ -195,11 +230,31 @@ app.include_router(auth_router)          # /api/auth/*
 app.include_router(health_router)        # /health
 app.include_router(print_orders_router)  # /api/v2/print/* and /api/v2/orders/* and /api/v2/admin/*
 app.include_router(user_profile_router)  # /api/v2/user/addresses
+app.include_router(kid_profiles_router)  # /api/v2/kids/*
+app.include_router(generated_books_router)  # /api/v2/books/*
+if admin_face_router is not None:
+    app.include_router(admin_face_router)    # /api/admin/face-test/*
 
 if generate_router is not None:
     app.include_router(generate_router)       # /api/generate  (v1)
 if generate_v2_router is not None:
     app.include_router(generate_v2_router)    # /api/v2/*      (v2)
+if generate_v3_router is not None:
+    app.include_router(generate_v3_router)    # /api/v3/generate  (v3 face pipeline)
+if generate_async_router is not None:
+    app.include_router(generate_async_router)  # /api/v2/generate/async|status|download
+if ai_generate_router is not None:
+    app.include_router(ai_generate_router)     # /api/v2/generate/ai-book
+
+_ai_generate_import_error: Exception | None = None
+try:
+    from routes.ai_generate import router as ai_generate_router
+except Exception as _e:
+    ai_generate_router = None  # type: ignore[assignment]
+    _ai_generate_import_error = _e
+
+if ai_generate_router is not None:
+    app.include_router(ai_generate_router)  # /api/v2/generate/ai-book
 
 # ─── Static files (MUST come after CORS middleware) ───────────────────────────
 static_dir = ROOT_DIR / "static"
@@ -225,6 +280,24 @@ async def startup_event():
     logger.info("System deps installed:  %s", _install_system_deps._deps_ok)
     logger.info("Generation v1 active:   %s", generate_router is not None)
     logger.info("Generation v2 active:   %s", generate_v2_router is not None)
+    logger.info("Generation v3 active:   %s", generate_v3_router is not None)
+    logger.info("Generation async active: %s", generate_async_router is not None)
+
+    # ── Image pipeline diagnostic ─────────────────────────────────────────────
+    try:
+        import cv2, mediapipe as mp
+        logger.info("OpenCV version:         %s", cv2.__version__)
+        logger.info("MediaPipe version:      %s", mp.__version__)
+    except ImportError as _cv_e:
+        logger.warning("OpenCV/MediaPipe not available: %s", _cv_e)
+
+    # Warn if yesterday's face_pipeline_service is wired to async flow yet
+    if generate_async_router is not None:
+        logger.info(
+            "⚠ IMAGE PIPELINE NOTE: /api/v2/generate/async uses face_blend_service "
+            "(7-pt affine + seamlessClone). face_pipeline_service (pose warp + expression) "
+            "is only active on /api/v3/generate. To upgrade async → wire face_pipeline_service."
+        )
 
     if _generate_v1_import_error:
         logger.warning(
