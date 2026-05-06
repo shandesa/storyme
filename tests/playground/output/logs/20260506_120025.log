@@ -1,0 +1,519 @@
+2026-05-06 12:00:25  INFO      simulator                       ========================================================================
+2026-05-06 12:00:25  INFO      simulator                         StoryMe — Premium Storybook Simulator
+2026-05-06 12:00:25  INFO      simulator                         Run timestamp : 20260506_120025
+2026-05-06 12:00:25  INFO      simulator                         Python        : 3.11.9
+2026-05-06 12:00:25  INFO      simulator                       ========================================================================
+2026-05-06 12:00:25  INFO      simulator                       Arguments:
+2026-05-06 12:00:25  INFO      simulator                         child_name  : nikshay
+2026-05-06 12:00:25  INFO      simulator                         photo       : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png
+2026-05-06 12:00:25  INFO      simulator                         story_id    : forest_of_smiles
+2026-05-06 12:00:25  INFO      simulator                         quality     : medium
+2026-05-06 12:00:25  INFO      simulator                         force_regen : True
+2026-05-06 12:00:25  INFO      simulator                         max_ai_pages: 2
+2026-05-06 12:00:25  INFO      simulator                         story_file  : (default backend story JSON)
+2026-05-06 12:00:25  INFO      simulator                         log         : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\20260506_120025.log
+2026-05-06 12:00:25  INFO      simulator                       ========================================================================
+2026-05-06 12:00:25  INFO      simulator                         ** STORY JSON FILE  : C:\Users\desais\Documents\GitHubLocal\storyme\backend\data\stories\forest_of_smiles_v8_final.json
+2026-05-06 12:00:25  INFO      simulator                         ** PROMPTS SOURCE   : page[N]['prompt']['final_text'] inside the story JSON above
+2026-05-06 12:00:25  INFO      simulator                         ** PHOTO            : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png
+2026-05-06 12:00:25  INFO      simulator                       ========================================================================
+2026-05-06 12:00:25  INFO      simulator                       OPENAI_API_KEY  : sk-proj-...iMcA (from C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\env)
+2026-05-06 12:00:25  INFO      simulator                       STORAGE_TYPE    : local  (forced for simulator)
+2026-05-06 12:00:25  INFO      simulator                       Images output   : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\images
+2026-05-06 12:00:25  INFO      simulator                       PDF output      : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\pdf
+2026-05-06 12:00:25  INFO      simulator                       Importing backend services …
+2026-05-06 12:00:42  INFO      simulator                       config.OUTPUT_DIR patched → C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\images  (was: C:\Users\desais\Documents\GitHubLocal\storyme\backend\output)
+2026-05-06 12:00:43  INFO      simulator                       Using default ai_book_service story JSON loader.
+2026-05-06 12:00:43  INFO      simulator                       Photo loaded: 87006 bytes from C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png
+2026-05-06 12:00:43  INFO      simulator                       generation_id   : bf74d54b6eb54e938e2b30b4248614b9
+2026-05-06 12:00:43  INFO      simulator                       generation_seed : 174258752
+2026-05-06 12:00:43  INFO      simulator                       force_regen     : True
+2026-05-06 12:00:43  INFO      simulator                       max_ai_pages    : 2
+2026-05-06 12:00:43  INFO      simulator                       ========================================================================
+2026-05-06 12:00:43  INFO      simulator                         ** PIPELINE STARTING
+2026-05-06 12:00:43  INFO      simulator                         **   generation_id : bf74d54b6eb54e938e2b30b4248614b9
+2026-05-06 12:00:43  INFO      simulator                         **   child_name    : nikshay
+2026-05-06 12:00:43  INFO      simulator                         **   story_id      : forest_of_smiles
+2026-05-06 12:00:43  INFO      simulator                         **   force_regen   : True
+2026-05-06 12:00:43  INFO      simulator                         **   max_ai_pages  : 2
+2026-05-06 12:00:43  INFO      simulator                         **   quality       : medium
+2026-05-06 12:00:43  INFO      simulator                         **   seed          : 174258752
+2026-05-06 12:00:43  INFO      simulator                       ========================================================================
+2026-05-06 12:00:43  INFO      core.storage                    Storage backend: LocalStorage (local disk)
+2026-05-06 12:00:43  INFO      core.storage                    LocalStorage initialized with base_path: C:\Users\desais\Documents\GitHubLocal\storyme\backend
+2026-05-06 12:00:48  DEBUG     matplotlib                      matplotlib data path: C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\matplotlib\mpl-data
+2026-05-06 12:00:48  DEBUG     matplotlib                      CONFIGDIR=C:\Users\desais\.matplotlib
+2026-05-06 12:00:48  DEBUG     matplotlib                      interactive is False
+2026-05-06 12:00:48  DEBUG     matplotlib                      platform is win32
+2026-05-06 12:00:48  DEBUG     matplotlib                      CACHEDIR=C:\Users\desais\.matplotlib
+2026-05-06 12:00:48  DEBUG     matplotlib.font_manager         Using fontManager instance from C:\Users\desais\.matplotlib\fontlist-v390.json
+2026-05-06 12:00:57  INFO      services.ai_book_service        ━ AI Book Phase 0: covers [gen=bf74d54b]
+2026-05-06 12:00:58  INFO      services.ai_book_service        ━ AI Book Phase 1: background pages [gen=bf74d54b]
+2026-05-06 12:00:58  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p02
+2026-05-06 12:01:07  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-bfc7259b-a10c-4e3c-9f88-6d66ba0e1c89', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nA peaceful jungle with tall trees swaying gently in soft glowing light, no humans.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:07  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:07  DEBUG     httpcore.connection             connect_tcp.started host='api.openai.com' port=443 local_address=None timeout=5.0 socket_options=None
+2026-05-06 12:01:07  DEBUG     httpcore.connection             connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x000001E4CC1656D0>
+2026-05-06 12:01:07  DEBUG     httpcore.connection             start_tls.started ssl_context=<ssl.SSLContext object at 0x000001E4B7107C80> server_hostname='api.openai.com' timeout=5.0
+2026-05-06 12:01:07  DEBUG     httpcore.connection             start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x000001E4CC165890>
+2026-05-06 12:01:07  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:07  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:07  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:07  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:07  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:08 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'set-cookie', b'__cf_bm=gpKhYEeUdWoXDdVUqkQL0zGHzSDhbbJ3LhGFnRoHzSA-1778049067.7316391-1.0.1.1-0Rh2OTybBgJQpk20OzVrlAIITebN02cAQIJeHwRPnvOEk3Kc94JHkFVbG8Xkex6M0elCeDxWyvuxKSA5wNeupm_LW17CEdQEZxVUXCmlEFaonWpQRXF6Nwo0vakgj5i6; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Wed, 06 May 2026 07:01:08 GMT'), (b'set-cookie', b'_cfuvid=VOn_Kd7pLzi9ZTEZtEaZRJ7X6gubYukZcz5ZK2ZI8pA-1778049067.7316391-1.0.1.1-eD__FBiycsNolb22jzHzyQZhk55wIllI7KXbjB6JcUo; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com'), (b'CF-Ray', b'9f75f0b1586f4e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_fee67dbc9c154885a847f070d5dee79c'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:08  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:08  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers([('date', 'Wed, 06 May 2026 06:31:08 GMT'), ('content-type', 'text/plain'), ('content-length', '410'), ('connection', 'keep-alive'), ('set-cookie', '__cf_bm=gpKhYEeUdWoXDdVUqkQL0zGHzSDhbbJ3LhGFnRoHzSA-1778049067.7316391-1.0.1.1-0Rh2OTybBgJQpk20OzVrlAIITebN02cAQIJeHwRPnvOEk3Kc94JHkFVbG8Xkex6M0elCeDxWyvuxKSA5wNeupm_LW17CEdQEZxVUXCmlEFaonWpQRXF6Nwo0vakgj5i6; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Wed, 06 May 2026 07:01:08 GMT'), ('set-cookie', '_cfuvid=VOn_Kd7pLzi9ZTEZtEaZRJ7X6gubYukZcz5ZK2ZI8pA-1778049067.7316391-1.0.1.1-eD__FBiycsNolb22jzHzyQZhk55wIllI7KXbjB6JcUo; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com'), ('cf-ray', '9f75f0b1586f4e3d-BLR'), ('cf-cache-status', 'DYNAMIC'), ('server', 'cloudflare'), ('strict-transport-security', 'max-age=31536000; includeSubDomains; preload'), ('x-content-type-options', 'nosniff'), ('x-error-json', 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), ('x-openai-authorization-error', '401'), ('x-openai-ide-error-code', 'invalid_api_key'), ('x-openai-internal-caller', 'unknown_through_ide'), ('x-openai-proxy-wasm', 'v0.1'), ('x-request-id', 'req_fee67dbc9c154885a847f070d5dee79c'), ('alt-svc', 'h3=":443"; ma=86400')])
+2026-05-06 12:01:08  DEBUG     openai._base_client             request_id: req_fee67dbc9c154885a847f070d5dee79c
+2026-05-06 12:01:08  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:08  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:08  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:08  ERROR     services.ai_book_service        ✗ Phase 1 p02 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:08  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p04
+2026-05-06 12:01:08  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-70bf872e-14d2-471c-a4fe-df9fc8630a48', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nCute rabbits giggling behind bushes in a lush forest.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:08  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:08 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0b51e3a4e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_05d20a8582e54593a84271d5c9bea03e'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:08  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:08  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:08 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0b51e3a4e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_05d20a8582e54593a84271d5c9bea03e', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:08  DEBUG     openai._base_client             request_id: req_05d20a8582e54593a84271d5c9bea03e
+2026-05-06 12:01:08  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:08  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:08  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:08  ERROR     services.ai_book_service        ✗ Phase 1 p04 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:08  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p06
+2026-05-06 12:01:08  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-5eabd570-7678-4fad-92ed-207086a4205f', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nColorful birds flying across glowing jungle canopy.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:08  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:08 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0b6d9294e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_3d5884801d1b44bf8c9c1013a768efe9'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:08  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:08  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:08 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0b6d9294e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_3d5884801d1b44bf8c9c1013a768efe9', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:08  DEBUG     openai._base_client             request_id: req_3d5884801d1b44bf8c9c1013a768efe9
+2026-05-06 12:01:08  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:08  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:08  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:08  ERROR     services.ai_book_service        ✗ Phase 1 p06 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:08  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p08
+2026-05-06 12:01:08  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-291241dd-69ab-48ae-883c-4c6435fd7451', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nDeer walking gracefully through glowing forest path.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:08  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:08  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:09 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0b8cc494e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_47455998ad484e4096dafed65eb1195e'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:09  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:09  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:09 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0b8cc494e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_47455998ad484e4096dafed65eb1195e', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:09  DEBUG     openai._base_client             request_id: req_47455998ad484e4096dafed65eb1195e
+2026-05-06 12:01:09  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:09  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:09  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:09  ERROR     services.ai_book_service        ✗ Phase 1 p08 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:09  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p10
+2026-05-06 12:01:09  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-9a91ce73-fdf4-42da-85f6-f757f74ebc6d', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nClose-up butterflies in sunlight beams.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:09  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:09 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0ba9ef04e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_3fca4cf43f444384acd5aad7148bc1a3'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:09  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:09  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:09 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0ba9ef04e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_3fca4cf43f444384acd5aad7148bc1a3', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:09  DEBUG     openai._base_client             request_id: req_3fca4cf43f444384acd5aad7148bc1a3
+2026-05-06 12:01:09  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:09  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:09  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:09  ERROR     services.ai_book_service        ✗ Phase 1 p10 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:09  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p12
+2026-05-06 12:01:09  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-383a4522-82ce-489e-8582-117343152b5a', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nLarge glowing magical tree radiating warmth.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:09  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:09 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0bc7a224e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_f843dc3416a748d3b30c5bce6f86fb0d'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:09  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:09  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:09 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0bc7a224e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_f843dc3416a748d3b30c5bce6f86fb0d', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:09  DEBUG     openai._base_client             request_id: req_f843dc3416a748d3b30c5bce6f86fb0d
+2026-05-06 12:01:09  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:09  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:09  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:09  ERROR     services.ai_book_service        ✗ Phase 1 p12 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:09  INFO      services.ai_book_service        BG cache MISS — calling DALL-E for forest_of_smiles p14
+2026-05-06 12:01:09  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/generations', 'files': None, 'idempotency_key': 'stainless-python-retry-a6c8db39-10ea-46c4-8ce2-aa00281ac906', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Wide to medium framing\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nAnimals gathered playing music in forest clearing.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:09  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/generations
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:10 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0be4cc24e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_f05958dd0b80407f8b35726f6f3c4420'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:09  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/generations "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:09  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:09  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/generations "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:10 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0be4cc24e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_f05958dd0b80407f8b35726f6f3c4420', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:09  DEBUG     openai._base_client             request_id: req_f05958dd0b80407f8b35726f6f3c4420
+2026-05-06 12:01:09  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/generations'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:09  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:09  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:09  ERROR     services.ai_book_service        ✗ Phase 1 p14 failed: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 351, in _run_sync
+    img_bytes, text_area = self._get_or_generate_background(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 740, in _get_or_generate_background
+    img_bytes = self._dalle_generate(prompt_text, quality, STORY_BACKGROUND_SEED)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 661, in _dalle_generate
+    response = self._openai.images.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 898, in generate
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:09  INFO      services.ai_book_service        ━ AI Book Phase 2: character page 1 [gen=bf74d54b]
+2026-05-06 12:01:09  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/edits', 'headers': {'Content-Type': 'multipart/form-data'}, 'files': [('image', SerializationIterator(index=0, iterator=SerializationIterator(index=0, iterator=<_io.BufferedReader name='C:\\Users\\desais\\AppData\\Local\\Temp\\tmpz0kosxb6.jpg'>)))], 'idempotency_key': 'stainless-python-retry-29f34815-fe87-4778-99a9-e5a053fe6f0b', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4–6)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nA magical jungle entrance with tall trees, soft mist, golden morning light filtering through leaves.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n\nCHARACTER EXPRESSION: The character looks curious and wondering, with wide questioning eyes and a slightly open mouth.\n\n=== CHARACTER FACE (MANDATORY — OVERRIDES ALL OTHER FACE INSTRUCTIONS) ===\nThe reference image is a real person's photo. Generate the MAIN CHARACTER's face\nas a fully cartoonized Pixar 3D CGI animated version of this person:\n• VISUALLY RESEMBLE the person in the reference photo — same face shape, hair\n• Pixar cartoon style: smooth animated skin, expressive rounded eyes, warm features\n• Integrate naturally with the cartoon body and the scene lighting/palette\n• Generate a COMPLETE expressive cartoon face — NOT a featureless oval or placeholder\n• Ignore any earlier instruction to draw a smooth oval with no features\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:10  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/edits
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:10 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0c0d8274e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_fd140b87be0842a581ccd611d8b5ecac'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:10  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:10  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/edits "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:10 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0c0d8274e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_fd140b87be0842a581ccd611d8b5ecac', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:10  DEBUG     openai._base_client             request_id: req_fd140b87be0842a581ccd611d8b5ecac
+2026-05-06 12:01:10  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/edits'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:10  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:10  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:10  ERROR     services.ai_book_service        ✗ Phase 2 p01 FAILED: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 394, in _run_sync
+    raw_bytes = self._dalle_edit(user_photo_bytes, prompt, quality, generation_seed)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 624, in _dalle_edit
+    response = self._openai.images.edit(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 518, in edit
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:10  INFO      services.ai_book_service        ━ AI Book Phase 3: 1 of 8 remaining character page(s) [max_ai_pages=2, gen=bf74d54b]
+2026-05-06 12:01:10  DEBUG     openai._base_client             Request options: {'method': 'post', 'url': '/images/edits', 'headers': {'Content-Type': 'multipart/form-data'}, 'files': [('image', SerializationIterator(index=0, iterator=SerializationIterator(index=0, iterator=<_io.BufferedReader name='C:\\Users\\desais\\AppData\\Local\\Temp\\tmp6mj5_3a2.jpg'>)))], 'idempotency_key': 'stainless-python-retry-9b057f37-c9bd-4627-92df-74510d15bd3f', 'security': {'bearer_auth': True}, 'content': None, 'json_data': {'prompt': "Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4–6)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nForest with floating glowing particles, subtle magical curiosity atmosphere.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n\nCHARACTER EXPRESSION: The character looks curious and wondering, with wide questioning eyes and a slightly open mouth.\n\n=== CHARACTER FACE (MANDATORY — OVERRIDES ALL OTHER FACE INSTRUCTIONS) ===\nThe reference image is a real person's photo. Generate the MAIN CHARACTER's face\nas a fully cartoonized Pixar 3D CGI animated version of this person:\n• VISUALLY RESEMBLE the person in the reference photo — same face shape, hair\n• Pixar cartoon style: smooth animated skin, expressive rounded eyes, warm features\n• Integrate naturally with the cartoon body and the scene lighting/palette\n• Generate a COMPLETE expressive cartoon face — NOT a featureless oval or placeholder\n• Ignore any earlier instruction to draw a smooth oval with no features\n", 'model': 'gpt-image-1', 'n': 1, 'quality': 'medium', 'size': '1024x1024'}}
+2026-05-06 12:01:10  DEBUG     openai._base_client             Sending HTTP Request: POST https://api.openai.com/v1/images/edits
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_headers.complete
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_body.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 send_request_body.complete
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_headers.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_headers.complete return_value=(b'HTTP/1.1', 401, b'Unauthorized', [(b'Date', b'Wed, 06 May 2026 06:31:10 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'410'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9f75f0c2ca934e3d-BLR'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Server', b'cloudflare'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Content-Type-Options', b'nosniff'), (b'x-error-json', b'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0='), (b'x-openai-authorization-error', b'401'), (b'x-openai-ide-error-code', b'invalid_api_key'), (b'x-openai-internal-caller', b'unknown_through_ide'), (b'x-openai-proxy-wasm', b'v0.1'), (b'x-request-id', b'req_512bb61d7276464996f34df53ca0f8ea'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2026-05-06 12:01:10  INFO      httpx                           HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_body.started request=<Request [b'POST']>
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 receive_response_body.complete
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 response_closed.started
+2026-05-06 12:01:10  DEBUG     httpcore.http11                 response_closed.complete
+2026-05-06 12:01:10  DEBUG     openai._base_client             HTTP Response: POST https://api.openai.com/v1/images/edits "401 Unauthorized" Headers({'date': 'Wed, 06 May 2026 06:31:10 GMT', 'content-type': 'text/plain', 'content-length': '410', 'connection': 'keep-alive', 'cf-ray': '9f75f0c2ca934e3d-BLR', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-content-type-options': 'nosniff', 'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqaU1jQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=', 'x-openai-authorization-error': '401', 'x-openai-ide-error-code': 'invalid_api_key', 'x-openai-internal-caller': 'unknown_through_ide', 'x-openai-proxy-wasm': 'v0.1', 'x-request-id': 'req_512bb61d7276464996f34df53ca0f8ea', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-05-06 12:01:10  DEBUG     openai._base_client             request_id: req_512bb61d7276464996f34df53ca0f8ea
+2026-05-06 12:01:10  DEBUG     openai._base_client             Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1085, in request
+    response.raise_for_status()
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\httpx\_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/images/edits'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-05-06 12:01:10  DEBUG     openai._base_client             Not retrying
+2026-05-06 12:01:10  DEBUG     openai._base_client             Re-raising status error
+2026-05-06 12:01:10  ERROR     services.ai_book_service        ✗ Phase 3 p03 FAILED: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 484, in _run_sync
+    raw_bytes = self._dalle_edit(
+                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 624, in _dalle_edit
+    response = self._openai.images.edit(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\resources\images.py", line 518, in edit
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\openai\_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************iMcA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-05-06 12:01:10  INFO      services.ai_book_service        ━ AI Book Phase 4: PDF assembly [gen=bf74d54b] 2 pages
+2026-05-06 12:01:10  DEBUG     PIL.PngImagePlugin              STREAM b'IHDR' 16 13
+2026-05-06 12:01:10  DEBUG     PIL.PngImagePlugin              STREAM b'IDAT' 41 18329
+2026-05-06 12:01:10  DEBUG     PIL.PngImagePlugin              STREAM b'IHDR' 16 13
+2026-05-06 12:01:10  DEBUG     PIL.PngImagePlugin              STREAM b'IDAT' 41 21054
+2026-05-06 12:01:10  INFO      services.pdf_service            PDF created: nikshay_20260506_063110_bf74d54b.pdf (2 pages, 47.9 KB)
+2026-05-06 12:01:10  INFO      services.ai_book_service        ━━━ AI BOOK COMPLETE ━━━ gen=bf74d54b pages=2/18 pdf=nikshay_20260506_063110_bf74d54b.pdf
+2026-05-06 12:01:10  INFO      simulator                       Pipeline finished in 27.7 s — status: complete
+2026-05-06 12:01:10  INFO      simulator                       PDF moved → C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\pdf\nikshay_20260506_063110_bf74d54b.pdf
+2026-05-06 12:01:10  INFO      simulator                       Page images saved: 2 files in C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\images
+2026-05-06 12:01:10  INFO      simulator                         bf74d54b6eb54e938e2b30b4248614b9_p00.png  (17 KB)
+2026-05-06 12:01:10  INFO      simulator                         bf74d54b6eb54e938e2b30b4248614b9_p17.png  (20 KB)
+2026-05-06 12:01:10  INFO      simulator                       ========================================================================
+2026-05-06 12:01:10  INFO      simulator                         ** GENERATION COMPLETE
+2026-05-06 12:01:10  INFO      simulator                         **   elapsed        : 27.7 s
+2026-05-06 12:01:10  INFO      simulator                         **   pages_succeeded: 2 / 18
+2026-05-06 12:01:10  INFO      simulator                         **   pages_failed   : 9
+2026-05-06 12:01:10  INFO      simulator                         **   PDF            : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\pdf\nikshay_20260506_063110_bf74d54b.pdf
+2026-05-06 12:01:10  INFO      simulator                         **   Images dir     : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\images
+2026-05-06 12:01:10  INFO      simulator                         **   Log file       : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\20260506_120025.log
+2026-05-06 12:01:10  INFO      simulator                         ** 
+2026-05-06 12:01:10  INFO      simulator                         **   To iterate on prompts:
+2026-05-06 12:01:10  INFO      simulator                         **     1. Copy C:\Users\desais\Documents\GitHubLocal\storyme\backend\data\stories\forest_of_smiles_v8_final.json
+2026-05-06 12:01:10  INFO      simulator                         **     2. Edit page[N]['prompt']['final_text']
+2026-05-06 12:01:10  INFO      simulator                         **     3. Re-run with --story-file /path/to/copy.json --force true
+2026-05-06 12:01:10  INFO      simulator                       ========================================================================
+2026-05-06 12:01:10  INFO      simulator                       Simulator done.
+2026-05-06 12:01:10  DEBUG     httpcore.connection             close.started
+2026-05-06 12:01:10  DEBUG     httpcore.connection             close.complete
