@@ -125,9 +125,25 @@ class AIBookService:
     """
     Orchestrates AI-based storybook generation.
     One singleton instance used for all generations.
+
+    engine='dalle'     — original DALL-E gpt-image-1 pipeline (default)
+    engine='replicate' — Replicate InstantID / IP-Adapter for character pages;
+                         DALL-E still used for background pages (Phase 1).
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        engine: str = "dalle",
+        replicate_api_token: str = "",
+        replicate_model: str = "instantid",
+    ) -> None:
+        self._engine = engine.lower()
+        if self._engine not in ("dalle", "replicate"):
+            raise ValueError(
+                f"Unknown engine {engine!r}. Valid values: 'dalle', 'replicate'."
+            )
+
+        # OpenAI client — required for DALL-E backgrounds (Phase 1) in both engines
         api_key = os.environ.get("OPENAI_API_KEY", "")
         if not api_key:
             raise RuntimeError(
@@ -135,6 +151,22 @@ class AIBookService:
             )
         from openai import OpenAI
         self._openai = OpenAI(api_key=api_key)
+
+        # Replicate client — only initialised when engine='replicate'
+        self._replicate_svc = None
+        if self._engine == "replicate":
+            token = replicate_api_token or os.environ.get("REPLICATE_API_TOKEN", "")
+            from services.replicate_face_service import ReplicateFaceService
+            self._replicate_svc = ReplicateFaceService(
+                api_token=token,
+                primary_model=replicate_model,
+            )
+            logger.info(
+                "AIBookService engine=replicate  model=%s", replicate_model
+            )
+        else:
+            logger.info("AIBookService engine=dalle")
+
         self._story_config: Optional[dict] = None
         # In-memory hot cache for background page bytes
         # key: "story_id:page_number:prompt_hash"  value: (bytes, text_area_dict)
@@ -223,8 +255,8 @@ class AIBookService:
         )
 
         logger.info(
-            "AI book generation started: gen_id=%s child=%r seed=%d bg_cached=%d/%d",
-            gen_id[:8], child_name, seed, bg_cached, len(bg_pgs),
+            "AI book generation started: gen_id=%s child=%r seed=%d bg_cached=%d/%d engine=%s",
+            gen_id[:8], child_name, seed, bg_cached, len(bg_pgs), self._engine,
         )
 
         return {
@@ -241,6 +273,7 @@ class AIBookService:
             "generation_seed":              seed,
             "estimated_seconds":            180,
             "placeholder_pages":            sorted(PLACEHOLDER_PAGES),
+            "engine":                       self._engine,
         }
 
     # ── Background async task ─────────────────────────────────────────────────
@@ -380,21 +413,33 @@ class AIBookService:
         p1_cfg = next(p for p in pages if p["page_number"] == 1)
         try:
             t0 = time.time()
-            # images.edit(user_photo, prompt + _FACE_CARTOON_OVERRIDE):
-            #   gpt-image-1 receives the user's selfie and a prompt asking it to
-            #   draw the character's face as a Pixar cartoon version of that person.
-            #   The result is a cartoon face that resembles the user — no seamlessClone needed.
-            #   Expression is set to "curious" for the opening scene.
-            expr_note = _EXPR_DESCRIPTIONS.get("curious", "")
-            prompt = (
-                p1_cfg["prompt"]["final_text"]
-                + f"\nCHARACTER EXPRESSION: {expr_note}"
-                + _FACE_CARTOON_OVERRIDE
-            )
-            raw_bytes = self._dalle_edit(user_photo_bytes, prompt, quality, generation_seed)
+
+            if self._engine == "replicate":
+                # ── Replicate path (Phase 2) ──────────────────────────────────
+                raw_bytes = self._replicate_svc.generate_character_page(
+                    face_bytes=user_photo_bytes,
+                    dalle_prompt=p1_cfg["prompt"]["final_text"],
+                    expression="curious",
+                    page_number=1,
+                    quality=quality,
+                )
+                model_name = self._replicate_svc._primary_model
+            else:
+                # ── DALL-E path (Phase 2) ─────────────────────────────────────
+                expr_note = _EXPR_DESCRIPTIONS.get("curious", "")
+                prompt = (
+                    p1_cfg["prompt"]["final_text"]
+                    + f"\nCHARACTER EXPRESSION: {expr_note}"
+                    + _FACE_CARTOON_OVERRIDE
+                )
+                raw_bytes = self._dalle_edit(user_photo_bytes, prompt, quality, generation_seed)
+                model_name = "gpt-image-1"
+
             gen_ms = int((time.time() - t0) * 1000)
 
-            # Save raw (used as style anchor for pages 3+)
+            # Save raw.
+            # DALL-E engine: page1_raw used as style anchor for pages 3+
+            # Replicate engine: original face photo used directly in each Phase 3 call
             raw_local = str(out_dir / f"{gen_id}_p01_raw.png")
             Path(raw_local).write_bytes(raw_bytes)
             page1_raw_bytes = raw_bytes
@@ -419,14 +464,15 @@ class AIBookService:
                 "user_mobile":     user_mobile,
                 "blob_path_raw":   raw_blob,
                 "blob_path_final": final_blob,
-                "face_bbox":       {},          # not extracted — no seamlessClone
+                "face_bbox":       {},
                 "text_area":       text_area,
                 "is_anchor":       True,
                 "is_placeholder":  True,
                 "seed":            generation_seed,
-                "model":           "gpt-image-1",
+                "model":           model_name,
                 "quality":         quality,
                 "generation_ms":   gen_ms,
+                "engine":          self._engine,
             })
 
             pages_for_pdf.append({
@@ -461,12 +507,19 @@ class AIBookService:
                 expr_name = _EXPR.get(pn, "gentle")
                 expr_note = _EXPR_DESCRIPTIONS.get(expr_name, "")
 
-                # Use page 1 raw as anchor — it already contains the cartoonized
-                # version of the user's face in Pixar style. images.edit() with
-                # page1_raw ensures the same cartoon character (face + clothing) appears
-                # consistently across all pages, with scene-appropriate expression.
-                # Falls back to user photo + face override if page 1 failed.
-                if page1_raw_bytes is not None:
+                if self._engine == "replicate":
+                    # ── Replicate path (Phase 3) ──────────────────────────────
+                    # Always use original face photo as reference — InstantID
+                    # maintains identity consistency directly, no page-1-anchor needed.
+                    raw_bytes = self._replicate_svc.generate_character_page(
+                        face_bytes=user_photo_bytes,
+                        dalle_prompt=page_cfg["prompt"]["final_text"],
+                        expression=expr_name,
+                        page_number=pn,
+                        quality=quality,
+                    )
+                elif page1_raw_bytes is not None:
+                    # ── DALL-E path: use page 1 as style anchor ───────────────
                     prompt = (
                         page_cfg["prompt"]["final_text"]
                         + f"\nCHARACTER EXPRESSION: {expr_note}"
@@ -476,6 +529,7 @@ class AIBookService:
                         page1_raw_bytes, prompt, quality, generation_seed
                     )
                 else:
+                    # ── DALL-E fallback: page 1 failed, use original photo ─────
                     prompt = (
                         page_cfg["prompt"]["final_text"]
                         + f"\nCHARACTER EXPRESSION: {expr_note}"
@@ -502,6 +556,10 @@ class AIBookService:
                 final_blob = ai_character_final_path(gen_id, pn)
                 _upload_bytes(storage, textd_bytes, final_blob)
 
+                _model_p3 = (
+                    self._replicate_svc._primary_model
+                    if self._engine == "replicate" else "gpt-image-1"
+                )
                 save_character_page(gen_id, pn, {
                     "story_id":        story_id,
                     "user_mobile":     user_mobile,
@@ -512,9 +570,10 @@ class AIBookService:
                     "is_anchor":       False,
                     "is_placeholder":  pn in PLACEHOLDER_PAGES,
                     "seed":            generation_seed,
-                    "model":           "gpt-image-1",
+                    "model":           _model_p3,
                     "quality":         quality,
                     "generation_ms":   gen_ms,
+                    "engine":          self._engine,
                 })
 
                 pages_for_pdf.append({
@@ -823,8 +882,21 @@ def _upload_bytes(storage, data: bytes, blob_path: str) -> None:
 # ─── Singleton ────────────────────────────────────────────────────────────────
 
 def _create_service() -> Optional[AIBookService]:
+    """
+    Build the singleton AIBookService.
+    Engine is controlled by the STORYME_ENGINE env var:
+      STORYME_ENGINE=dalle      (default)
+      STORYME_ENGINE=replicate  (requires REPLICATE_API_TOKEN)
+    """
+    engine = os.environ.get("STORYME_ENGINE", "dalle").lower()
+    replicate_token = os.environ.get("REPLICATE_API_TOKEN", "")
+    replicate_model = os.environ.get("REPLICATE_MODEL", "instantid")
     try:
-        return AIBookService()
+        return AIBookService(
+            engine=engine,
+            replicate_api_token=replicate_token,
+            replicate_model=replicate_model,
+        )
     except RuntimeError as exc:
         logger.warning("AIBookService not available: %s", exc)
         return None
