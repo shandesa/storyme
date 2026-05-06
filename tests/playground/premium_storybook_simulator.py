@@ -39,9 +39,9 @@ Output
 
 API key
 -------
-  Read from tests/playground/env  (key: OPEN_API_KEY)
+  Read from tests/playground/env  (key: OPENAI_API_KEY)
   The env file must contain a line like:
-    OPEN_API_KEY=sk-proj-...
+    OPENAI_API_KEY=sk-proj-...
 
 Notes
 -----
@@ -299,10 +299,10 @@ def main() -> int:
 
     # ── Read API key from env file ────────────────────────────────────────────
     env_vars = _read_env_file(_ENV_FILE)
-    openai_key = env_vars.get("OPEN_API_KEY", "")
+    openai_key = env_vars.get("OPENAI_API_KEY", "")
     if not openai_key:
         logger.error(
-            "OPEN_API_KEY not found in %s — cannot call DALL-E", _ENV_FILE
+            "OPENAI_API_KEY not found in %s — cannot call DALL-E", _ENV_FILE
         )
         return 1
 
