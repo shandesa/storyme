@@ -39,9 +39,10 @@ Output
 
 API key
 -------
-  Read from tests/playground/env  (key: OPENAI_API_KEY)
-  The env file must contain a line like:
+  Read from tests/playground/env
+  Required keys:
     OPENAI_API_KEY=sk-proj-...
+    REPLICATE_API_TOKEN=r8_...  (only when --engine replicate)
 
 Notes
 -----
@@ -206,6 +207,28 @@ def _parse_args() -> argparse.Namespace:
             "before running the full pipeline."
         ),
     )
+    p.add_argument(
+        "--engine",
+        default="dalle",
+        choices=["dalle", "replicate"],
+        help=(
+            "Image generation engine for character pages (Phases 2 & 3).  "
+            "'dalle'     — gpt-image-1 via OpenAI (default).  "
+            "'replicate' — InstantID / IP-Adapter FaceID via Replicate.  "
+            "              Requires REPLICATE_API_TOKEN in tests/playground/env.  "
+            "              Avoids OpenAI moderation blocks on real child photos."
+        ),
+    )
+    p.add_argument(
+        "--replicate-model",
+        default="instantid",
+        choices=["instantid", "ip_adapter"],
+        help=(
+            "Replicate model to use when --engine replicate.  "
+            "'instantid' (default) — best face identity preservation.  "
+            "'ip_adapter'          — faster, slightly lower identity fidelity."
+        ),
+    )
     return p.parse_args()
 
 
@@ -247,22 +270,27 @@ def main() -> int:
         return 1
 
     # ── Parse arguments ───────────────────────────────────────────────────────
-    child_name   = args.name.strip()
-    story_id     = args.story.strip()
-    quality      = args.quality
-    force_regen  = _bool_arg(args.force)
-    custom_story = Path(args.story_file).resolve() if args.story_file else None
-    max_ai_pages = max(1, min(16, args.max_pages))
+    child_name      = args.name.strip()
+    story_id        = args.story.strip()
+    quality         = args.quality
+    force_regen     = _bool_arg(args.force)
+    custom_story    = Path(args.story_file).resolve() if args.story_file else None
+    max_ai_pages    = max(1, min(16, args.max_pages))
+    engine          = args.engine.lower()
+    replicate_model = args.replicate_model.lower()
 
     logger.info("Arguments:")
-    logger.info("  child_name  : %s", child_name)
-    logger.info("  photo       : %s", photo_path)
-    logger.info("  story_id    : %s", story_id)
-    logger.info("  quality     : %s", quality)
-    logger.info("  force_regen : %s", force_regen)
-    logger.info("  max_ai_pages: %d", max_ai_pages)
-    logger.info("  story_file  : %s", custom_story or "(default backend story JSON)")
-    logger.info("  log         : %s", log_path)
+    logger.info("  child_name      : %s", child_name)
+    logger.info("  photo           : %s", photo_path)
+    logger.info("  story_id        : %s", story_id)
+    logger.info("  quality         : %s", quality)
+    logger.info("  force_regen     : %s", force_regen)
+    logger.info("  max_ai_pages    : %d", max_ai_pages)
+    logger.info("  engine          : %s", engine)
+    if engine == "replicate":
+        logger.info("  replicate_model : %s", replicate_model)
+    logger.info("  story_file      : %s", custom_story or "(default backend story JSON)")
+    logger.info("  log             : %s", log_path)
 
     # ── Resolve story JSON path ───────────────────────────────────────────────
     if custom_story:
@@ -299,23 +327,45 @@ def main() -> int:
 
     # ── Read API key from env file ────────────────────────────────────────────
     env_vars = _read_env_file(_ENV_FILE)
+
+    # ── OpenAI key ────────────────────────────────────────────────────────────
     openai_key = env_vars.get("OPENAI_API_KEY", "")
     if not openai_key:
         logger.error(
-            "OPENAI_API_KEY not found in %s — cannot call DALL-E", _ENV_FILE
+            "OPENAI_API_KEY not found in %s — cannot call DALL-E (required for "
+            "background pages regardless of --engine choice)", _ENV_FILE
+        )
+        return 1
+
+    # ── Replicate key (required only when --engine replicate) ─────────────────
+    replicate_key = env_vars.get("REPLICATE_API_TOKEN", "")
+    if engine == "replicate" and not replicate_key:
+        logger.error(
+            "REPLICATE_API_TOKEN not found in %s — required when --engine replicate",
+            _ENV_FILE,
         )
         return 1
 
     # Set env vars BEFORE importing any backend module that reads them
     os.environ["OPENAI_API_KEY"]                 = openai_key
     os.environ["STORAGE_TYPE"]                   = "local"
+    os.environ["STORYME_ENGINE"]                 = engine
+    if replicate_key:
+        os.environ["REPLICATE_API_TOKEN"]        = replicate_key
+        os.environ["REPLICATE_MODEL"]            = replicate_model
     # Deliberately NOT setting AZURE_STORAGE_CONNECTION_STRING so that
     # ai_page_store uses JsonAIBackgroundPageStore (local JSON files).
     os.environ.pop("AZURE_STORAGE_CONNECTION_STRING", None)
 
-    logger.info("OPENAI_API_KEY  : %s...%s (from %s)",
+    logger.info("OPENAI_API_KEY      : %s...%s (from %s)",
                 openai_key[:8], openai_key[-4:], _ENV_FILE)
-    logger.info("STORAGE_TYPE    : local  (forced for simulator)")
+    if replicate_key:
+        logger.info("REPLICATE_API_TOKEN : %s...%s (from %s)",
+                    replicate_key[:8], replicate_key[-4:], _ENV_FILE)
+    logger.info("ENGINE              : %s", engine)
+    if engine == "replicate":
+        logger.info("REPLICATE_MODEL     : %s", replicate_model)
+    logger.info("STORAGE_TYPE        : local  (forced for simulator)")
 
     # ── Prepare output directories ────────────────────────────────────────────
     safe_child   = _safe_name(child_name)
@@ -352,7 +402,11 @@ def main() -> int:
     # We instantiate directly (instead of using the module singleton) so the
     # OPENAI_API_KEY we just set is picked up fresh.
     try:
-        svc = AIBookService()
+        svc = AIBookService(
+            engine=engine,
+            replicate_api_token=replicate_key if engine == "replicate" else "",
+            replicate_model=replicate_model,
+        )
     except RuntimeError as exc:
         logger.error("AIBookService init failed: %s", exc)
         return 1
