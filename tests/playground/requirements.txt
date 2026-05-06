@@ -8,3 +8,6 @@ torch
 torchvision
 torchaudio
 pytorch3d
+python-dotenv
+openai
+reportlab

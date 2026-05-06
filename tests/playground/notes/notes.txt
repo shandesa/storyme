@@ -1,0 +1,7 @@
+C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\20260506_112441.log <- read this file. Now, do the following. Till the time infrastructure is not ready, do not make multiple API calls to DALLE or openAI. I
+   want to minimize the wasted usage, i.e. the usage which doesn't yeild any useful images and pdf generation. I want to strictly for the time being, generate only 2 images using the algorithm and pipeline, and i can validate if the
+  images have character consistent, facial expression, hair, body, clothes, emotions, etc, it must be the same character in both the images, then I will extend this to full generation. Avoid multiple API calls using openAI . Tweek the
+   backend code to accept number of pages to generate, the input must be given from two places- in production code, from frontend where the option to forcefully generate new page is provided, with a dropdown to select how many pages
+  to generate using the AI models. By default keep the value 2, range must be 1 to 16. The limitation is only towards the pages which has character (hero) of the story. This is for front end. For test environment, the input must be
+  given from the script python .\tests\playground\premium_storybook_simulator.py --name nikshay --photo C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png  --force true as an argument the
+  backend must not behave differently for test and production code. Make changes in beta branch of the storyme repository.

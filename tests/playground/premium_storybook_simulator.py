@@ -195,6 +195,17 @@ def _parse_args() -> argparse.Namespace:
             "iteration without touching the production story files."
         ),
     )
+    p.add_argument(
+        "--max-pages",
+        type=int,
+        default=2,
+        metavar="N",
+        help=(
+            "Maximum number of character (hero) pages to generate using AI models.  "
+            "Range 1-16.  Default: 2.  Use this to validate character consistency "
+            "before running the full pipeline."
+        ),
+    )
     return p.parse_args()
 
 
@@ -241,6 +252,7 @@ def main() -> int:
     quality      = args.quality
     force_regen  = _bool_arg(args.force)
     custom_story = Path(args.story_file).resolve() if args.story_file else None
+    max_ai_pages = max(1, min(16, args.max_pages))
 
     logger.info("Arguments:")
     logger.info("  child_name  : %s", child_name)
@@ -248,6 +260,7 @@ def main() -> int:
     logger.info("  story_id    : %s", story_id)
     logger.info("  quality     : %s", quality)
     logger.info("  force_regen : %s", force_regen)
+    logger.info("  max_ai_pages: %d", max_ai_pages)
     logger.info("  story_file  : %s", custom_story or "(default backend story JSON)")
     logger.info("  log         : %s", log_path)
 
@@ -371,6 +384,7 @@ def main() -> int:
     logger.info("generation_id   : %s", gen_id)
     logger.info("generation_seed : %d", seed)
     logger.info("force_regen     : %s", force_regen)
+    logger.info("max_ai_pages    : %d", max_ai_pages)
 
     _bold(
         logger,
@@ -379,6 +393,7 @@ def main() -> int:
         f"  child_name    : {child_name}",
         f"  story_id      : {story_id}",
         f"  force_regen   : {force_regen}",
+        f"  max_ai_pages  : {max_ai_pages}",
         f"  quality       : {quality}",
         f"  seed          : {seed}",
     )
@@ -397,6 +412,7 @@ def main() -> int:
             quality          = quality,
             generation_seed  = seed,
             force_regen      = force_regen,
+            max_ai_pages     = max_ai_pages,
         )
     except Exception as exc:
         logger.error("_run_sync raised an unhandled exception: %s", exc, exc_info=True)

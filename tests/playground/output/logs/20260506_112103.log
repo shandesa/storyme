@@ -1,0 +1,56 @@
+2026-05-06 11:21:03  INFO      simulator                       ========================================================================
+2026-05-06 11:21:03  INFO      simulator                         StoryMe — Premium Storybook Simulator
+2026-05-06 11:21:03  INFO      simulator                         Run timestamp : 20260506_112103
+2026-05-06 11:21:03  INFO      simulator                         Python        : 3.11.9
+2026-05-06 11:21:03  INFO      simulator                       ========================================================================
+2026-05-06 11:21:03  INFO      simulator                       Arguments:
+2026-05-06 11:21:03  INFO      simulator                         child_name  : nikshay
+2026-05-06 11:21:03  INFO      simulator                         photo       : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png
+2026-05-06 11:21:03  INFO      simulator                         story_id    : forest_of_smiles
+2026-05-06 11:21:03  INFO      simulator                         quality     : medium
+2026-05-06 11:21:03  INFO      simulator                         force_regen : True
+2026-05-06 11:21:03  INFO      simulator                         story_file  : (default backend story JSON)
+2026-05-06 11:21:03  INFO      simulator                         log         : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\20260506_112103.log
+2026-05-06 11:21:03  INFO      simulator                       ========================================================================
+2026-05-06 11:21:03  INFO      simulator                         ** STORY JSON FILE  : C:\Users\desais\Documents\GitHubLocal\storyme\backend\data\stories\forest_of_smiles_v8_final.json
+2026-05-06 11:21:03  INFO      simulator                         ** PROMPTS SOURCE   : page[N]['prompt']['final_text'] inside the story JSON above
+2026-05-06 11:21:03  INFO      simulator                         ** PHOTO            : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png
+2026-05-06 11:21:03  INFO      simulator                       ========================================================================
+2026-05-06 11:21:03  INFO      simulator                       OPENAI_API_KEY  : sk-proj-...iMcA (from C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\env)
+2026-05-06 11:21:03  INFO      simulator                       STORAGE_TYPE    : local  (forced for simulator)
+2026-05-06 11:21:03  INFO      simulator                       Images output   : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\images
+2026-05-06 11:21:03  INFO      simulator                       PDF output      : C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\pdf
+2026-05-06 11:21:03  INFO      simulator                       Importing backend services …
+2026-05-06 11:21:15  INFO      simulator                       config.OUTPUT_DIR patched → C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\nikshay\forest_of_smiles\images  (was: C:\Users\desais\Documents\GitHubLocal\storyme\backend\output)
+2026-05-06 11:21:16  INFO      simulator                       Using default ai_book_service story JSON loader.
+2026-05-06 11:21:16  INFO      simulator                       Photo loaded: 87006 bytes from C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\user_face\nikshay\nikshay.png
+2026-05-06 11:21:16  INFO      simulator                       generation_id   : f87c7b310fd946b2b8a19c9b0ebf6e60
+2026-05-06 11:21:16  INFO      simulator                       generation_seed : 212695701
+2026-05-06 11:21:16  INFO      simulator                       force_regen     : True
+2026-05-06 11:21:16  INFO      simulator                       ========================================================================
+2026-05-06 11:21:16  INFO      simulator                         ** PIPELINE STARTING
+2026-05-06 11:21:16  INFO      simulator                         **   generation_id : f87c7b310fd946b2b8a19c9b0ebf6e60
+2026-05-06 11:21:16  INFO      simulator                         **   child_name    : nikshay
+2026-05-06 11:21:16  INFO      simulator                         **   story_id      : forest_of_smiles
+2026-05-06 11:21:16  INFO      simulator                         **   force_regen   : True
+2026-05-06 11:21:16  INFO      simulator                         **   quality       : medium
+2026-05-06 11:21:16  INFO      simulator                         **   seed          : 212695701
+2026-05-06 11:21:16  INFO      simulator                       ========================================================================
+2026-05-06 11:21:16  INFO      core.storage                    Storage backend: LocalStorage (local disk)
+2026-05-06 11:21:16  INFO      core.storage                    LocalStorage initialized with base_path: C:\Users\desais\Documents\GitHubLocal\storyme\backend
+2026-05-06 11:21:22  DEBUG     matplotlib                      matplotlib data path: C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\matplotlib\mpl-data
+2026-05-06 11:21:23  DEBUG     matplotlib                      CONFIGDIR=C:\Users\desais\.matplotlib
+2026-05-06 11:21:23  DEBUG     matplotlib                      interactive is False
+2026-05-06 11:21:23  DEBUG     matplotlib                      platform is win32
+2026-05-06 11:21:23  DEBUG     matplotlib                      CACHEDIR=C:\Users\desais\.matplotlib
+2026-05-06 11:21:23  DEBUG     matplotlib.font_manager         Using fontManager instance from C:\Users\desais\.matplotlib\fontlist-v390.json
+2026-05-06 11:21:31  ERROR     simulator                       _run_sync raised an unhandled exception: No module named 'reportlab'
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\premium_storybook_simulator.py", line 391, in main
+    result = svc._run_sync(
+             ^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\ai_book_service.py", line 307, in _run_sync
+    from services.pdf_service import PDFService
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\backend\services\pdf_service.py", line 12, in <module>
+    from reportlab.lib.pagesizes import letter
+ModuleNotFoundError: No module named 'reportlab'

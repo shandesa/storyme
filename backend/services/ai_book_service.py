@@ -155,6 +155,7 @@ class AIBookService:
         user_photo_bytes: bytes,
         quality: str = "medium",
         force_regen: bool = False,
+        max_ai_pages: int = 2,
     ) -> dict:
         """
         Begin background AI generation. Returns immediately with generation_id.
@@ -217,6 +218,7 @@ class AIBookService:
                 quality=quality,
                 generation_seed=seed,
                 force_regen=force_regen,
+                max_ai_pages=max_ai_pages,
             )
         )
 
@@ -253,6 +255,7 @@ class AIBookService:
         quality: str,
         generation_seed: int,
         force_regen: bool = False,
+        max_ai_pages: int = 2,
     ) -> None:
         loop = asyncio.get_running_loop()
         try:
@@ -260,7 +263,7 @@ class AIBookService:
                 None,
                 self._run_sync,
                 gen_id, user_mobile, child_name, story_id,
-                user_photo_bytes, quality, generation_seed, force_regen,
+                user_photo_bytes, quality, generation_seed, force_regen, max_ai_pages,
             )
             updates = result.get("updates", {})
             if updates:
@@ -291,6 +294,7 @@ class AIBookService:
         quality: str,
         generation_seed: int,
         force_regen: bool = False,
+        max_ai_pages: int = 2,
     ) -> dict:
         from core.config import config
         from core.storage import storage
@@ -436,13 +440,21 @@ class AIBookService:
             pages_failed.append(1)
 
         # ── Phase 3: Character pages 3,5,7,9,11,13,15,16 ─────────────────────
-        logger.info("━ AI Book Phase 3: remaining character pages [gen=%s]", gen_id[:8])
-        char_remaining = [p for p in pages if p["character_present"] and p["page_number"] != 1]
+        # max_ai_pages counts page 1 (Phase 2) as 1; remaining budget = max_ai_pages - 1.
+        char_remaining_all = sorted(
+            [p for p in pages if p["character_present"] and p["page_number"] != 1],
+            key=lambda p: p["page_number"],
+        )
+        char_remaining = char_remaining_all[:max(0, max_ai_pages - 1)]
+        logger.info(
+            "━ AI Book Phase 3: %d of %d remaining character page(s) [max_ai_pages=%d, gen=%s]",
+            len(char_remaining), len(char_remaining_all), max_ai_pages, gen_id[:8],
+        )
 
         _EXPR = {3:"curious", 5:"determined", 7:"caring", 9:"gentle",
                  11:"delighted", 13:"welcoming", 15:"joyful", 16:"proud"}
 
-        for page_cfg in sorted(char_remaining, key=lambda p: p["page_number"]):
+        for page_cfg in char_remaining:
             pn = page_cfg["page_number"]
             try:
                 t0 = time.time()

@@ -87,6 +87,7 @@ export default function HomePage() {
   const [storyId, setStoryId]               = useState(null);
   const [bgGenStatus, setBgGenStatus]       = useState(null);
   const [forceRegen,  setForceRegen]        = useState(false);
+  const [maxAiPages,  setMaxAiPages]        = useState(2);
 
   // Profile state
   const [profiles,          setProfiles]          = useState([]);
@@ -231,10 +232,11 @@ export default function HomePage() {
         setBgGenStatus("failed"); return;
       }
       const fd = new FormData();
-      fd.append("name",        selectedProfile ? selectedProfile.name : childName.trim());
+      fd.append("name",         selectedProfile ? selectedProfile.name : childName.trim());
       fd.append("story_id",    selectedStory);
       fd.append("quality",     "medium");
       fd.append("force_regen", forceRegen ? "true" : "false");
+      fd.append("max_ai_pages", String(maxAiPages));
       if (selectedProfile) {
         fd.append("profile_id", selectedProfile.profile_id);
       } else {
@@ -655,7 +657,7 @@ export default function HomePage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-gray-700 font-medium">Generation Style</Label>
-                  <Select value={generationMode} onValueChange={(v) => { setGenerationMode(v); if (v !== "ai_book") setForceRegen(false); }}>
+                  <Select value={generationMode} onValueChange={(v) => { setGenerationMode(v); if (v !== "ai_book") { setForceRegen(false); setMaxAiPages(2); } }}>
                     <SelectTrigger className="border-gray-300"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {GENERATION_MODES.map((m) => (
@@ -668,17 +670,34 @@ export default function HomePage() {
                   </Select>
                 </div>
                 {generationMode === "ai_book" && (
-                  <div className="flex items-center gap-2 px-1">
-                    <input
-                      id="forceRegen"
-                      type="checkbox"
-                      checked={forceRegen}
-                      onChange={(e) => setForceRegen(e.target.checked)}
-                      className="w-4 h-4 accent-orange-500 cursor-pointer"
-                    />
-                    <label htmlFor="forceRegen" className="text-xs text-orange-700 font-medium cursor-pointer select-none">
-                      Force Regenerate (bypass cache — developer only)
-                    </label>
+                  <div className="space-y-2 px-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="forceRegen"
+                        type="checkbox"
+                        checked={forceRegen}
+                        onChange={(e) => setForceRegen(e.target.checked)}
+                        className="w-4 h-4 accent-orange-500 cursor-pointer"
+                      />
+                      <label htmlFor="forceRegen" className="text-xs text-orange-700 font-medium cursor-pointer select-none">
+                        Force Regenerate (bypass cache — developer only)
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="maxAiPages" className="text-xs text-gray-600 font-medium select-none whitespace-nowrap">
+                        Character pages to generate:
+                      </label>
+                      <select
+                        id="maxAiPages"
+                        value={maxAiPages}
+                        onChange={(e) => setMaxAiPages(Number(e.target.value))}
+                        className="text-xs border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700 cursor-pointer"
+                      >
+                        {Array.from({ length: 16 }, (_, i) => i + 1).map((n) => (
+                          <option key={n} value={n}>{n}{n === 2 ? " (default)" : ""}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
                 <div className="space-y-1.5">

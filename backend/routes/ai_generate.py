@@ -39,6 +39,7 @@ async def start_ai_book_generation(
     image:        Optional[UploadFile] = File(default=None),
     quality:      str                  = Form("medium"),
     force_regen:  bool                 = Form(default=False),
+    max_ai_pages: int                  = Form(default=2),
 ):
     """
     Start AI-based full book generation (18 pages).
@@ -58,6 +59,9 @@ async def start_ai_book_generation(
     if force_regen and mobile != _FORCE_REGEN_ALLOWED_MOBILE:
         logger.warning("force_regen denied for mobile %s", mobile)
         force_regen = False  # silently ignore rather than reject
+
+    # Clamp max_ai_pages to valid range
+    max_ai_pages = max(1, min(16, max_ai_pages))
 
     # Lazy import — service raises RuntimeError if OPENAI_API_KEY not set
     try:
@@ -121,11 +125,12 @@ async def start_ai_book_generation(
         user_photo_bytes = user_photo_bytes,
         quality          = quality,
         force_regen      = force_regen,
+        max_ai_pages     = max_ai_pages,
     )
 
     logger.info(
-        "AI book generation started: gen_id=%s child=%r story=%s quality=%s force_regen=%s",
-        result["generation_id"][:8], child_name, story_id, quality, force_regen,
+        "AI book generation started: gen_id=%s child=%r story=%s quality=%s force_regen=%s max_ai_pages=%d",
+        result["generation_id"][:8], child_name, story_id, quality, force_regen, max_ai_pages,
     )
     return result
 
