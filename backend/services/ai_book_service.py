@@ -416,12 +416,17 @@ class AIBookService:
 
             if self._engine == "replicate":
                 # ── Replicate path (Phase 2) ──────────────────────────────────
-                raw_bytes = self._replicate_svc.generate_character_page(
-                    face_bytes=user_photo_bytes,
-                    dalle_prompt=p1_cfg["prompt"]["final_text"],
-                    expression="curious",
-                    page_number=1,
-                    quality=quality,
+                # Cache-aware: HIT → load from disk (zero cost).
+                # MISS or force_regen → call API with exponential backoff on 429.
+                raw_bytes = self._get_or_generate_replicate_page(
+                    face_bytes   = user_photo_bytes,
+                    dalle_prompt = p1_cfg["prompt"]["final_text"],
+                    expression   = "curious",
+                    page_number  = 1,
+                    quality      = quality,
+                    story_id     = story_id,
+                    out_dir      = out_dir,
+                    force_regen  = force_regen,
                 )
                 model_name = self._replicate_svc._primary_model
             else:
@@ -491,10 +496,17 @@ class AIBookService:
             [p for p in pages if p["character_present"] and p["page_number"] != 1],
             key=lambda p: p["page_number"],
         )
+        # max_ai_pages controls TOTAL character page API calls across Phase 2 + Phase 3:
+        #   Phase 2 always consumes 1 (page 1).
+        #   Phase 3 consumes the remaining max_ai_pages - 1.
+        # With engine='replicate' and force_regen=False, cache hits cost zero API calls.
         char_remaining = char_remaining_all[:max(0, max_ai_pages - 1)]
         logger.info(
-            "━ AI Book Phase 3: %d of %d remaining character page(s) [max_ai_pages=%d, gen=%s]",
-            len(char_remaining), len(char_remaining_all), max_ai_pages, gen_id[:8],
+            "━ AI Book Phase 3: %d of %d remaining char page(s) "
+            "[max_ai_pages=%d → Phase2=1 + Phase3=%d, engine=%s, force=%s, gen=%s]",
+            len(char_remaining), len(char_remaining_all),
+            max_ai_pages, len(char_remaining), self._engine,
+            force_regen, gen_id[:8],
         )
 
         _EXPR = {3:"curious", 5:"determined", 7:"caring", 9:"gentle",
@@ -509,14 +521,19 @@ class AIBookService:
 
                 if self._engine == "replicate":
                     # ── Replicate path (Phase 3) ──────────────────────────────
-                    # Always use original face photo as reference — InstantID
-                    # maintains identity consistency directly, no page-1-anchor needed.
-                    raw_bytes = self._replicate_svc.generate_character_page(
-                        face_bytes=user_photo_bytes,
-                        dalle_prompt=page_cfg["prompt"]["final_text"],
-                        expression=expr_name,
-                        page_number=pn,
-                        quality=quality,
+                    # Total Replicate API calls = max_ai_pages:
+                    #   Phase 2 = 1 call (page 1, always)
+                    #   Phase 3 = max_ai_pages - 1 calls (pages 3,5,7…)
+                    # Cache-aware: same rules as Phase 2.
+                    raw_bytes = self._get_or_generate_replicate_page(
+                        face_bytes   = user_photo_bytes,
+                        dalle_prompt = page_cfg["prompt"]["final_text"],
+                        expression   = expr_name,
+                        page_number  = pn,
+                        quality      = quality,
+                        story_id     = story_id,
+                        out_dir      = out_dir,
+                        force_regen  = force_regen,
                     )
                 elif page1_raw_bytes is not None:
                     # ── DALL-E path: use page 1 as style anchor ───────────────
@@ -748,6 +765,108 @@ class AIBookService:
         face_bbox = {"x": 322, "y": 164, "w": 174, "h": 163}
         text_area = {"x": 634, "y": 65,  "w": 368, "h": 687}
         return face_bbox, text_area
+
+    # ── Replicate character page cache ───────────────────────────────────────
+    # Replicate calls cost money.  When force_regen=False, we persist each
+    # successfully generated character page to a stable local PNG file keyed
+    # by (story_id, page_number, face_hash, expression, model, quality).
+    # Subsequent runs load from disk instead of calling the API again.
+    #
+    # Cache location:  <out_dir>/../char_cache/
+    #   e.g. in simulator: output/nikshay/forest_of_smiles/char_cache/
+    # Cache filename:  p{NN}_{face8}_{expr}_{model}_{quality}.png
+    #   face8 = first 8 hex chars of sha256(face_bytes)
+    #
+    # DALL-E engine is unaffected — these helpers are only called when
+    # self._engine == "replicate".
+
+    @staticmethod
+    def _replicate_cache_path(
+        out_dir,           # pathlib.Path — current generation output dir
+        story_id: str,
+        page_number: int,
+        face_bytes: bytes,
+        expression: str,
+        model: str,
+        quality: str,
+    ) -> "Path":
+        """Return the stable cache file path for one Replicate character page."""
+        face_hash = hashlib.sha256(face_bytes).hexdigest()[:8]
+        filename  = f"p{page_number:02d}_{face_hash}_{expression}_{model}_{quality}.png"
+        cache_dir = Path(out_dir).parent / "char_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir / filename
+
+    @staticmethod
+    def _load_replicate_cache(cache_path: "Path") -> "Optional[bytes]":
+        """Return cached PNG bytes if the file exists, else None."""
+        try:
+            if cache_path.exists() and cache_path.stat().st_size > 0:
+                return cache_path.read_bytes()
+        except Exception as exc:
+            logger.warning("Replicate cache read failed (%s): %s", cache_path.name, exc)
+        return None
+
+    @staticmethod
+    def _save_replicate_cache(cache_path: "Path", data: bytes) -> None:
+        """Write PNG bytes to the cache file; silently ignore write errors."""
+        try:
+            cache_path.write_bytes(data)
+            logger.debug("Replicate cache written: %s (%d KB)",
+                         cache_path.name, len(data) // 1024)
+        except Exception as exc:
+            logger.warning("Replicate cache write failed (%s): %s", cache_path.name, exc)
+
+    def _get_or_generate_replicate_page(
+        self,
+        *,
+        face_bytes: bytes,
+        dalle_prompt: str,
+        expression: str,
+        page_number: int,
+        quality: str,
+        story_id: str,
+        out_dir: "Path",
+        force_regen: bool,
+    ) -> bytes:
+        """
+        Cache-aware wrapper around ReplicateFaceService.generate_character_page().
+
+        Logic:
+          force_regen=False → check disk cache first; skip API call on hit.
+          force_regen=True  → always call API; overwrite cache on success.
+
+        This is the ONLY place Replicate is called for character pages.
+        Both Phase 2 (page 1) and Phase 3 (pages 3,5,…) use this method,
+        so max_ai_pages correctly controls the TOTAL number of API calls.
+        """
+        cache_path = self._replicate_cache_path(
+            out_dir, story_id, page_number, face_bytes,
+            expression, self._replicate_svc._primary_model, quality,
+        )
+
+        if not force_regen:
+            cached = self._load_replicate_cache(cache_path)
+            if cached:
+                logger.info(
+                    "Replicate char cache HIT  p%02d  (%s, %d KB) — skipping API call",
+                    page_number, cache_path.name, len(cached) // 1024,
+                )
+                return cached
+            logger.debug("Replicate char cache MISS p%02d  (%s)", page_number, cache_path.name)
+
+        # Cache miss or force_regen — call the API (with built-in backoff)
+        raw = self._replicate_svc.generate_character_page(
+            face_bytes   = face_bytes,
+            dalle_prompt = dalle_prompt,
+            expression   = expression,
+            page_number  = page_number,
+            quality      = quality,
+        )
+
+        # Always save to cache after a successful generation
+        self._save_replicate_cache(cache_path, raw)
+        return raw
 
     def _get_or_generate_background(
         self,

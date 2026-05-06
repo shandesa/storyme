@@ -31,6 +31,15 @@ from typing import Optional
 
 import httpx
 
+# ── Backoff constants ─────────────────────────────────────────────────────────
+# Replicate free-tier: burst=1, window=~10 s when credit < $5.
+# Production accounts: burst=10+, window=60 s.
+# Strategy: read "resets in ~Ns" from the 429 detail, use that as the base
+# wait, then double on each retry with a 120 s cap.
+_BACKOFF_MAX_RETRIES  = 6
+_BACKOFF_BASE_SECS    = 10    # default base when no Retry-After hint in error
+_BACKOFF_MAX_SECS     = 120   # hard ceiling per sleep
+
 logger = logging.getLogger(__name__)
 
 
@@ -125,6 +134,29 @@ def _extract_scene(dalle_prompt: str) -> str:
     return dalle_prompt[:200]
 
 
+# ── Backoff helpers ──────────────────────────────────────────────────────────
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """Return True when exc is a Replicate 429 throttle error."""
+    msg = str(exc).lower()
+    return "429" in msg or "throttled" in msg or "rate limit" in msg
+
+
+def _parse_retry_after(exc: Exception, attempt: int) -> float:
+    """
+    Extract the recommended wait from the Replicate error detail, e.g.
+      "...resets in ~7s..."
+    Falls back to _BACKOFF_BASE_SECS.  Applies exponential multiplier
+    capped at _BACKOFF_MAX_SECS.
+    """
+    base = _BACKOFF_BASE_SECS
+    match = re.search(r"resets? in ~?(\d+)\s*s", str(exc), re.IGNORECASE)
+    if match:
+        base = int(match.group(1)) + 2   # add 2 s safety margin
+    wait = min(base * (2 ** attempt), _BACKOFF_MAX_SECS)
+    return float(wait)
+
+
 # ── Service class ─────────────────────────────────────────────────────────────
 
 class ReplicateFaceService:
@@ -177,6 +209,46 @@ class ReplicateFaceService:
             primary_model, identitynet_strength, adapter_strength,
         )
 
+    # ── Backoff wrapper ──────────────────────────────────────────────────────
+
+    def _call_with_backoff(self, fn, *args, page_number: int = 0, **kwargs) -> bytes:
+        """
+        Execute a Replicate API call with exponential back-off on 429s.
+
+        Retries up to _BACKOFF_MAX_RETRIES times.  Each retry waits
+        _parse_retry_after(exc, attempt) seconds (exponential, capped at
+        _BACKOFF_MAX_SECS).  Any non-429 exception is re-raised immediately.
+
+        Args:
+            fn:           The method to call (_run_instantid or _run_ip_adapter).
+            *args:        Positional args forwarded to fn.
+            page_number:  For logging.
+            **kwargs:     Keyword args forwarded to fn.
+
+        Returns:
+            PNG image bytes on success.
+        """
+        for attempt in range(_BACKOFF_MAX_RETRIES):
+            try:
+                return fn(*args, **kwargs)
+            except Exception as exc:
+                if not _is_rate_limit_error(exc):
+                    raise   # non-429 — propagate immediately
+                if attempt == _BACKOFF_MAX_RETRIES - 1:
+                    logger.error(
+                        "Replicate 429 p%02d — max retries (%d) exceeded, giving up",
+                        page_number, _BACKOFF_MAX_RETRIES,
+                    )
+                    raise
+                wait = _parse_retry_after(exc, attempt)
+                logger.warning(
+                    "Replicate 429 p%02d — attempt %d/%d, backing off %.0f s",
+                    page_number, attempt + 1, _BACKOFF_MAX_RETRIES, wait,
+                )
+                time.sleep(wait)
+        # Should never reach here
+        raise RuntimeError(f"_call_with_backoff exhausted for p{page_number:02d}")
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def generate_character_page(
@@ -210,10 +282,19 @@ class ReplicateFaceService:
         )
         logger.debug("SDXL prompt (p%02d): %.200s", page_number, sdxl_prompt)
 
+        # Route through backoff wrapper — handles 429 throttle transparently
         if self._primary_model == "instantid":
-            return self._run_instantid(face_bytes, sdxl_prompt, steps, page_number)
+            return self._call_with_backoff(
+                self._run_instantid,
+                face_bytes, sdxl_prompt, steps, page_number,
+                page_number=page_number,
+            )
         else:
-            return self._run_ip_adapter(face_bytes, sdxl_prompt, steps, page_number)
+            return self._call_with_backoff(
+                self._run_ip_adapter,
+                face_bytes, sdxl_prompt, steps, page_number,
+                page_number=page_number,
+            )
 
     # ── InstantID ─────────────────────────────────────────────────────────────
 
@@ -224,32 +305,27 @@ class ReplicateFaceService:
         steps: int,
         page_number: int,
     ) -> bytes:
+        """Single attempt — called through _call_with_backoff for retry logic."""
         t0 = time.time()
-        try:
-            output = self._client.run(
-                INSTANTID_MODEL,
-                input={
-                    "image":                      io.BytesIO(face_bytes),
-                    "prompt":                     prompt,
-                    "negative_prompt":            _SDXL_NEGATIVE,
-                    "width":                      1024,
-                    "height":                     1024,
-                    "num_outputs":                1,
-                    "num_inference_steps":        steps,
-                    "guidance_scale":             self._guidance_scale,
-                    "identitynet_strength_ratio": self._identitynet_strength,
-                    "adapter_strength_ratio":     self._adapter_strength,
-                    "enable_lcm":                 False,
-                    "enhance_face_region":        True,
-                },
-            )
-        except Exception as exc:
-            logger.error("InstantID p%02d FAILED (%dms): %s",
-                         page_number, int((time.time() - t0) * 1000), exc)
-            raise
-
+        output = self._client.run(
+            INSTANTID_MODEL,
+            input={
+                "image":                      io.BytesIO(face_bytes),
+                "prompt":                     prompt,
+                "negative_prompt":            _SDXL_NEGATIVE,
+                "width":                      1024,
+                "height":                     1024,
+                "num_outputs":                1,
+                "num_inference_steps":        steps,
+                "guidance_scale":             self._guidance_scale,
+                "identitynet_strength_ratio": self._identitynet_strength,
+                "adapter_strength_ratio":     self._adapter_strength,
+                "enable_lcm":                 False,
+                "enhance_face_region":        True,
+            },
+        )
         gen_ms = int((time.time() - t0) * 1000)
-        logger.info("✅ InstantID p%02d complete (%dms)", page_number, gen_ms)
+        logger.info("✅ InstantID p%02d attempt complete (%dms)", page_number, gen_ms)
         return self._resolve_output(output, page_number)
 
     # ── IP-Adapter FaceID ─────────────────────────────────────────────────────
@@ -261,29 +337,24 @@ class ReplicateFaceService:
         steps: int,
         page_number: int,
     ) -> bytes:
+        """Single attempt — called through _call_with_backoff for retry logic."""
         t0 = time.time()
-        try:
-            output = self._client.run(
-                IP_ADAPTER_MODEL,
-                input={
-                    "image":                 io.BytesIO(face_bytes),
-                    "prompt":                prompt,
-                    "negative_prompt":       _SDXL_NEGATIVE,
-                    "width":                 1024,
-                    "height":                1024,
-                    "num_outputs":           1,
-                    "num_inference_steps":   steps,
-                    "guidance_scale":        self._guidance_scale,
-                    "ip_adapter_scale":      self._adapter_strength,
-                },
-            )
-        except Exception as exc:
-            logger.error("IP-Adapter p%02d FAILED (%dms): %s",
-                         page_number, int((time.time() - t0) * 1000), exc)
-            raise
-
+        output = self._client.run(
+            IP_ADAPTER_MODEL,
+            input={
+                "image":                 io.BytesIO(face_bytes),
+                "prompt":                prompt,
+                "negative_prompt":       _SDXL_NEGATIVE,
+                "width":                 1024,
+                "height":                1024,
+                "num_outputs":           1,
+                "num_inference_steps":   steps,
+                "guidance_scale":        self._guidance_scale,
+                "ip_adapter_scale":      self._adapter_strength,
+            },
+        )
         gen_ms = int((time.time() - t0) * 1000)
-        logger.info("✅ IP-Adapter p%02d complete (%dms)", page_number, gen_ms)
+        logger.info("✅ IP-Adapter p%02d attempt complete (%dms)", page_number, gen_ms)
         return self._resolve_output(output, page_number)
 
     # ── Output resolution ─────────────────────────────────────────────────────
