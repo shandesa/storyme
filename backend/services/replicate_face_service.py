@@ -23,6 +23,7 @@ Design principles:
 
 from __future__ import annotations
 
+import base64
 import io
 import logging
 import re
@@ -155,6 +156,33 @@ def _parse_retry_after(exc: Exception, attempt: int) -> float:
         base = int(match.group(1)) + 2   # add 2 s safety margin
     wait = min(base * (2 ** attempt), _BACKOFF_MAX_SECS)
     return float(wait)
+
+
+# ── Image encoding ───────────────────────────────────────────────────────────
+
+def _to_data_uri(image_bytes: bytes) -> str:
+    """
+    Encode raw image bytes as a base64 data URI suitable for Replicate inputs.
+
+    Why data URI instead of io.BytesIO:
+      Passing a BytesIO object causes the Replicate SDK (>= 0.25) to call
+      client.files.create() as a pre-step — a separate POST /v1/files request
+      that requires a valid token AND counts against rate limits.  A data URI
+      is embedded directly in the prediction payload, skipping the upload step
+      entirely.  This eliminates one API call per page and avoids 401 failures
+      on the files endpoint when token permissions differ from predictions.
+    """
+    # Detect MIME type from magic bytes
+    if image_bytes[:3] == b"\xff\xd8\xff":
+        mime = "image/jpeg"
+    elif image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        mime = "image/png"
+    elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        mime = "image/webp"
+    else:
+        mime = "image/jpeg"   # safest default for camera photos
+    b64 = base64.b64encode(image_bytes).decode("ascii")
+    return f"data:{mime};base64,{b64}"
 
 
 # ── Service class ─────────────────────────────────────────────────────────────
@@ -310,7 +338,7 @@ class ReplicateFaceService:
         output = self._client.run(
             INSTANTID_MODEL,
             input={
-                "image":                      io.BytesIO(face_bytes),
+                "image":                      _to_data_uri(face_bytes),
                 "prompt":                     prompt,
                 "negative_prompt":            _SDXL_NEGATIVE,
                 "width":                      1024,
@@ -342,7 +370,7 @@ class ReplicateFaceService:
         output = self._client.run(
             IP_ADAPTER_MODEL,
             input={
-                "image":                 io.BytesIO(face_bytes),
+                "image":                 _to_data_uri(face_bytes),
                 "prompt":                prompt,
                 "negative_prompt":       _SDXL_NEGATIVE,
                 "width":                 1024,
