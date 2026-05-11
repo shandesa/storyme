@@ -162,15 +162,15 @@ def _parse_retry_after(exc: Exception, attempt: int) -> float:
 
 def _to_data_uri(image_bytes: bytes) -> str:
     """
-    Encode raw image bytes as a base64 data URI suitable for Replicate inputs.
+    DEPRECATED — NOT USED. Kept for reference only.
 
-    Why data URI instead of io.BytesIO:
-      Passing a BytesIO object causes the Replicate SDK (>= 0.25) to call
-      client.files.create() as a pre-step — a separate POST /v1/files request
-      that requires a valid token AND counts against rate limits.  A data URI
-      is embedded directly in the prediction payload, skipping the upload step
-      entirely.  This eliminates one API call per page and avoids 401 failures
-      on the files endpoint when token permissions differ from predictions.
+    Data URIs do NOT work with zedge/instantid or lucataco/ip-adapter-sdxl-face.
+    Both models are built with Cog; their image loaders call .read() on the input.
+    A string has no .read() → model receives None → crash:
+      "Unexpected error processing image None: NoneType has no attribute read"
+
+    The prior 401 errors were a token expiry issue, not a BytesIO problem.
+    io.BytesIO is the correct input type for these models.
     """
     # Detect MIME type from magic bytes
     if image_bytes[:3] == b"\xff\xd8\xff":
@@ -335,21 +335,26 @@ class ReplicateFaceService:
     ) -> bytes:
         """Single attempt — called through _call_with_backoff for retry logic."""
         t0 = time.time()
+        # "input_image" is the correct param name for zedge/instantid —
+        # confirmed from working tests v2–v5 in tests/playground/.
+        # "adapter_strength" (NOT "adapter_strength_ratio") per model schema.
+        # io.BytesIO required — Cog image loader calls .read() on the value;
+        # strings / data URIs have no .read() → model receives None → crash.
         output = self._client.run(
             INSTANTID_MODEL,
             input={
-                "image":                      _to_data_uri(face_bytes),
-                "prompt":                     prompt,
-                "negative_prompt":            _SDXL_NEGATIVE,
-                "width":                      1024,
-                "height":                     1024,
-                "num_outputs":                1,
-                "num_inference_steps":        steps,
-                "guidance_scale":             self._guidance_scale,
+                "input_image":               io.BytesIO(face_bytes),
+                "prompt":                    prompt,
+                "negative_prompt":           _SDXL_NEGATIVE,
+                "width":                     1024,
+                "height":                    1024,
+                "num_outputs":               1,
+                "num_inference_steps":       steps,
+                "guidance_scale":            self._guidance_scale,
                 "identitynet_strength_ratio": self._identitynet_strength,
-                "adapter_strength_ratio":     self._adapter_strength,
-                "enable_lcm":                 False,
-                "enhance_face_region":        True,
+                "adapter_strength":          self._adapter_strength,
+                "enable_lcm":                False,
+                "enhance_face_region":       True,
             },
         )
         gen_ms = int((time.time() - t0) * 1000)
@@ -367,18 +372,20 @@ class ReplicateFaceService:
     ) -> bytes:
         """Single attempt — called through _call_with_backoff for retry logic."""
         t0 = time.time()
+        # lucataco/ip-adapter-sdxl-face uses "image" (confirmed standard for this model).
+        # io.BytesIO required — same Cog loader constraint as InstantID.
         output = self._client.run(
             IP_ADAPTER_MODEL,
             input={
-                "image":                 _to_data_uri(face_bytes),
-                "prompt":                prompt,
-                "negative_prompt":       _SDXL_NEGATIVE,
-                "width":                 1024,
-                "height":                1024,
-                "num_outputs":           1,
-                "num_inference_steps":   steps,
-                "guidance_scale":        self._guidance_scale,
-                "ip_adapter_scale":      self._adapter_strength,
+                "image":               io.BytesIO(face_bytes),
+                "prompt":              prompt,
+                "negative_prompt":     _SDXL_NEGATIVE,
+                "width":               1024,
+                "height":              1024,
+                "num_outputs":         1,
+                "num_inference_steps": steps,
+                "guidance_scale":      self._guidance_scale,
+                "ip_adapter_scale":    self._adapter_strength,
             },
         )
         gen_ms = int((time.time() - t0) * 1000)
@@ -389,32 +396,62 @@ class ReplicateFaceService:
 
     def _resolve_output(self, output, page_number: int) -> bytes:
         """
-        Normalise Replicate output — handle both FileOutput objects (SDK >= 0.25)
-        and plain URL strings returned by older SDK / some models.
+        Normalise Replicate output to bytes.
+
+        Handles all known SDK output formats:
+          - dict with "output_paths" key (zedge/instantid older SDK)
+          - list of FileOutput objects with .read() (SDK >= 0.25)
+          - objects with .url attribute
+          - plain URL strings
         """
         if not output:
             raise RuntimeError(
-                f"Replicate returned empty output for p{page_number:02d}"
+                f"Replicate returned empty output for p{page_number:02d}. "
+                f"output={output!r}"
             )
 
+        logger.debug(
+            "Resolving output p%02d: type=%s  preview=%.80s",
+            page_number, type(output).__name__, repr(output)[:80],
+        )
+
+        # ── Dict format: {"output_paths": [...]} (zedge/instantid older SDK) ─
+        if isinstance(output, dict):
+            paths = output.get("output_paths") or output.get("output") or []
+            if not paths:
+                raise RuntimeError(
+                    f"Dict output for p{page_number:02d} has no output_paths/output key. "
+                    f"Keys present: {list(output.keys())}"
+                )
+            url = getattr(paths[0], "url", None) or str(paths[0])
+            logger.debug("Dict output p%02d — downloading: %s", page_number, str(url)[:80])
+            resp = httpx.get(str(url), timeout=120, follow_redirects=True)
+            resp.raise_for_status()
+            return resp.content
+
+        # ── List/single item (current SDK) ───────────────────────────────────
         item = output[0] if isinstance(output, (list, tuple)) else output
 
-        # Replicate SDK >= 0.25 returns FileOutput with a .read() method
         if hasattr(item, "read"):
+            logger.debug("FileOutput p%02d — calling .read()", page_number)
             data = item.read()
-            if isinstance(data, bytes):
-                return data
-            # Some versions return an async iterator — materialise it
-            return b"".join(data) if not isinstance(data, bytes) else data
+            return data if isinstance(data, bytes) else b"".join(data)
 
-        # URL string (older SDK or direct run)
-        url = getattr(item, "url", None) or str(item)
-        if not url.startswith("http"):
-            raise RuntimeError(
-                f"Replicate output for p{page_number:02d} is neither "
-                f"FileOutput nor URL: {url!r}"
-            )
-        logger.debug("Downloading Replicate output p%02d from %s", page_number, url[:80])
-        resp = httpx.get(url, timeout=120, follow_redirects=True)
-        resp.raise_for_status()
-        return resp.content
+        url = getattr(item, "url", None)
+        if url:
+            logger.debug("URL attribute p%02d — downloading: %s", page_number, str(url)[:80])
+            resp = httpx.get(str(url), timeout=120, follow_redirects=True)
+            resp.raise_for_status()
+            return resp.content
+
+        url_str = str(item)
+        if url_str.startswith("http"):
+            logger.debug("URL string p%02d — downloading: %s", page_number, url_str[:80])
+            resp = httpx.get(url_str, timeout=120, follow_redirects=True)
+            resp.raise_for_status()
+            return resp.content
+
+        raise RuntimeError(
+            f"Unrecognised output format for p{page_number:02d}: "
+            f"type={type(item).__name__}, repr={repr(item)[:120]}"
+        )

@@ -63,8 +63,8 @@ Edit the PAGE_CONFIGS block below before each test run.
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
+import io
 import json
 import logging
 import os
@@ -275,26 +275,30 @@ def _build_prompt(page: dict, expression: str) -> str:
     return ", ".join(parts)
 
 
-# ── Image encoding ─────────────────────────────────────────────────────────────
+# ── Image input helper ────────────────────────────────────────────────────────
+# NOTE ON IMAGE FORMAT FOR REPLICATE MODELS
+#
+# Data URI approach (base64 strings) does NOT work for zedge/instantid or
+# lucataco/ip-adapter-sdxl-face. These models are built with Cog; their image
+# loader calls .read() on the input object. A string (even a valid data URI)
+# has no .read() method — the model receives None and crashes with:
+#   "Unexpected error processing image None: NoneType has no attribute read"
+#
+# The prior 401 error (run 164252) was caused by an expired Replicate token,
+# NOT by using io.BytesIO. With a valid token, io.BytesIO is the correct
+# approach: the Replicate SDK uploads it via /v1/files and passes the URL to
+# the model, which can then call .read() on its HTTP response.
+#
+# Always use _make_image_input(bytes) — never pass raw strings to image fields.
 
-def _to_data_uri(image_bytes: bytes) -> str:
-    """
-    Encode image bytes as a base64 data URI for Replicate.
+def _make_image_input(image_bytes: bytes) -> "io.BytesIO":
+    """Return a fresh BytesIO for a Replicate image input field.
 
-    Uses data URI instead of io.BytesIO to bypass the Replicate SDK's
-    client.files.create() pre-upload step, which makes a separate /v1/files
-    API call and has its own auth failure surface (401 seen in run 164252).
+    A fresh BytesIO is required on every call — once the SDK reads it
+    the internal pointer is at EOF and reuse returns empty bytes.
     """
-    if image_bytes[:3] == b"\xff\xd8\xff":
-        mime = "image/jpeg"
-    elif image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
-        mime = "image/png"
-    elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
-        mime = "image/webp"
-    else:
-        mime = "image/jpeg"   # safest default for camera photos
-    b64 = base64.b64encode(image_bytes).decode("ascii")
-    return f"data:{mime};base64,{b64}"
+    return io.BytesIO(image_bytes)
+
 
 
 # ── Cache helpers (BASE §7) ────────────────────────────────────────────────────
@@ -421,32 +425,93 @@ def _resolve_output(output, page_number: int, stage_label: str,
                     log: logging.Logger) -> bytes:
     """
     Normalise Replicate output to bytes.
-    Handles FileOutput objects (SDK >= 0.25) and plain URL strings.
+
+    Handles all known SDK output formats:
+      - SDK >= 0.25: list of FileOutput objects with .read()
+      - SDK < 0.25 / dict output: {"output_paths": [obj]} where obj has .url
+      - Plain URL strings returned by some model versions
     """
+    import httpx
+
     if not output:
         raise RuntimeError(
-            f"{stage_label} p{page_number:02d} — Replicate returned empty output"
+            f"{stage_label} p{page_number:02d} — Replicate returned empty output. "
+            f"output={output!r}"
         )
 
+    log.debug(
+        "%s p%02d — raw output type: %s, value preview: %.120s",
+        stage_label, page_number, type(output).__name__, repr(output)[:120],
+    )
+
+    # ── Format 1: dict with "output_paths" key (older SDK, zedge/instantid) ──
+    # Seen in test_replicate_instantid_v2–v5: output["output_paths"][0].url
+    if isinstance(output, dict):
+        paths = output.get("output_paths") or output.get("output") or []
+        if paths:
+            item = paths[0]
+            url  = getattr(item, "url", None) or str(item)
+            log.debug(
+                "%s p%02d — dict output format, downloading from: %s",
+                stage_label, page_number, str(url)[:80],
+            )
+            resp = httpx.get(str(url), timeout=120, follow_redirects=True)
+            resp.raise_for_status()
+            log.debug(
+                "%s p%02d — downloaded %d bytes from dict output",
+                stage_label, page_number, len(resp.content),
+            )
+            return resp.content
+        raise RuntimeError(
+            f"{stage_label} p{page_number:02d} — dict output has no output_paths/output key. "
+            f"Keys present: {list(output.keys())}"
+        )
+
+    # ── Format 2: list/tuple of items (current SDK >= 0.25) ──────────────────
     item = output[0] if isinstance(output, (list, tuple)) else output
 
-    # SDK >= 0.25: FileOutput with .read()
+    # Format 2a: FileOutput object with .read() method
     if hasattr(item, "read"):
-        log.debug("%s p%02d — reading FileOutput object", stage_label, page_number)
+        log.debug("%s p%02d — FileOutput object, calling .read()", stage_label, page_number)
         data = item.read()
-        return data if isinstance(data, bytes) else b"".join(data)
+        result = data if isinstance(data, bytes) else b"".join(data)
+        log.debug("%s p%02d — FileOutput read: %d bytes", stage_label, page_number, len(result))
+        return result
 
-    # Older SDK or URL string
-    url = getattr(item, "url", None) or str(item)
-    if not url.startswith("http"):
-        raise RuntimeError(
-            f"{stage_label} p{page_number:02d} — unexpected output type: {url!r}"
+    # Format 2b: object with .url attribute
+    url = getattr(item, "url", None)
+    if url:
+        log.debug(
+            "%s p%02d — URL attribute output, downloading from: %s",
+            stage_label, page_number, str(url)[:80],
         )
-    log.debug("%s p%02d — downloading from URL: %s", stage_label, page_number, url[:80])
-    import httpx
-    resp = httpx.get(url, timeout=120, follow_redirects=True)
-    resp.raise_for_status()
-    return resp.content
+        resp = httpx.get(str(url), timeout=120, follow_redirects=True)
+        resp.raise_for_status()
+        log.debug(
+            "%s p%02d — downloaded %d bytes from URL attribute",
+            stage_label, page_number, len(resp.content),
+        )
+        return resp.content
+
+    # Format 2c: plain URL string
+    url_str = str(item)
+    if url_str.startswith("http"):
+        log.debug(
+            "%s p%02d — plain URL string, downloading from: %s",
+            stage_label, page_number, url_str[:80],
+        )
+        resp = httpx.get(url_str, timeout=120, follow_redirects=True)
+        resp.raise_for_status()
+        log.debug(
+            "%s p%02d — downloaded %d bytes from URL string",
+            stage_label, page_number, len(resp.content),
+        )
+        return resp.content
+
+    raise RuntimeError(
+        f"{stage_label} p{page_number:02d} — unrecognised output format. "
+        f"type={type(item).__name__}, repr={repr(item)[:120]}"
+    )
 
 
 # ── Stage execution ────────────────────────────────────────────────────────────
@@ -490,32 +555,67 @@ def _run_stage(
             return cached
         log.debug("%s p%02d — CACHE MISS — %s", stage_label, page_number, key)
 
+    # ── Pre-flight validation of image bytes ─────────────────────────────
+    if not face_bytes:
+        log.error(
+            "%s p%02d — face_bytes is empty or None — cannot proceed with API call. "
+            "Check that the source image (Stage 1 output or original photo) "
+            "was generated successfully before reaching this stage.",
+            stage_label, page_number,
+        )
+        return None
+
+    # Detect and log the image format being sent — helps diagnose format mismatches
+    if face_bytes[:3] == b"\xff\xd8\xff":
+        img_fmt = "JPEG"
+    elif face_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        img_fmt = "PNG"
+    elif face_bytes[:4] == b"RIFF" and face_bytes[8:12] == b"WEBP":
+        img_fmt = "WEBP"
+    else:
+        img_fmt = "UNKNOWN"
+    log.debug(
+        "%s p%02d — image input: %s, %d bytes (%.1f KB)",
+        stage_label, page_number, img_fmt, len(face_bytes), len(face_bytes) / 1024,
+    )
+
     # ── API call ───────────────────────────────────────────────────────────
     log.info(
-        "%s p%02d — calling Replicate (steps=%d, quality=%s, force=%s)",
+        "%s p%02d — calling Replicate (steps=%d, quality=%s, force=%s, "
+        "image_fmt=%s, image_kb=%.1f)",
         stage_label, page_number, steps, quality, force,
+        img_fmt, len(face_bytes) / 1024,
     )
     log.debug("%s p%02d — prompt: %.200s", stage_label, page_number, final_prompt)
 
     # Build model-specific input dict
     if model_name == "instantid":
         inputs = {
-            "image":                      _to_data_uri(face_bytes),
-            "prompt":                     final_prompt,
-            "negative_prompt":            NEGATIVE_PROMPT,
-            "width":                      1024,
-            "height":                     1024,
-            "num_outputs":                1,
-            "num_inference_steps":        steps,
-            "guidance_scale":             7.5,
+# zedge/instantid expects "input_image" (not "image") — verified from
+            # working test versions v2/v3/v4/v5 in tests/playground/.
+            # "adapter_strength" (not "adapter_strength_ratio") per model schema.
+            # io.BytesIO required — Cog image loader calls .read() on the input;
+            # strings/data URIs return None and crash the model.
+            "input_image":               _make_image_input(face_bytes),
+            "prompt":                    final_prompt,
+            "negative_prompt":           NEGATIVE_PROMPT,
+            "width":                     1024,
+            "height":                    1024,
+            "num_outputs":               1,
+            "num_inference_steps":       steps,
+            "guidance_scale":            7.5,
             "identitynet_strength_ratio": 0.85,
-            "adapter_strength_ratio":     0.80,
-            "enable_lcm":                 False,
-            "enhance_face_region":        True,
+            "adapter_strength":          0.80,
+            "enable_lcm":                False,
+            "enhance_face_region":       True,
         }
     else:  # ip_adapter
         inputs = {
-            "image":               _to_data_uri(face_bytes),
+# lucataco/ip-adapter-sdxl-face uses "image" (not "input_image").
+            # When --model both, face_bytes here is Stage 1 output (chained).
+            # When --model instantid-only fallback, face_bytes is the original photo.
+            # io.BytesIO required — same Cog loader constraint as InstantID.
+            "image":               _make_image_input(face_bytes),
             "prompt":              final_prompt,
             "negative_prompt":     NEGATIVE_PROMPT,
             "width":               1024,
@@ -681,11 +781,11 @@ def _process_page(
         result["page_status"] = "success"
         return result
 
-    # model == "both" — run Stage 2 chained on Stage 1 output
+    # model == "both" — run Stage 2 chained on Stage 1 output bytes
     log.info(
         "Stage 2 IP-Adapter p%02d — chaining on InstantID output "
-        "(face reference = Stage 1 output, NOT original photo)",
-        pn,
+        "(face_bytes = Stage 1 PNG, %d bytes, NOT the original photo)",
+        pn, len(stage1_bytes),
     )
     s2_key  = _cache_key(stage1_bytes, prompt, expression, "ip_adapter", quality)
     s2_file = page_dir / f"p{pn:02d}_2_ip_adapter.png"
