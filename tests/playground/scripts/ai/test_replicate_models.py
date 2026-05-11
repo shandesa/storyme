@@ -98,10 +98,14 @@ INSTANTID_MODEL = (
     "ba2d5293be8794a05841a6f6eed81e810340142c3c25fab4838ff2b5d9574420"
 )
 
-IP_ADAPTER_MODEL = (
-    "lucataco/ip-adapter-sdxl-face:"
-    "2a23d66a53db3af8fb0898a8af8c817f93bab3702a13a0a3c00e76e4fad27c7d"
-)
+# IP_ADAPTER_MODEL: no version hash pinned.
+# The hash "2a23d66a..." returned 422 "version does not exist" on every call
+# (confirmed in run 20260511_185748, lines 118-127).  The /v1/files upload
+# succeeds (201), which proves the model name is valid — only the hash is wrong.
+# Using the model reference without a hash makes Replicate resolve the latest
+# deployed version automatically.  When a stable hash is needed in future,
+# retrieve it from: https://replicate.com/lucataco/ip-adapter-sdxl-face/versions
+IP_ADAPTER_MODEL = "lucataco/ip-adapter-sdxl-face"
 
 # ── Backoff constants (from BASE §6) ──────────────────────────────────────────
 BACKOFF_MAX_RETRIES = 6    # maximum attempts before giving up on a 429
