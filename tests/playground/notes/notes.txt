@@ -8,3 +8,8 @@ C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\20260
 
 
 python premium_storybook_simulator.py  --name nikshay   --photo user_face/nikshay/nikshay.png   --story forest_of_smiles   --quality medium   --max-pages 2   --engine replicate   --replicate-model instantid
+
+
+python tests/playground/scripts/ai/test_replicate_models.py     --name nikshay --model both --quality medium
+
+python test_replicate_models.py     --name nikshay --model both --quality medium

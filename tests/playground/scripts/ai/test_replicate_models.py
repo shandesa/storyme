@@ -206,11 +206,12 @@ NEGATIVE_PROMPT = (
 PAGE_CONFIGS = [
     {
         "page_number": 1,
-        "prompt": (
-            "A young boy stands at the edge of a glowing magical jungle, "
-            "tall trees swaying gently in warm golden light, "
-            "soft morning mist, enchanted forest atmosphere"
-        ),
+        "prompt": ("Soft Pixar-style children's storybook illustration. 1024x819 resolution (5:4 horizontal aspect ratio).\n\nSTYLE REQUIREMENTS:\n- Soft pastel color palette (lush greens, warm yellows, soft blues)\n- Warm cinematic lighting with gentle glow\n- Shallow depth of field with soft background blur\n- Smooth gradients, no harsh edges\n- Emotionally warm, magical storytelling tone\n- Consistent rendering style across all pages\n\nCAMERA & COMPOSITION:\n- Horizontal composition (5:4 aspect ratio)\n- Character positioned left 40% of frame\n- Right side reserved for text (clean, softly blurred)\n\n- Eye-level camera\n- Medium shot framing\n- Subject positioned center-left (~45% horizontal)\n- Right side intentionally left soft/blurred for text placement\n- No clutter on right side\n- Depth layering: foreground, midground, background\n\nLIGHTING:\n- Primary light source: top-left soft warm light\n- Ambient jungle glow filling shadows\n- No harsh shadows anywhere\n- Face region must be evenly lit with zero shadow\n\nMAIN CHARACTER:\n- Young child (age 4\u20136)\n- Short natural dark hair\n- Wearing light yellow t-shirt and beige shorts\n- Brown hat with black lace (MANDATORY)\n- Soft rounded Pixar-style proportions\n\nCRITICAL FACE OVERLAY REQUIREMENTS:\n- Face MUST be a clean, smooth, featureless oval\n- NO eyes, NO nose, NO mouth, NO eyebrows\n- Skin tone uniform: #E8C4A0\n- No gradients, no highlights, no shadows on face\n- Face bounding box fixed at (512,300), size approx 170x190 pixels\n- Face must be fully unobstructed (no hair, no objects crossing)\n- Head orientation: slight left yaw (~5 degrees), slight downward pitch (~3 degrees)\n- No motion blur, no tilt variation beyond 10%\n\nAspect Ratio - 5:4 (horizontal)\n\nSCENE DESCRIPTION:\nA magical jungle entrance with tall trees, soft mist, golden morning light filtering through leaves.\n\nCONSTRAINTS:\n- No perspective distortion\n- No extreme angles\n- Maintain consistency with previous pages\n\nOUTPUT QUALITY:\n- High detail\n- Clean rendering\n- Child-friendly aesthetic\n"),
+        #"prompt": (
+        #    "A young boy stands at the edge of a glowing magical jungle, "
+        #    "tall trees swaying gently in warm golden light, "
+        #    "soft morning mist, enchanted forest atmosphere"
+        #),
         "expression": "curious",
         "angle": "eye-level, medium wide shot, character facing slightly right",
     },
