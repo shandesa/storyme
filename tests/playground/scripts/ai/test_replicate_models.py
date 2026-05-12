@@ -153,12 +153,21 @@ EXPRESSION_MAP = {
 }
 
 # ── Style prefix (from SPEC §7) ───────────────────────────────────────────────
+# STYLE_PREFIX controls the look and scene composition of ALL generated images.
+# Target aesthetic (from nikshay_fos_page11_2.png reference):
+#   - Digital painting / storybook illustration (NOT photorealistic, NOT 3D render)
+#   - Full-body or medium-wide shot — character visible from head to waist or more
+#   - Rich, detailed background scene — character is IN the environment, not floating
+#   - Warm, soft, glowing light — dreamy but grounded
+#   - Character on left third of frame, right side open for story text
 STYLE_PREFIX = (
-    "pixar 3d animation style, children's storybook illustration, "
-    "soft pastel color palette, warm cinematic lighting, shallow depth of field, "
-    "smooth 3d render, emotionally warm, magical atmosphere, "
-    "high detail, 8k resolution, masterpiece, best quality, "
-    "character on left third of frame, right side intentionally soft and uncluttered"
+    "children's storybook illustration, digital oil painting, "
+    "soft pastel colors, warm glowing sunlight, dreamy magical atmosphere, "
+    "painted background with depth and detail, lush environment, "
+    "medium wide shot, full body visible, character embedded in scene, "
+    "child character on left side of frame, right side softly blurred for text, "
+    "high quality, masterpiece, best quality, emotionally warm, "
+    "storybook art style, gentle brush strokes, soft lighting"
 )
 
 # ── Negative prompt (from SPEC §6) ────────────────────────────────────────────
@@ -243,6 +252,14 @@ def _setup_logging(log_path: Path) -> logging.Logger:
     root.setLevel(logging.DEBUG)
     root.addHandler(fh)
     root.addHandler(ch)
+
+    # Suppress httpx/httpcore INFO noise (SDK polling GETs fire once per second
+    # during generator materialisation — 50-100 entries per prediction at WARNING
+    # only meaningful events (errors, retries) surface in the log.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
 
     return logging.getLogger(Path(__file__).stem)
 
@@ -734,8 +751,14 @@ def _run_stage(
             "height":              1024,
             "num_inference_steps": steps,
             "guidance_scale":      7.5,
-            "instantid_weight":    0.80,
-            "ipadapter_weight":    0.70,
+            # instantid_weight: face identity strength (0.01–2.0).
+            # Lower = more scene freedom, less face-crop dominance.
+            # 0.40–0.50 lets the scene prompt drive composition; face is still
+            # preserved but the model generates a full scene, not a portrait.
+            "instantid_weight":    0.45,
+            # ipadapter_weight: prompt/style adherence (0.01–2.0).
+            # Higher = scene composition follows the text prompt more closely.
+            "ipadapter_weight":    0.85,
         }
 
     t0 = time.time()
@@ -820,7 +843,8 @@ def _process_page(
     # ── Stage 1 — InstantID (once per user, shared across all pages) ─────────
     # stage1_bytes_precomputed is computed ONCE before the page loop in main().
     # No InstantID API call happens here — just copy bytes to output folder.
-    s1_file = page_dir / f"p{pn:02d}_1_instantid.png"
+    # Stage 1 lives at run level (not per-page); used only for --model instantid final copy
+    s1_runlevel_file = run_dir / "stage1_user_face.png"
 
     if stage1_bytes_precomputed is None:
         log.error(
@@ -839,20 +863,23 @@ def _process_page(
         return result
 
     stage1_bytes = stage1_bytes_precomputed
-    s1_file.write_bytes(stage1_bytes)
+    # Stage 1 is once-per-user — NOT written per-page to avoid writing the same
+    # file N times (once per page × N pages). The portrait lives at run_dir level:
+    #   <run_dir>/stage1_user_face.png
+    # The per-page folder gets only Stage 2 (the scene image) and its copy (Stage 3).
     ufc_key = _user_face_cache_key(face_bytes, quality)
     log.info(
-        "Stage 1 InstantID p%02d — using shared user-face cartoonization (%dKB), "
-        "key=%s — zero API calls here",
+        "Stage 1 InstantID p%02d — shared user-face (%dKB) at run-level, "
+        "key=%s — NOT copied per-page (all pages share same portrait)",
         pn, len(stage1_bytes) // 1024, ufc_key,
     )
     result["stage_1_instantid"] = {
-        "status":        "success",
-        "source":        "precomputed_once_per_user",
-        "user_face_key": ufc_key,
-        "output_file":   str(s1_file.relative_to(run_dir)),
-        "output_kb":     len(stage1_bytes) // 1024,
-        "generation_ms": 0,
+        "status":          "success",
+        "source":          "precomputed_once_per_user",
+        "user_face_key":   ufc_key,
+        "shared_file":     "stage1_user_face.png",  # run-level, not per-page
+        "output_kb":       len(stage1_bytes) // 1024,
+        "generation_ms":   0,
     }
 
     # ── Stage 2 — IP-Adapter (chained on Stage 1 output) ──────────────────
@@ -865,16 +892,17 @@ def _process_page(
             "status": "skipped",
             "reason": "--model instantid; chaining not requested",
         }
-        # Stage 3 = copy of Stage 1
-        s3_file = page_dir / f"p{pn:02d}_3_final.png"
-        shutil.copy2(s1_file, s3_file)
+        # Stage 3 = final for --model instantid (Stage 2 not run)
+        # Copies the run-level portrait to the page folder as p{N}_final.png
+        s3_file = page_dir / f"p{pn:02d}_1_final.png"
+        shutil.copy2(s1_runlevel_file, s3_file)
         log.info(
-            "Stage 3 p%02d — final written as copy of Stage 1 (%dKB)",
+            "Stage 3 p%02d — final written (--model instantid, copy of run-level portrait, %dKB)",
             pn, len(stage1_bytes) // 1024,
         )
         result["stage_3_final"] = {
             "status":      "success",
-            "source":      "stage_1_instantid",
+            "source":      "stage_1_instantid_run_level",
             "output_file": str(s3_file.relative_to(run_dir)),
         }
         result["page_status"] = "success"
@@ -887,7 +915,9 @@ def _process_page(
         pn, len(stage1_bytes),
     )
     s2_key  = _cache_key(stage1_bytes, prompt, expression, "ip_adapter", quality)
-    s2_file = page_dir / f"p{pn:02d}_2_ip_adapter.png"
+    # Stage 2 IS the final image — named _final.png directly (no Stage 3 copy needed).
+    # The per-page folder now contains exactly ONE file: the scene image.
+    s2_file = page_dir / f"p{pn:02d}_final.png"
     t2 = time.time()
 
     s2_from_cache = not force and (_load_cache(cache_dir, s2_key) is not None)
@@ -933,22 +963,22 @@ def _process_page(
         "from_cache":    s2_from_cache,
         "cache_key":     s2_key,
         "input_was":     "stage_1_output",
-        "output_file":   str(s2_file.relative_to(run_dir)),
+        "output_file":   str(s2_file.relative_to(run_dir)),   # = p{N}_final.png
         "output_kb":     len(stage2_bytes) // 1024,
         "generation_ms": 0 if s2_from_cache else s2_ms,
     }
 
-    # ── Stage 3 — Final (copy of Stage 2, no API call) ────────────────────
-    s3_file = page_dir / f"p{pn:02d}_3_final.png"
-    shutil.copy2(s2_file, s3_file)
+    # Stage 2 is already named _final.png — no Stage 3 copy step.
+    # Stage 2 = Stage 3 = the final scene image for this page.
     log.info(
-        "Stage 3 p%02d — final written (copy of IP-Adapter output, %dKB)",
+        "Stage 2 p%02d — scene image written as final (%dKB, no Stage 3 copy needed)",
         pn, len(stage2_bytes) // 1024,
     )
     result["stage_3_final"] = {
         "status":      "success",
         "source":      "stage_2_ip_adapter",
-        "output_file": str(s3_file.relative_to(run_dir)),
+        "note":        "Stage 2 output IS the final — same file, no copy",
+        "output_file": str(s2_file.relative_to(run_dir)),
     }
     result["page_status"] = "success"
     return result
