@@ -98,14 +98,20 @@ INSTANTID_MODEL = (
     "ba2d5293be8794a05841a6f6eed81e810340142c3c25fab4838ff2b5d9574420"
 )
 
-# IP_ADAPTER_MODEL: no version hash pinned.
-# The hash "2a23d66a..." returned 422 "version does not exist" on every call
-# (confirmed in run 20260511_185748, lines 118-127).  The /v1/files upload
-# succeeds (201), which proves the model name is valid — only the hash is wrong.
-# Using the model reference without a hash makes Replicate resolve the latest
-# deployed version automatically.  When a stable hash is needed in future,
-# retrieve it from: https://replicate.com/lucataco/ip-adapter-sdxl-face/versions
-IP_ADAPTER_MODEL = "lucataco/ip-adapter-sdxl-face"
+# IP_ADAPTER_MODEL: lucataco/ip-adapter-faceid (SD 1.5 based, not SDXL).
+#
+# History of wrong model slugs:
+#   "lucataco/ip-adapter-sdxl-face:2a23d66a..." → 422 (hash never existed)
+#   "lucataco/ip-adapter-sdxl-face"             → 404 (model slug does not exist)
+#
+# Root cause: the model was never named ip-adapter-sdxl-face on Replicate.
+# Confirmed correct slug: https://replicate.com/lucataco/ip-adapter-faceid
+# Confirmed from source:  https://github.com/lucataco/cog-IP-Adapter-FaceID
+#   - Basic usage: cog predict -i face_image=@demo.png
+#   - Input param is "face_image" (not "image")
+#   - Model runs on SD 1.5 (not SDXL) → outputs at 512×512 or 768×768
+#   - Scale param is "scale" (not "ip_adapter_scale")
+IP_ADAPTER_MODEL = "lucataco/ip-adapter-faceid"
 
 # ── Backoff constants (from BASE §6) ──────────────────────────────────────────
 BACKOFF_MAX_RETRIES = 6    # maximum attempts before giving up on a 429
@@ -615,19 +621,22 @@ def _run_stage(
         }
     else:  # ip_adapter
         inputs = {
-# lucataco/ip-adapter-sdxl-face uses "image" (not "input_image").
-            # When --model both, face_bytes here is Stage 1 output (chained).
-            # When --model instantid-only fallback, face_bytes is the original photo.
-            # io.BytesIO required — same Cog loader constraint as InstantID.
-            "image":               _make_image_input(face_bytes),
+            # lucataco/ip-adapter-faceid (SD 1.5) input schema:
+            #   "face_image" — confirmed from cog source (cog predict -i face_image=@demo.png)
+            #                  NOT "image" (that was for the non-existent ip-adapter-sdxl-face)
+            # When --model both, face_bytes = Stage 1 InstantID output (chained).
+            # io.BytesIO required — Cog image loader calls .read() on the value.
+            # SD 1.5 model: output resolution is 512×512 (not 1024×1024 which is SDXL).
+            # "scale" — IP-Adapter influence weight (not "ip_adapter_scale").
+            "face_image":          _make_image_input(face_bytes),
             "prompt":              final_prompt,
             "negative_prompt":     NEGATIVE_PROMPT,
-            "width":               1024,
-            "height":              1024,
+            "width":               512,
+            "height":              512,
             "num_outputs":         1,
             "num_inference_steps": steps,
             "guidance_scale":      7.5,
-            "ip_adapter_scale":    0.80,
+            "scale":               0.80,
         }
 
     t0 = time.time()
