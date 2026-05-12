@@ -98,20 +98,40 @@ INSTANTID_MODEL = (
     "ba2d5293be8794a05841a6f6eed81e810340142c3c25fab4838ff2b5d9574420"
 )
 
-# IP_ADAPTER_MODEL: lucataco/ip-adapter-faceid (SD 1.5 based, not SDXL).
-#
-# History of wrong model slugs:
-#   "lucataco/ip-adapter-sdxl-face:2a23d66a..." → 422 (hash never existed)
-#   "lucataco/ip-adapter-sdxl-face"             → 404 (model slug does not exist)
-#
-# Root cause: the model was never named ip-adapter-sdxl-face on Replicate.
-# Confirmed correct slug: https://replicate.com/lucataco/ip-adapter-faceid
-# Confirmed from source:  https://github.com/lucataco/cog-IP-Adapter-FaceID
-#   - Basic usage: cog predict -i face_image=@demo.png
-#   - Input param is "face_image" (not "image")
-#   - Model runs on SD 1.5 (not SDXL) → outputs at 512×512 or 768×768
-#   - Scale param is "scale" (not "ip_adapter_scale")
-IP_ADAPTER_MODEL = "lucataco/ip-adapter-faceid"
+# WHY VERSION HASHES ARE MANDATORY FOR COMMUNITY MODELS:
+# Without hash → SDK routes to POST /v1/models/{owner}/{name}/predictions → 404
+# With hash    → SDK routes to POST /v1/predictions {"version":"hash"}    → works
+# Both models below are is_official: false (community models).
+# Confirmed hash values from https://replicate.com/{owner}/{model}/versions
+# Never call client.run("owner/model") without ":hash" for community models.
+
+# Stage 2 — InstantID + IP-Adapter SDXL (zsxkib/instant-id-ipadapter-plus-face)
+# Hash: https://replicate.com/zsxkib/instant-id-ipadapter-plus-face/versions
+# is_official: false → hash is mandatory.
+# Latest version: 32402fb5 (created 2024-07-14, 5.7K runs).
+# This model combines InstantID (face identity) + IP-Adapter (style/prompt)
+# in one SDXL call — better than lucataco/ip-adapter-faceid (SD 1.5, 2023).
+# Input: "image" = face reference; "instantid_weight" + "ipadapter_weight".
+# Output: 1024×1024 SDXL image matching Stage 1 resolution.
+IP_ADAPTER_MODEL = (
+    "zsxkib/instant-id-ipadapter-plus-face:"
+    "32402fb5c493d883aa6cf098ce3e4cc80f1fe6871f6ae7f632a8dbde01a3d161"
+)
+
+# ── InstantID neutral portrait prompt (for once-per-user Stage 1 call) ───────
+# Stage 1 runs ONCE per user with this neutral prompt to cartoonize the face.
+# Scene prompts are applied in Stage 2 only, not here.
+INSTANTID_NEUTRAL_PROMPT = (
+    "pixar 3d animation style, children's storybook illustration, "
+    "cartoon portrait of a child, soft pastel colors, warm lighting, "
+    "smooth render, high detail, clean neutral background, "
+    "forward-facing, neutral calm expression"
+)
+
+# ── User face cache ───────────────────────────────────────────────────────────
+# Keyed by face_hash8 + quality only (not by prompt/expression/page).
+# Location: cache/replicate/user_faces/
+_USER_FACE_CACHE_SUBDIR = "user_faces"
 
 # ── Backoff constants (from BASE §6) ──────────────────────────────────────────
 BACKOFF_MAX_RETRIES = 6    # maximum attempts before giving up on a 429
@@ -347,6 +367,56 @@ def _save_cache(cache_dir: Path, key: str, data: bytes,
             log.debug("Cache written: %s (%d KB)", key, len(data) // 1024)
     except Exception as exc:
         log.warning("Cache write failed (%s): %s", key, exc)
+
+
+# ── Once-per-user InstantID face cache ────────────────────────────────────────
+
+def _user_face_cache_dir(cache_dir: Path) -> Path:
+    """Return the user_faces subdirectory, creating it if absent."""
+    d = cache_dir / _USER_FACE_CACHE_SUBDIR
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _user_face_cache_key(face_bytes: bytes, quality: str) -> str:
+    """Cache key for once-per-user InstantID: face_hash8_instantid_{quality}.png."""
+    return f"{hashlib.sha256(face_bytes).hexdigest()[:8]}_instantid_{quality}.png"
+
+
+def _load_user_face_cache(cache_dir: Path, key: str,
+                          log: logging.Logger) -> Optional[bytes]:
+    """Return cached user-face bytes if present, else None."""
+    path = _user_face_cache_dir(cache_dir) / key
+    try:
+        if path.exists() and path.stat().st_size > 0:
+            log.info(
+                "InstantID user-face CACHE HIT  — %s (%d KB) "
+                "— Stage 1 will be skipped for ALL pages in this run",
+                key, path.stat().st_size // 1024,
+            )
+            return path.read_bytes()
+    except Exception as exc:
+        log.warning("User-face cache read failed (%s): %s", key, exc)
+    return None
+
+
+def _save_user_face_cache(cache_dir: Path, key: str, data: bytes,
+                          log: logging.Logger) -> None:
+    """Persist user-face bytes; future runs skip Stage 1 entirely for this face."""
+    path = _user_face_cache_dir(cache_dir) / key
+    try:
+        path.write_bytes(data)
+        if path.stat().st_size == 0:
+            path.unlink()
+            log.error("User-face cache write zero-byte file — deleted: %s", key)
+        else:
+            log.info(
+                "InstantID user-face cached: %s (%d KB) "
+                "— Stage 1 will be skipped on future runs with this face",
+                key, len(data) // 1024,
+            )
+    except Exception as exc:
+        log.warning("User-face cache write failed (%s): %s", key, exc)
 
 
 # ── Backoff helpers (BASE §6) ──────────────────────────────────────────────────
@@ -619,24 +689,24 @@ def _run_stage(
             "enable_lcm":                False,
             "enhance_face_region":       True,
         }
-    else:  # ip_adapter
+    else:  # ip_adapter → zsxkib/instant-id-ipadapter-plus-face (SDXL)
         inputs = {
-            # lucataco/ip-adapter-faceid (SD 1.5) input schema:
-            #   "face_image" — confirmed from cog source (cog predict -i face_image=@demo.png)
-            #                  NOT "image" (that was for the non-existent ip-adapter-sdxl-face)
-            # When --model both, face_bytes = Stage 1 InstantID output (chained).
-            # io.BytesIO required — Cog image loader calls .read() on the value.
-            # SD 1.5 model: output resolution is 512×512 (not 1024×1024 which is SDXL).
-            # "scale" — IP-Adapter influence weight (not "ip_adapter_scale").
-            "face_image":          _make_image_input(face_bytes),
+            # zsxkib/instant-id-ipadapter-plus-face input schema (SDXL):
+            #   "image" — face reference (Stage 1 InstantID output when chaining).
+            #   Combines InstantID face identity + IP-Adapter style in one model.
+            #   "instantid_weight": face structure preservation strength (0.01–2.0).
+            #   "ipadapter_weight": text prompt adherence strength (0.01–2.0).
+            #   SDXL → 1024×1024 matches Stage 1 output resolution.
+            #   io.BytesIO required — Cog image loader calls .read() on the value.
+            "image":               _make_image_input(face_bytes),
             "prompt":              final_prompt,
             "negative_prompt":     NEGATIVE_PROMPT,
-            "width":               512,
-            "height":              512,
-            "num_outputs":         1,
+            "width":               1024,
+            "height":              1024,
             "num_inference_steps": steps,
             "guidance_scale":      7.5,
-            "scale":               0.80,
+            "instantid_weight":    0.80,
+            "ipadapter_weight":    0.70,
         }
 
     t0 = time.time()
@@ -676,6 +746,7 @@ def _process_page(
     page: dict,
     client,
     face_bytes: bytes,
+    stage1_bytes_precomputed: Optional[bytes],
     run_dir: Path,
     cache_dir: Path,
     quality: str,
@@ -684,8 +755,11 @@ def _process_page(
     log: logging.Logger,
 ) -> dict:
     """
-    Execute the full pipeline for one page.
-    Returns a result dict suitable for inclusion in report.json.
+    Execute the pipeline for one page.
+
+    stage1_bytes_precomputed: cartoonized user face from the once-per-user
+        InstantID call that ran before the page loop. Shared across ALL pages.
+        If None, Stage 1 failed before the page loop.
     """
     pn         = page["page_number"]
     expression = page.get("expression", "neutral")
@@ -714,59 +788,42 @@ def _process_page(
     stage1_bytes: Optional[bytes] = None
     stage2_bytes: Optional[bytes] = None
 
-    # ── Stage 1 — InstantID ────────────────────────────────────────────────
-    s1_key  = _cache_key(face_bytes, prompt, expression, "instantid", quality)
+    # ── Stage 1 — InstantID (once per user, shared across all pages) ─────────
+    # stage1_bytes_precomputed is computed ONCE before the page loop in main().
+    # No InstantID API call happens here — just copy bytes to output folder.
     s1_file = page_dir / f"p{pn:02d}_1_instantid.png"
-    t1 = time.time()
 
-    s1_from_cache = not force and (_load_cache(cache_dir, s1_key) is not None)
-    stage1_bytes = _run_stage(
-        client      = client,
-        model_ref   = INSTANTID_MODEL,
-        model_name  = "instantid",
-        face_bytes  = face_bytes,
-        final_prompt= prompt,
-        expression  = expression,
-        page_number = pn,
-        quality     = quality,
-        force       = force,
-        cache_dir   = cache_dir,
-        out_file    = s1_file,
-        stage_label = "Stage 1 InstantID",
-        log         = log,
-    )
-    s1_ms = int((time.time() - t1) * 1000)
-
-    if stage1_bytes is None:
+    if stage1_bytes_precomputed is None:
         log.error(
-            "Stage 1 InstantID  p%02d — FAILED — "
-            "Stage 2 and Stage 3 will be skipped for this page",
+            "Stage 1 InstantID p%02d — stage1_bytes_precomputed is None. "
+            "The once-per-user call failed before the page loop. "
+            "Stage 2 and Stage 3 will be skipped for this page.",
             pn,
         )
         result["stage_1_instantid"] = {
-            "status":      "failed",
-            "from_cache":  False,
-            "cache_key":   s1_key,
-            "generation_ms": s1_ms,
+            "status": "failed",
+            "reason": "precomputed user-face bytes unavailable (Stage 1 failed before page loop)",
         }
-        result["stage_2_ip_adapter"] = {
-            "status": "skipped",
-            "reason": "stage_1 failed — cannot chain without Stage 1 output",
-        }
-        result["stage_3_final"] = {
-            "status": "skipped",
-            "reason": "stage_1 failed",
-        }
+        result["stage_2_ip_adapter"] = {"status": "skipped", "reason": "stage_1 failed"}
+        result["stage_3_final"]      = {"status": "skipped", "reason": "stage_1 failed"}
         result["page_status"] = "failed"
         return result
 
+    stage1_bytes = stage1_bytes_precomputed
+    s1_file.write_bytes(stage1_bytes)
+    ufc_key = _user_face_cache_key(face_bytes, quality)
+    log.info(
+        "Stage 1 InstantID p%02d — using shared user-face cartoonization (%dKB), "
+        "key=%s — zero API calls here",
+        pn, len(stage1_bytes) // 1024, ufc_key,
+    )
     result["stage_1_instantid"] = {
         "status":        "success",
-        "from_cache":    s1_from_cache,
-        "cache_key":     s1_key,
+        "source":        "precomputed_once_per_user",
+        "user_face_key": ufc_key,
         "output_file":   str(s1_file.relative_to(run_dir)),
         "output_kb":     len(stage1_bytes) // 1024,
-        "generation_ms": 0 if s1_from_cache else s1_ms,
+        "generation_ms": 0,
     }
 
     # ── Stage 2 — IP-Adapter (chained on Stage 1 output) ──────────────────
@@ -1220,23 +1277,83 @@ def main() -> int:
         return 1
     log.info("Replicate client ready")
 
-    # ── Process each page ──────────────────────────────────────────────────
-    t_start      = time.time()
-    page_results = []
-    api_calls    = 0
-    cache_hits   = 0
+    # ── Stage 1: Once-per-user InstantID cartoonization ─────────────────────────
+    # InstantID is called ONCE for this user/face/quality combination before
+    # the page loop. Result is cached in cache/replicate/user_faces/ and reused
+    # for ALL pages. This reduces InstantID billing to 1 call per user per run.
+    # Cache invalidation: delete the file from cache/replicate/user_faces/ manually.
+    t_start            = time.time()
+    page_results       = []
+    api_calls          = 0
+    cache_hits         = 0
+    stage1_precomputed = None
 
+    ufc_key = _user_face_cache_key(face_bytes, quality)
+    ufc_dir = _user_face_cache_dir(_CACHE_DIR)
+
+    if model in ("instantid", "both"):
+        log.info("=" * 68)
+        log.info(
+            "STAGE 1 (once-per-user) — InstantID cartoonization "
+            "of user face before page loop"
+        )
+        log.info("  user_face_key : %s", ufc_key)
+        log.info("  cache_dir     : %s", ufc_dir)
+
+        if not force:
+            stage1_precomputed = _load_user_face_cache(_CACHE_DIR, ufc_key, log)
+            if stage1_precomputed:
+                cache_hits += 1
+
+        if stage1_precomputed is None:
+            log.info(
+                "Stage 1 (once-per-user) — CACHE MISS — calling InstantID API "
+                "(this is the ONLY InstantID API call for this run)"
+            )
+            s1_out_file = run_dir / "stage1_user_face.png"
+            stage1_precomputed = _run_stage(
+                client       = client,
+                model_ref    = INSTANTID_MODEL,
+                model_name   = "instantid",
+                face_bytes   = face_bytes,
+                final_prompt = INSTANTID_NEUTRAL_PROMPT,
+                expression   = "neutral",
+                page_number  = 0,
+                quality      = quality,
+                force        = force,
+                cache_dir    = _CACHE_DIR,
+                out_file     = s1_out_file,
+                stage_label  = "Stage 1 InstantID (user-face)",
+                log          = log,
+            )
+            if stage1_precomputed:
+                api_calls += 1
+                _save_user_face_cache(_CACHE_DIR, ufc_key, stage1_precomputed, log)
+            else:
+                log.error(
+                    "Stage 1 (once-per-user) FAILED — InstantID returned no output. "
+                    "All pages will fail. Check token, model hash, and input image."
+                )
+        log.info(
+            "Stage 1 complete — %dKB cartoonized face ready for %d page(s)",
+            len(stage1_precomputed) // 1024 if stage1_precomputed else 0,
+            len(PAGE_CONFIGS),
+        )
+        log.info("=" * 68)
+
+    # ── Process each page ──────────────────────────────────────────────────
     for page in PAGE_CONFIGS:
         page_result = _process_page(
-            page      = page,
-            client    = client,
-            face_bytes= face_bytes,
-            run_dir   = run_dir,
-            cache_dir = _CACHE_DIR,
-            quality   = quality,
-            model     = model,
-            force     = force,
-            log       = log,
+            page                     = page,
+            client                   = client,
+            face_bytes               = face_bytes,
+            stage1_bytes_precomputed = stage1_precomputed,
+            run_dir                  = run_dir,
+            cache_dir                = _CACHE_DIR,
+            quality                  = quality,
+            model                    = model,
+            force                    = force,
+            log                      = log,
         )
         page_results.append(page_result)
 
