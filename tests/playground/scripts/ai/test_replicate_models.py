@@ -72,6 +72,7 @@ import re
 import shutil
 import sys
 import time
+import types
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -523,6 +524,34 @@ def _resolve_output(output, page_number: int, stage_label: str,
         "%s p%02d — raw output type: %s, value preview: %.120s",
         stage_label, page_number, type(output).__name__, repr(output)[:120],
     )
+
+    # ── Format 0: generator (SDK streaming / 202 wait-timeout mode) ────────────
+    # When a prediction takes longer than the server's wait=60 budget, Replicate
+    # returns HTTP 202 ("wait time exceeded") instead of waiting for completion.
+    # The Replicate Python SDK then switches to polling mode and returns a
+    # generator (run.<locals>.<genexpr>) that yields output items as they arrive.
+    # We must materialise the generator before any other format check, because:
+    #   - isinstance(generator, (list, tuple))  → False  (falls through to item[0])
+    #   - isinstance(generator, dict)           → False
+    # All materialised items are then passed back through this function's
+    # existing format logic (FileOutput, URL, etc.).
+    if isinstance(output, types.GeneratorType):
+        log.debug(
+            "%s p%02d — generator output (202 streaming mode) — materialising...",
+            stage_label, page_number,
+        )
+        items = list(output)   # blocks until the prediction fully completes
+        log.debug(
+            "%s p%02d — generator materialised to %d item(s): %.120s",
+            stage_label, page_number, len(items), repr(items)[:120],
+        )
+        if not items:
+            raise RuntimeError(
+                f"{stage_label} p{page_number:02d} — generator output was empty "
+                f"after materialisation. Prediction may have failed silently."
+            )
+        # Re-enter with the materialised list so existing format branches handle it
+        return _resolve_output(items, page_number, stage_label, log)
 
     # ── Format 1: dict with "output_paths" key (older SDK, zedge/instantid) ──
     # Seen in test_replicate_instantid_v2–v5: output["output_paths"][0].url
