@@ -1,0 +1,52 @@
+2026-05-12 22:53:43,555 [INFO] ===================================================
+2026-05-12 22:53:43,555 [INFO] AI Identity Scene Consistency Pipeline Started
+2026-05-12 22:53:43,555 [INFO] ===================================================
+2026-05-12 22:53:43,555 [INFO] Log File: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\identity_scene_consistency\nikshay_20260512_225343.log
+2026-05-12 22:53:43,555 [INFO] Loading env file: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\env
+2026-05-12 22:53:43,594 [INFO] REPLICATE_API_TOKEN loaded successfully
+2026-05-12 22:53:43,594 [INFO] Loading input for: nikshay
+2026-05-12 22:53:43,636 [INFO] Original Image: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\input\nikshay\images\nikshay_image.jpeg
+2026-05-12 22:53:43,639 [INFO] Total Pages: 2
+2026-05-12 22:53:43,639 [INFO] Creating face crop...
+2026-05-12 22:53:43,717 [INFO] Face crop saved: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_face_crop.png
+2026-05-12 22:53:43,722 [INFO] ===================================================
+2026-05-12 22:53:43,729 [INFO] GENERATING CANONICAL CHARACTER
+2026-05-12 22:53:43,735 [INFO] ===================================================
+2026-05-12 22:53:43,739 [INFO] ===================================================
+2026-05-12 22:53:43,752 [INFO] FINAL PROMPT
+2026-05-12 22:53:43,770 [INFO] ===================================================
+2026-05-12 22:53:43,781 [INFO] 
+Create a clean canonical animated portrait of the SAME child from the uploaded image.
+
+Front-facing portrait.
+Gentle smile.
+Natural eyes.
+Natural facial proportions.
+Soft cinematic animated storybook style.
+
+Identity preservation is the highest priority.
+
+The generated child must remain instantly recognizable as the uploaded child.
+
+2026-05-12 22:53:43,785 [INFO] ===================================================
+2026-05-12 22:53:43,786 [INFO] REFERENCE IMAGES
+2026-05-12 22:53:43,792 [INFO] ===================================================
+2026-05-12 22:53:43,797 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\input\nikshay\images\nikshay_image.jpeg
+2026-05-12 22:53:43,799 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_face_crop.png
+2026-05-12 22:53:43,799 [INFO] ===================================================
+2026-05-12 22:53:54,193 [ERROR] PIPELINE FAILED
+Traceback (most recent call last):
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\scripts\ai\ai_identity_scene_consistency.py", line 676, in main
+    generate_canonical_character(
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\scripts\ai\ai_identity_scene_consistency.py", line 467, in generate_canonical_character
+    output = run_generation(
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\scripts\ai\ai_identity_scene_consistency.py", line 429, in run_generation
+    output = replicate.run(
+             ^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\replicate\client.py", line 175, in run
+    return run(self, ref, input, use_file_output=use_file_output, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\desais\Documents\GitHubLocal\storyme\venv\Lib\site-packages\replicate\run.py", line 81, in run
+    raise ModelError(prediction)
+replicate.exceptions.ModelError: Failed to generate image.
