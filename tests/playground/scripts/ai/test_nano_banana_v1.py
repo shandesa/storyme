@@ -18,13 +18,6 @@ import replicate
 
 MODEL_NAME = "google/nano-banana"
 
-# Current file:
-# storyme/tests/playground/scripts/ai/test_nano_banana_v1.py
-#
-# parents[0] = ai
-# parents[1] = scripts
-# parents[2] = playground
-#
 PLAYGROUND_DIR = Path(__file__).resolve().parents[2]
 
 INPUT_DIR = PLAYGROUND_DIR / "input"
@@ -99,7 +92,6 @@ def setup_logger(name: str):
         "%(asctime)s [%(levelname)s] %(message)s"
     )
 
-    # File handler
     fh = logging.FileHandler(
         log_file,
         encoding="utf-8"
@@ -108,7 +100,6 @@ def setup_logger(name: str):
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
 
-    # Console handler
     ch = logging.StreamHandler(sys.stdout)
 
     ch.setLevel(logging.INFO)
@@ -126,67 +117,51 @@ def setup_logger(name: str):
 
 
 # ============================================================
-# BASE PROMPT
+# PROMPT
 # ============================================================
 
 BASE_PROMPT = """
-REFERENCE IMAGE PRIORITY: VERY HIGH
+Use the uploaded reference image as the exact identity reference for the child.
 
-Use the uploaded image as the exact identity reference for the child.
+The generated child must remain the SAME child from the uploaded image.
 
-The generated character MUST preserve:
+Preserve:
+- same face
+- same eyes
+- same smile
+- same hairstyle
+- same skin tone
+- same facial identity
 
-* same face shape
-* same eyes
-* same smile
-* same cheeks
-* same hairstyle
-* same hairline
-* same ears
-* same skin tone
-* same child identity
+The child should remain instantly recognizable across all story pages.
 
-The child must remain instantly recognizable as the person in the uploaded image.
+Soft cinematic animated storybook style.
 
-Do NOT redesign the face.
-Do NOT generate a different child.
-Do NOT stylize the facial proportions too aggressively.
-
-STYLE:
-
-Warm cinematic lighting.
-Soft pastel colors.
-Magical jungle atmosphere.
-
-SCENE:
-A magical jungle entrance with tall trees, soft mist, golden morning sunlight filtering through leaves.
+Warm lighting.
+Cute realistic child appearance.
+Natural facial proportions.
 
 CHARACTER:
+- age 4-6
+- light yellow t-shirt
+- beige shorts
+- brown explorer hat
 
-* age 4–6
-* light yellow t-shirt
-* beige shorts
-* brown explorer hat with black lace band
+SCENE:
+Magical jungle forest with soft morning sunlight.
 
 COMPOSITION:
-
-* horizontal 5:4 aspect ratio
-* medium shot
-* eye-level camera
-* child positioned on left side
-* right side softly blurred and empty for story text
-
-LIGHTING:
-
-* soft warm light from top-left
-* evenly lit face
-* no harsh shadows
+- horizontal 5:4
+- medium shot
+- eye-level camera
+- child on left side
+- empty space on right side for story text
 
 IMPORTANT:
-The face identity from the uploaded image is to be used as it is in the scene.
+Identity consistency is more important than artistic stylization.
 
 The result should look like:
-“the same real child converted into a Pixar movie scene with no Pixar character stylization.”
+the same real child placed into an animated movie scene.
 """
 
 
@@ -245,6 +220,10 @@ def load_story_input(name: str):
 def save_output_image(output, output_file, logger):
 
     logger.info("Saving output image...")
+
+    logger.info(
+        f"Output object type: {type(output)}"
+    )
 
     if isinstance(output, list):
         output = output[0]
@@ -339,11 +318,9 @@ def main():
             if page_prompt:
 
                 final_prompt += (
-                    f"\n\nADDITIONAL PAGE SCENE:\n"
+                    f"\n\nPAGE SCENE:\n"
                     f"{page_prompt}"
                 )
-
-            logger.info("Prompt Prepared")
 
             logger.info("===================================================")
             logger.info(f"FINAL PROMPT FOR PAGE {idx}")
@@ -357,16 +334,66 @@ def main():
 
             start_time = time.time()
 
-            with open(reference_image, "rb") as img_file:
+            reference_images = []
 
-                output = replicate.run(
-                    MODEL_NAME,
-                    input={
-                        "prompt": final_prompt,
-                        "image_input": [img_file],
-                        "aspect_ratio": "5:4",
-                    }
+            # ------------------------------------------------
+            # ORIGINAL IMAGE
+            # ------------------------------------------------
+
+            original_file = open(reference_image, "rb")
+
+            reference_images.append(original_file)
+
+            logger.info(
+                f"Added original reference image: "
+                f"{reference_image}"
+            )
+
+            # ------------------------------------------------
+            # PREVIOUS PAGE FOR CONTINUITY
+            # ------------------------------------------------
+
+            previous_page_path = (
+                OUTPUT_DIR /
+                f"{args.name}_page_{idx-1}.png"
+            )
+
+            previous_page_file = None
+
+            if idx > 1 and previous_page_path.exists():
+
+                logger.info(
+                    f"Using previous page reference: "
+                    f"{previous_page_path}"
                 )
+
+                previous_page_file = open(
+                    previous_page_path,
+                    "rb"
+                )
+
+                reference_images.append(
+                    previous_page_file
+                )
+
+            logger.info(
+                f"Total reference images: "
+                f"{len(reference_images)}"
+            )
+
+            # ------------------------------------------------
+            # GENERATE
+            # ------------------------------------------------
+
+            output = replicate.run(
+                MODEL_NAME,
+                input={
+                    "prompt": final_prompt,
+                    "image_input": reference_images,
+                    "aspect_ratio": "5:4",
+                    "seed": 12345
+                }
+            )
 
             elapsed = round(
                 time.time() - start_time,
@@ -376,6 +403,16 @@ def main():
             logger.info(
                 f"Generation completed in "
                 f"{elapsed} sec"
+            )
+
+            logger.info(
+                f"Raw Replicate Output Type: "
+                f"{type(output)}"
+            )
+
+            logger.info(
+                f"Raw Replicate Output: "
+                f"{output}"
             )
 
             output_file = (
@@ -390,6 +427,15 @@ def main():
             )
 
             logger.info(f"Saved: {output_file}")
+
+            # ------------------------------------------------
+            # CLOSE FILES
+            # ------------------------------------------------
+
+            original_file.close()
+
+            if previous_page_file:
+                previous_page_file.close()
 
         logger.info("===================================================")
         logger.info("ALL PAGES GENERATED SUCCESSFULLY")
