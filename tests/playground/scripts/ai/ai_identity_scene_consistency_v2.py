@@ -47,7 +47,7 @@ except Exception:
 # CONFIG
 # ============================================================
 
-REPLICATE_MODEL     = "zsxkib/instant-id:latest"
+REPLICATE_MODEL     = "zsxkib/instant-id:c98b2e7a196828d00955767813b81fc05c5c9b294c670c6d147d545fed4ceecf"
 SDXL_WEIGHTS        = "dreamshaper-xl-turbov2"
 
 SIMILARITY_THRESHOLD_CANONICAL = 0.40
