@@ -1,0 +1,122 @@
+2026-05-14 17:44:08,422 [INFO] ===================================================
+2026-05-14 17:44:08,422 [INFO] AI Identity Scene Consistency Started
+2026-05-14 17:44:08,422 [INFO] ===================================================
+2026-05-14 17:44:08,424 [INFO] Log File: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\logs\identity_scene_consistency\nikshay_20260514_174408.log
+2026-05-14 17:44:08,427 [INFO] Loading env file: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\env
+2026-05-14 17:44:08,449 [INFO] REPLICATE_API_TOKEN loaded
+2026-05-14 17:44:08,449 [INFO] Loading input: nikshay
+2026-05-14 17:44:08,492 [INFO] Total pages: 2
+2026-05-14 17:44:08,492 [INFO] Creating face crop
+2026-05-14 17:44:08,570 [INFO] Face crop saved: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_face_crop.png
+2026-05-14 17:44:08,572 [INFO] Generating canonical character
+2026-05-14 17:44:08,572 [INFO] ===================================================
+2026-05-14 17:44:08,574 [INFO] FINAL PROMPT
+2026-05-14 17:44:08,574 [INFO] ===================================================
+2026-05-14 17:44:08,578 [INFO] 
+Create a canonical animated portrait of the SAME child.
+
+Front-facing portrait.
+Gentle smile.
+Large visible face.
+Natural proportions.
+Soft cinematic animated style.
+
+Identity preservation is the highest priority.
+
+2026-05-14 17:44:08,578 [INFO] ===================================================
+2026-05-14 17:44:08,578 [INFO] REFERENCE IMAGES
+2026-05-14 17:44:08,580 [INFO] ===================================================
+2026-05-14 17:44:08,580 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\input\nikshay\images\nikshay_image.jpeg
+2026-05-14 17:44:08,580 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_face_crop.png
+2026-05-14 17:44:08,580 [INFO] ===================================================
+2026-05-14 17:44:29,254 [INFO] Canonical saved: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_canonical_character.png
+2026-05-14 17:44:29,254 [INFO] ---------------------------------------------------
+2026-05-14 17:44:29,256 [INFO] PAGE 1 ATTEMPT 1
+2026-05-14 17:44:29,256 [INFO] ---------------------------------------------------
+2026-05-14 17:44:29,256 [INFO] ===================================================
+2026-05-14 17:44:29,256 [INFO] FINAL PROMPT
+2026-05-14 17:44:29,256 [INFO] ===================================================
+2026-05-14 17:44:29,258 [INFO] 
+Use the uploaded reference images as the exact identity reference for the child.
+
+The generated child must remain the SAME real child.
+
+Preserve:
+- same eyes
+- same face
+- same smile
+- same hairstyle
+- same skin tone
+
+Natural facial proportions.
+
+Soft animated cinematic storybook style.
+
+Identity preservation is the HIGHEST priority.
+
+Do NOT redesign the face.
+
+The result should look like:
+the same real child transformed into an animated storybook scene.
+
+
+SCENE:
+The child is entering the jungle with curiosity.
+2026-05-14 17:44:29,258 [INFO] ===================================================
+2026-05-14 17:44:29,258 [INFO] REFERENCE IMAGES
+2026-05-14 17:44:29,258 [INFO] ===================================================
+2026-05-14 17:44:29,258 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\input\nikshay\images\nikshay_image.jpeg
+2026-05-14 17:44:29,259 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_face_crop.png
+2026-05-14 17:44:29,259 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_canonical_character.png
+2026-05-14 17:44:29,259 [INFO] ===================================================
+2026-05-14 17:44:50,233 [INFO] Identity Similarity Score: 0.7849
+2026-05-14 17:44:50,235 [INFO] Similarity threshold satisfied
+2026-05-14 17:44:50,243 [INFO] Final output saved: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_page_1.png
+2026-05-14 17:44:50,243 [INFO] Best Similarity: 0.7849
+2026-05-14 17:44:50,245 [INFO] ---------------------------------------------------
+2026-05-14 17:44:50,245 [INFO] PAGE 2 ATTEMPT 1
+2026-05-14 17:44:50,245 [INFO] ---------------------------------------------------
+2026-05-14 17:44:50,245 [INFO] ===================================================
+2026-05-14 17:44:50,247 [INFO] FINAL PROMPT
+2026-05-14 17:44:50,247 [INFO] ===================================================
+2026-05-14 17:44:50,247 [INFO] 
+Use the uploaded reference images as the exact identity reference for the child.
+
+The generated child must remain the SAME real child.
+
+Preserve:
+- same eyes
+- same face
+- same smile
+- same hairstyle
+- same skin tone
+
+Natural facial proportions.
+
+Soft animated cinematic storybook style.
+
+Identity preservation is the HIGHEST priority.
+
+Do NOT redesign the face.
+
+The result should look like:
+the same real child transformed into an animated storybook scene.
+
+
+SCENE:
+The child sees glowing butterflies near ancient trees.
+2026-05-14 17:44:50,249 [INFO] ===================================================
+2026-05-14 17:44:50,249 [INFO] REFERENCE IMAGES
+2026-05-14 17:44:50,252 [INFO] ===================================================
+2026-05-14 17:44:50,252 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\input\nikshay\images\nikshay_image.jpeg
+2026-05-14 17:44:50,254 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_face_crop.png
+2026-05-14 17:44:50,254 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_canonical_character.png
+2026-05-14 17:44:50,256 [INFO] C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_page_1.png
+2026-05-14 17:44:50,259 [INFO] ===================================================
+2026-05-14 17:45:18,476 [INFO] Identity Similarity Score: 0.9175
+2026-05-14 17:45:18,478 [INFO] Similarity threshold satisfied
+2026-05-14 17:45:18,515 [INFO] Final output saved: C:\Users\desais\Documents\GitHubLocal\storyme\tests\playground\output\identity_scene_consistency\nikshay_page_2.png
+2026-05-14 17:45:18,515 [INFO] Best Similarity: 0.9175
+2026-05-14 17:45:18,517 [INFO] ===================================================
+2026-05-14 17:45:18,517 [INFO] ALL PAGES GENERATED SUCCESSFULLY
+2026-05-14 17:45:18,518 [INFO] ===================================================
