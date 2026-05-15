@@ -80,6 +80,51 @@
 #   - generate_page(): accepts character_description
 #   - main(): threads character_description end-to-end
 #
+# v2.3.0  2026-05-15  Identity fidelity + scene + full logging
+#   Issues fixed:
+#     1. Skin colour shifting significantly from reference photo
+#        (model defaults to lighter skin; no explicit skin anchor)
+#     2. Hair texture wrong (wavy brown vs straight black reference)
+#        (no specifics in character block without character_description)
+#     3. Scene still not rendering as wide environment shot
+#        (IP_ADAPTER_SCALE_SCENE=0.65 still too high; guidance too low)
+#     4. IDENTITY_PROMPT missing from v2 (strong paragraph-level
+#        identity directive from v1 was not carried forward)
+#     5. Full prompts not logged -- only 120/160 char truncations,
+#        making it impossible to diagnose prompt issues from logs
+#   Changes:
+#   - IDENTITY_PROMPT: new constant -- explicit paragraph-level
+#     identity preservation directive. Instructs the model to use
+#     the uploaded reference as the EXACT identity reference.
+#     Prepended to both canonical and scene prompts so every
+#     generation call carries this directive.
+#   - CANONICAL_PROMPT_SUFFIX: new constant -- replaces the inline
+#     portrait suffix in _build_canonical_prompt(); clearly separates
+#     the canonical-specific instruction from the identity block.
+#   - _build_canonical_prompt(): now prepends IDENTITY_PROMPT before
+#     style + character + canonical suffix blocks.
+#   - build_scene_prompt(): now prepends IDENTITY_PROMPT before
+#     style + character + framing + page prompt blocks.
+#   - IP_ADAPTER_SCALE_SCENE: 0.65 -> 0.50
+#     At 0.65 text prompt cannot drive wide scene composition.
+#     0.50 gives text prompt the authority to place character as
+#     a small figure in a large scene environment.
+#   - GUIDANCE_SCALE split:
+#       GUIDANCE_SCALE_CANONICAL = 5.0  (unchanged, portrait)
+#       GUIDANCE_SCALE_SCENE     = 7.5  (new -- stronger text
+#         adherence for scene composition)
+#   - call_instantid(): added guidance_scale parameter; canonical
+#     passes GUIDANCE_SCALE_CANONICAL, scenes pass GUIDANCE_SCALE_SCENE
+#   - Full prompt logging: call_instantid() now logs the COMPLETE
+#     prompt and COMPLETE negative prompt with no truncation.
+#     Every line of every prompt is visible in the log file.
+#   - generate_canonical_character(): logs full canonical prompt
+#     before API call, including char_description and clothing.
+#   - generate_page(): logs full scene prompt and page prompt source
+#     before API call; logs guidance_scale per call.
+#   - verify_identity(): logs face bbox of generated image face
+#     in addition to similarity score.
+#
 # v2.2.0  2026-05-15  Scene composition + clothing consistency fix
 #   Issues fixed:
 #     1. Clothing different across pages -- model invents arbitrary
@@ -174,16 +219,23 @@ BASE_SEED           = 42
 IMAGE_WIDTH         = 768
 IMAGE_HEIGHT        = 768
 NUM_INFERENCE_STEPS = 40
-GUIDANCE_SCALE      = 5.0
+
+# v2.3.0: Split guidance scale per usage.
+# Canonical portrait: 5.0 -- balanced identity + style.
+# Scene pages: 7.5 -- higher CFG so the text prompt drives
+# environment composition against the face embedding.
+GUIDANCE_SCALE_CANONICAL = 5.0
+GUIDANCE_SCALE_SCENE     = 7.5
 
 # v2.2.0: Decoupled adapter scales for canonical vs scene.
 # Canonical portrait needs maximum identity lock (0.95/0.90).
 # Scene pages need compositional freedom so the text prompt can
-# drive environment, layout, and full-body framing (0.65/0.65).
-# At 0.95 the face embedding overwhelms all text composition
-# instructions -- confirmed root cause of portrait-only output.
+# drive environment, layout, and full-body framing.
+# v2.3.0: IP_ADAPTER_SCALE_SCENE lowered 0.65 -> 0.50.
+# At 0.65 the face embedding still dominates and text prompt
+# cannot place the character as a small figure in a wide scene.
 IP_ADAPTER_SCALE_CANONICAL = 0.95
-IP_ADAPTER_SCALE_SCENE     = 0.65
+IP_ADAPTER_SCALE_SCENE     = 0.50
 
 CONTROLNET_SCALE_CANONICAL = 0.90
 CONTROLNET_SCALE_SCENE     = 0.65
@@ -246,6 +298,30 @@ SCENE_NEGATIVE_PROMPT = (
 )
 
 
+# v2.3.0: IDENTITY_PROMPT -- explicit paragraph-level identity
+# preservation directive. Prepended to every generation prompt
+# (canonical and all scene pages). Instructs the model to treat
+# the uploaded reference image as the exact identity source.
+# This was present in v1 and its absence in v2.0-v2.2 was a
+# contributing factor to skin tone, eye colour, and hair drift.
+IDENTITY_PROMPT = (
+    "Use the uploaded reference image as the exact identity reference for the child. "
+    "The generated child must remain the SAME real child. "
+    "Preserve: same eyes, same face, same smile, same hairstyle, same skin tone, "
+    "same facial proportions, same eye color, same hair color and texture. "
+    "Identity preservation is the HIGHEST priority. "
+    "Do NOT redesign the face. Do NOT change the skin tone. "
+    "Do NOT change the hair style or hair color. "
+    "The result should look like the same real child "
+    "transformed into an illustrated storybook scene."
+)
+
+# Canonical-specific suffix appended after IDENTITY_PROMPT + style + character blocks.
+CANONICAL_PROMPT_SUFFIX = (
+    "Front-facing portrait. Gentle smile. Face clearly visible. "
+    "Looking at camera. Full upper body. Soft even lighting on face. "
+    "Natural facial proportions."
+)
 def _build_character_block(character_description="", character_clothing=""):
     """
     v2.2.0: Added character_clothing parameter.
@@ -274,22 +350,27 @@ def _build_character_block(character_description="", character_clothing=""):
 
 def _build_canonical_prompt(character_description="", character_clothing=""):
     """
-    v2.2.0: Passes character_clothing to _build_character_block.
+    v2.3.0: Prepends IDENTITY_PROMPT before style + character blocks.
+    Uses CANONICAL_PROMPT_SUFFIX for portrait-specific instructions.
     """
     char_block = _build_character_block(character_description, character_clothing)
     return (
+        f"{IDENTITY_PROMPT} "
         f"{_STYLE_BLOCK}, {char_block}, "
-        "front-facing portrait, gentle smile, face clearly visible, "
-        "looking at camera, full upper body, soft even lighting on face"
+        f"{CANONICAL_PROMPT_SUFFIX}"
     )
 
 
 def build_scene_prompt(page_prompt, character_description="", character_clothing=""):
     """
-    v2.2.0: Passes character_clothing to _build_character_block.
+    v2.3.0: Prepends IDENTITY_PROMPT before style + character +
+    framing + page prompt blocks. The IDENTITY_PROMPT ensures
+    the model does not drift skin tone, hair, or eye colour while
+    also generating the scene described in page_prompt.
     """
     char_block = _build_character_block(character_description, character_clothing)
     return (
+        f"{IDENTITY_PROMPT} "
         f"{_STYLE_BLOCK}, {char_block}, "
         f"{_SCENE_FRAMING_BLOCK}, {page_prompt}"
     )
@@ -589,11 +670,17 @@ def verify_identity(generated_path, reference_embedding, threshold, analyzer, lo
         key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])
     )[-1]
 
+    # v2.3.0: Log generated face bbox -- useful to see if the face
+    # in the scene is small (wide shot) or large (portrait close-up).
+    gen_bbox = [int(v) for v in gen_face.bbox]
+    gen_area = (gen_bbox[2] - gen_bbox[0]) * (gen_bbox[3] - gen_bbox[1])
+    logger.info(f"Generated face bbox : {gen_bbox}  area={gen_area}px²")
+
     similarity = float(np.dot(reference_embedding, gen_face.normed_embedding))
     passed     = similarity >= threshold
 
     logger.info(
-        f"ArcFace similarity: {similarity:.4f}  "
+        f"ArcFace similarity  : {similarity:.4f}  "
         f"threshold: {threshold:.2f}  "
         f"{'PASS' if passed else 'FAIL'}"
     )
@@ -640,34 +727,39 @@ def call_instantid(
     negative_prompt=None,
     ip_adapter_scale=None,
     controlnet_scale=None,
+    guidance_scale=None,
 ):
     """
-    v2.2.0: Added ip_adapter_scale and controlnet_scale parameters.
-
-    Canonical portrait (Stage 2) passes IP_ADAPTER_SCALE_CANONICAL
-    and CONTROLNET_SCALE_CANONICAL (0.95 / 0.90) -- maximum identity
-    lock for the reference portrait.
-
-    Scene pages (Stage 3) pass IP_ADAPTER_SCALE_SCENE and
-    CONTROLNET_SCALE_SCENE (0.65 / 0.65) -- reduced conditioning
-    allows the text prompt to drive composition, environment framing,
-    and full-body layout. ArcFace (Stage 4 fallback) catches identity
-    failures that result from the lower lock.
-
-    When None, falls back to CANONICAL values (safe default).
+    v2.3.0: Added guidance_scale parameter; full prompt logging.
+    Canonical portrait passes GUIDANCE_SCALE_CANONICAL (5.0).
+    Scene pages pass GUIDANCE_SCALE_SCENE (7.5) so the text prompt
+    drives scene composition more strongly against face embedding.
+    Full prompt and full negative prompt logged -- no truncation.
     """
     ips = ip_adapter_scale if ip_adapter_scale is not None else IP_ADAPTER_SCALE_CANONICAL
     cns = controlnet_scale if controlnet_scale is not None else CONTROLNET_SCALE_CANONICAL
+    gsc = guidance_scale   if guidance_scale   is not None else GUIDANCE_SCALE_CANONICAL
     neg = negative_prompt  if negative_prompt  is not None else NEGATIVE_PROMPT
 
     logger.info("===================================================")
     logger.info("REPLICATE CALL")
     logger.info("===================================================")
     logger.info(f"Model              : {REPLICATE_MODEL}")
+    logger.info(f"SDXL weights       : {SDXL_WEIGHTS}")
     logger.info(f"Seed               : {seed}")
     logger.info(f"ip_adapter_scale   : {ips}")
     logger.info(f"controlnet_scale   : {cns}")
-    logger.info(f"Prompt             : {prompt[:120]}...")
+    logger.info(f"guidance_scale     : {gsc}")
+    logger.info(f"num_inference_steps: {NUM_INFERENCE_STEPS}")
+    logger.info(f"Image size         : {IMAGE_WIDTH}x{IMAGE_HEIGHT}")
+    logger.info(f"Reference image    : {face_crop_path}")
+    logger.info("--- FULL PROMPT ---")
+    for line in prompt.splitlines():
+        logger.info(line)
+    logger.info("--- FULL NEGATIVE PROMPT ---")
+    for line in neg.splitlines():
+        logger.info(line)
+    logger.info("===================================================")
 
     fh = open(face_crop_path, "rb")
     try:
@@ -683,7 +775,7 @@ def call_instantid(
                 "width"                         : IMAGE_WIDTH,
                 "height"                        : IMAGE_HEIGHT,
                 "num_inference_steps"           : NUM_INFERENCE_STEPS,
-                "guidance_scale"                : GUIDANCE_SCALE,
+                "guidance_scale"                : gsc,
                 "seed"                          : seed,
                 "disable_safety_checker"        : False,
             },
@@ -713,6 +805,14 @@ def generate_canonical_character(
 
     canonical_prompt = _build_canonical_prompt(character_description, character_clothing)
 
+    logger.info("--- CANONICAL PROMPT BUILT ---")
+    logger.info(f"character_description : {character_description or '(none)'}")
+    logger.info(f"character_clothing    : {character_clothing or '(none)'}")
+    logger.info(f"Full canonical prompt :")
+    for line in canonical_prompt.splitlines():
+        logger.info(f"  {line}")
+    logger.info("------------------------------")
+
     best_score = 0.0
     best_path  = None
 
@@ -726,6 +826,7 @@ def generate_canonical_character(
             face_crop_path, canonical_prompt, seed, logger,
             ip_adapter_scale=IP_ADAPTER_SCALE_CANONICAL,
             controlnet_scale=CONTROLNET_SCALE_CANONICAL,
+            guidance_scale=GUIDANCE_SCALE_CANONICAL,
         )
         save_output_image(output, output_path, logger)
 
@@ -844,7 +945,17 @@ def generate_page(
     page_prompt  = page.get("prompt", "")
     scene_prompt = build_scene_prompt(page_prompt, character_description, character_clothing)
 
-    logger.info(f"Scene prompt: {scene_prompt[:160]}...")
+    logger.info("--- SCENE PROMPT BUILT ---")
+    logger.info(f"Page source prompt    : {page_prompt}")
+    logger.info(f"character_description : {character_description or '(none)'}")
+    logger.info(f"character_clothing    : {character_clothing or '(none)'}")
+    logger.info(f"IP adapter scale      : {IP_ADAPTER_SCALE_SCENE}")
+    logger.info(f"ControlNet scale      : {CONTROLNET_SCALE_SCENE}")
+    logger.info(f"Guidance scale        : {GUIDANCE_SCALE_SCENE}")
+    logger.info("Full scene prompt:")
+    for line in scene_prompt.splitlines():
+        logger.info(f"  {line}")
+    logger.info("--------------------------")
 
     best_score = 0.0
     best_path  = None
@@ -860,6 +971,7 @@ def generate_page(
             negative_prompt=SCENE_NEGATIVE_PROMPT,
             ip_adapter_scale=IP_ADAPTER_SCALE_SCENE,
             controlnet_scale=CONTROLNET_SCALE_SCENE,
+            guidance_scale=GUIDANCE_SCALE_SCENE,
         )
         save_output_image(output, output_path, logger)
 
