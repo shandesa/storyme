@@ -5,11 +5,11 @@
 # Design reference:
 # tests/playground/scripts/ai/notes/ai_identity_scene_consistency_v2.pdf
 #
-# Stage 1 — Identity extraction     (InsightFace buffalo_l)
-# Stage 2 — Canonical generation    (zsxkib/instant-id)
-# Stage 3 — Per-page scene gen      (InstantID + ArcFace verify)
-# Stage 4 — Face swap fallback      (InsightFace inswapper_128)
-# Stage 5 — Final verification      (ArcFace score commit)
+# Stage 1 -- Identity extraction     (InsightFace buffalo_l)
+# Stage 2 -- Canonical generation    (zsxkib/instant-id)
+# Stage 3 -- Per-page scene gen      (InstantID + ArcFace verify)
+# Stage 4 -- Face swap fallback      (InsightFace inswapper_128)
+# Stage 5 -- Final verification      (ArcFace score commit)
 #
 # ============================================================
 # VERSION HISTORY
@@ -65,45 +65,66 @@
 #        instead of wide storybook scenes
 #   Changes:
 #   - SDXL_WEIGHTS: "dreamshaper-xl" -> "protovision-xl-high-fidel"
-#     Higher fidelity base model; semi-realistic illustrated output;
-#     reduces cartoon drift while keeping illustrated quality
 #   - IP_ADAPTER_SCALE: 0.85 -> 0.95
-#     Stronger face identity conditioning into diffusion process;
-#     reduces hair-style and eye-colour drift
 #   - CONTROLNET_SCALE: 0.80 -> 0.90
-#     Stronger facial keypoint (landmark) conditioning;
-#     improves structural face consistency across pages
 #   - NUM_INFERENCE_STEPS: 30 -> 40
-#     Better detail quality; reduces feature drift at low step count
-#   - _STYLE_BLOCK: removed "Pixar animated movie style" -- primary
-#     driver of over-cartoonization; replaced with
-#     "children's storybook illustration, semi-realistic digital
-#     painting" -- keeps illustrated aesthetic without cartoon excess
-#   - _build_character_block(description): replaces static
-#     _CHARACTER_BLOCK constant; accepts optional character_description
-#     from story.json to anchor hair, eye, skin tone in prompt text
-#   - _build_canonical_prompt(description): replaces static
-#     CANONICAL_PROMPT constant; built per-run from style +
-#     character blocks with description threading
-#   - _SCENE_FRAMING_BLOCK: new constant -- "wide establishing shot,
-#     full body, child visible in large environment" -- forces scene
-#     composition instead of portrait close-up
-#   - SCENE_NEGATIVE_PROMPT: new constant -- extends base negative
-#     prompt with portrait/close-up penalties for scene pages only;
-#     canonical generation retains original negative prompt
-#   - build_scene_prompt(page_prompt, character_description): updated
-#     to incorporate _SCENE_FRAMING_BLOCK and character_description
-#   - call_instantid(): added negative_prompt parameter (default None
-#     falls back to NEGATIVE_PROMPT); scene pages pass
-#     SCENE_NEGATIVE_PROMPT; canonical passes NEGATIVE_PROMPT
-#   - load_story_input(): reads optional character_description field
-#     from story.json; returned as third element of tuple
-#   - generate_canonical_character(): accepts character_description;
-#     passes to _build_canonical_prompt()
-#   - generate_page(): accepts character_description; passes to
-#     build_scene_prompt() and SCENE_NEGATIVE_PROMPT to call_instantid
-#   - main(): unpacks character_description from load_story_input;
-#     threads through to generate_canonical_character and generate_page
+#   - _STYLE_BLOCK: removed "Pixar animated movie style"
+#   - _build_character_block(description): replaces static constant
+#   - _build_canonical_prompt(description): replaces static constant
+#   - _SCENE_FRAMING_BLOCK: new constant
+#   - SCENE_NEGATIVE_PROMPT: new constant
+#   - build_scene_prompt(): adds framing + character_description
+#   - call_instantid(): added negative_prompt parameter
+#   - load_story_input(): reads character_description from story.json
+#   - generate_canonical_character(): accepts character_description
+#   - generate_page(): accepts character_description
+#   - main(): threads character_description end-to-end
+#
+# v2.2.0  2026-05-15  Scene composition + clothing consistency fix
+#   Issues fixed:
+#     1. Clothing different across pages -- model invents arbitrary
+#        clothing each generation; no anchor existed
+#     2. Scene framing still portrait-dominant -- IP_ADAPTER_SCALE
+#        at 0.95 for scene pages overrides all compositional text;
+#        confirmed: story.json prompts ARE correctly reaching the
+#        model (page 1 shows jungle, page 2 shows butterflies);
+#        the problem is purely the scale overwhelming composition
+#   Root cause of scene framing:
+#     IP_ADAPTER_SCALE=0.95 is correct for canonical portrait
+#     generation (needs strong identity lock) but fatal for scene
+#     pages: at 0.95 the face embedding dominates the entire
+#     diffusion process and no text composition instruction can
+#     compete. Scene pages need a lower scale (0.65) so the
+#     text prompt drives composition while ArcFace fallback
+#     (Stage 4) catches identity failures.
+#   Changes:
+#   - IP_ADAPTER_SCALE split into two constants:
+#       IP_ADAPTER_SCALE_CANONICAL = 0.95  (unchanged for Stage 2)
+#       IP_ADAPTER_SCALE_SCENE     = 0.65  (new -- Stage 3 only)
+#     Rationale: canonical portrait needs maximum identity lock;
+#     scene generation needs compositional freedom so the page
+#     prompt can drive layout, environment, and character pose
+#   - CONTROLNET_SCALE split into two constants:
+#       CONTROLNET_SCALE_CANONICAL = 0.90  (unchanged for Stage 2)
+#       CONTROLNET_SCALE_SCENE     = 0.65  (new -- Stage 3 only)
+#     Same rationale: lower keypoint conditioning for scenes
+#     allows body pose and framing to follow the text prompt
+#   - call_instantid(): added ip_adapter_scale and controlnet_scale
+#     parameters (both default None -> fall back to CANONICAL values)
+#   - load_story_input(): reads optional character_clothing field
+#     from story.json; returned as fourth element of tuple.
+#     To use: add "character_clothing": "blue school uniform shirt"
+#     to story.json. When absent, no clothing anchor is added.
+#   - _build_character_block(): added character_clothing parameter;
+#     when provided, appended as "wearing <clothing>" to character
+#     block; ensures same clothing across canonical and all pages
+#   - _build_canonical_prompt(): passes character_clothing through
+#   - build_scene_prompt(): passes character_clothing through
+#   - generate_canonical_character(): passes canonical scales +
+#     character_clothing
+#   - generate_page(): passes scene scales + character_clothing
+#   - main(): unpacks 4-tuple from load_story_input; threads
+#     character_clothing through all downstream calls
 #
 # ============================================================
 
@@ -142,20 +163,30 @@ except Exception:
 # CONFIG
 # ============================================================
 
-REPLICATE_MODEL     = "zsxkib/instant-id:c98b2e7a196828d00955767813b81fc05c5c9b294c670c6d147d545fed4ceecf"
-SDXL_WEIGHTS        = "protovision-xl-high-fidel"      # v2.1.0: raised from dreamshaper-xl
+REPLICATE_MODEL = "zsxkib/instant-id:c98b2e7a196828d00955767813b81fc05c5c9b294c670c6d147d545fed4ceecf"
+SDXL_WEIGHTS    = "protovision-xl-high-fidel"
 
 SIMILARITY_THRESHOLD_CANONICAL = 0.40
 SIMILARITY_THRESHOLD_PAGE      = 0.35
 
-MAX_RETRIES          = 3
-BASE_SEED            = 42
-IP_ADAPTER_SCALE     = 0.95                            # v2.1.0: raised from 0.85
-CONTROLNET_SCALE     = 0.90                            # v2.1.0: raised from 0.80
-IMAGE_WIDTH          = 768
-IMAGE_HEIGHT         = 768
-NUM_INFERENCE_STEPS  = 40                              # v2.1.0: raised from 30
-GUIDANCE_SCALE       = 5.0
+MAX_RETRIES         = 3
+BASE_SEED           = 42
+IMAGE_WIDTH         = 768
+IMAGE_HEIGHT        = 768
+NUM_INFERENCE_STEPS = 40
+GUIDANCE_SCALE      = 5.0
+
+# v2.2.0: Decoupled adapter scales for canonical vs scene.
+# Canonical portrait needs maximum identity lock (0.95/0.90).
+# Scene pages need compositional freedom so the text prompt can
+# drive environment, layout, and full-body framing (0.65/0.65).
+# At 0.95 the face embedding overwhelms all text composition
+# instructions -- confirmed root cause of portrait-only output.
+IP_ADAPTER_SCALE_CANONICAL = 0.95
+IP_ADAPTER_SCALE_SCENE     = 0.65
+
+CONTROLNET_SCALE_CANONICAL = 0.90
+CONTROLNET_SCALE_SCENE     = 0.65
 
 INSWAPPER_HF_URL = (
     "https://huggingface.co/Aitrepreneur/insightface"
@@ -176,9 +207,6 @@ OUTPUT_DIR = PLAYGROUND_DIR / "output" / "identity_scene_consistency"
 LOG_DIR    = PLAYGROUND_DIR / "output" / "logs" / "identity_scene_consistency"
 ENV_FILE   = PLAYGROUND_DIR / "env"
 
-# InsightFace root: models land at PLAYGROUND_DIR/models/{model_name}/
-# FaceAnalysis(root=INSIGHTFACE_ROOT) -> INSIGHTFACE_ROOT/models/buffalo_l/
-# get_model('inswapper_128', root=INSIGHTFACE_ROOT) -> INSIGHTFACE_ROOT/models/inswapper_128/
 INSIGHTFACE_ROOT     = str(PLAYGROUND_DIR)
 INSWAPPER_MODEL_PATH = PLAYGROUND_DIR / "models" / "inswapper_128" / "inswapper_128.onnx"
 
@@ -190,31 +218,26 @@ for _d in [OUTPUT_DIR, LOG_DIR, INSWAPPER_MODEL_PATH.parent]:
 # PROMPTS
 # ============================================================
 
-# v2.1.0: "Pixar animated movie style" removed -- primary driver of
-# over-cartoonization. Replaced with semi-realistic illustration language.
 _STYLE_BLOCK = (
     "children's storybook illustration, semi-realistic digital painting, "
     "warm soft cinematic lighting, vibrant yet gentle colors, "
     "high quality detailed art, cinematic composition"
 )
 
-# v2.1.0: scene framing block -- forces wide establishing shot composition
-# instead of portrait close-up for story page images.
 _SCENE_FRAMING_BLOCK = (
     "wide establishing shot, full body character, child is a small clear figure "
     "in a large detailed environment, expansive scene background, "
     "environment fills most of the frame, cinematic wide angle storybook scene"
 )
 
-# Base negative prompt -- used for canonical portrait generation.
+# Base negative prompt -- canonical portrait generation.
 NEGATIVE_PROMPT = (
     "realistic photography, photorealistic, ugly, deformed, distorted face, "
     "extra limbs, adult, elderly, scary, dark, violent, blurry, low quality, "
     "watermark, text, logo"
 )
 
-# v2.1.0: scene-specific negative prompt -- extends base with close-up
-# penalties; used only for scene page generation (Stage 3), not canonical.
+# Scene-specific negative prompt -- penalises portrait close-up for Stage 3.
 SCENE_NEGATIVE_PROMPT = (
     NEGATIVE_PROMPT + ", "
     "portrait, close-up, headshot, face only, cropped face, "
@@ -223,32 +246,37 @@ SCENE_NEGATIVE_PROMPT = (
 )
 
 
-def _build_character_block(character_description=""):
+def _build_character_block(character_description="", character_clothing=""):
     """
-    v2.1.0: Replaces static _CHARACTER_BLOCK constant.
-    Builds the character identity anchor string for prompts.
-    character_description -- optional free-text from story.json
-    field 'character_description' (e.g. "young boy, dark straight
-    hair, dark brown eyes, warm olive skin tone"). When provided,
-    it anchors hair, eye colour, and skin tone in the text prompt,
-    reducing generative drift on those features.
+    v2.2.0: Added character_clothing parameter.
+    Builds the character identity + consistency anchor for all prompts.
+
+    character_description -- from story.json 'character_description'
+      e.g. "young boy, dark straight hair, dark brown eyes, warm olive skin"
+    character_clothing -- from story.json 'character_clothing'
+      e.g. "blue school uniform shirt and dark trousers"
+      When provided, appended as "wearing <clothing>" to ensure the
+      same clothing appears in every generated image (canonical and
+      all scene pages). Without this anchor, the model invents
+      different clothing on every generation call.
     """
     base = (
         "same child, same face, same facial features, "
         "same hairstyle and hair color, same eye color, same skin tone"
     )
-    desc = character_description.strip()
-    if desc:
-        return f"{base}, {desc}"
-    return base
+    parts = [base]
+    if character_description.strip():
+        parts.append(character_description.strip())
+    if character_clothing.strip():
+        parts.append(f"wearing {character_clothing.strip()}")
+    return ", ".join(parts)
 
 
-def _build_canonical_prompt(character_description=""):
+def _build_canonical_prompt(character_description="", character_clothing=""):
     """
-    v2.1.0: Replaces static CANONICAL_PROMPT constant.
-    Built per-run so character_description is incorporated.
+    v2.2.0: Passes character_clothing to _build_character_block.
     """
-    char_block = _build_character_block(character_description)
+    char_block = _build_character_block(character_description, character_clothing)
     return (
         f"{_STYLE_BLOCK}, {char_block}, "
         "front-facing portrait, gentle smile, face clearly visible, "
@@ -256,12 +284,11 @@ def _build_canonical_prompt(character_description=""):
     )
 
 
-def build_scene_prompt(page_prompt, character_description=""):
+def build_scene_prompt(page_prompt, character_description="", character_clothing=""):
     """
-    v2.1.0: Added character_description parameter and
-    _SCENE_FRAMING_BLOCK to force wide scene composition.
+    v2.2.0: Passes character_clothing to _build_character_block.
     """
-    char_block = _build_character_block(character_description)
+    char_block = _build_character_block(character_description, character_clothing)
     return (
         f"{_STYLE_BLOCK}, {char_block}, "
         f"{_SCENE_FRAMING_BLOCK}, {page_prompt}"
@@ -331,15 +358,24 @@ def load_env(logger):
 
 def load_story_input(name, logger):
     """
-    v2.1.0: Also reads optional 'character_description' field from
-    story.json. Example story.json with description:
+    v2.2.0: Also reads optional 'character_clothing' field from
+    story.json. Returns 4-tuple:
+      (pages, original_image, character_description, character_clothing)
+
+    Recommended story.json structure:
       {
         "character_description": "young boy, dark straight hair,
           dark brown eyes, warm olive skin tone",
-        "pages": [...]
+        "character_clothing": "blue school uniform shirt and dark trousers",
+        "pages": [
+          { "prompt": "The child is entering the jungle with curiosity." },
+          { "prompt": "The child sees glowing butterflies near ancient trees." }
+        ]
       }
-    Returns (pages, original_image, character_description).
-    character_description is an empty string when not present.
+
+    character_clothing is the primary fix for clothing inconsistency
+    across pages. When absent, the model generates arbitrary clothing
+    on each call with no guarantee of consistency.
     """
     logger.info(f"Loading input: {name}")
 
@@ -366,12 +402,21 @@ def load_story_input(name, logger):
     original_image        = image_files[0]
     pages                 = story_data.get("pages", [])
     character_description = story_data.get("character_description", "")
+    character_clothing    = story_data.get("character_clothing", "")
 
     logger.info(f"Reference image       : {original_image.name}")
     logger.info(f"Total pages           : {len(pages)}")
-    logger.info(f"Character description : {character_description or '(none -- using generic anchor)'}")
+    logger.info(f"Character description : {character_description or '(none)'}")
+    logger.info(f"Character clothing    : {character_clothing or '(none -- clothing will vary per page)'}")
 
-    return pages, original_image, character_description
+    if not character_clothing:
+        logger.warning(
+            "No 'character_clothing' in story.json. "
+            "Add it to ensure consistent clothing across all pages. "
+            "Example: \"character_clothing\": \"blue school shirt and dark trousers\""
+        )
+
+    return pages, original_image, character_description, character_clothing
 
 
 # ============================================================
@@ -493,7 +538,6 @@ def extract_face_identity(image_path, name, analyzer, logger):
             "Ensure the image contains a clearly visible, well-lit frontal face."
         )
 
-    # Largest face by bounding-box area
     face = sorted(
         faces,
         key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])
@@ -501,17 +545,14 @@ def extract_face_identity(image_path, name, analyzer, logger):
 
     logger.info(f"Face detected -- bbox: {[int(v) for v in face.bbox]}")
 
-    # ArcFace embedding (512-dim, already L2-normalised by InsightFace)
     reference_embedding = face.normed_embedding.copy()
     logger.info(f"ArcFace embedding extracted: shape={reference_embedding.shape}")
 
-    # Aligned 112x112 crop (for local verification comparisons)
     aligned = _face_align.norm_crop(img, face.kps, image_size=112)
     aligned_path = OUTPUT_DIR / f"{name}_face_aligned.png"
     cv2.imwrite(str(aligned_path), aligned)
     logger.info(f"Aligned crop (112x112) saved: {aligned_path}")
 
-    # Padded crop with 35% context (passed to InstantID as identity reference)
     x1, y1, x2, y2 = [int(v) for v in face.bbox]
     ih, iw = img.shape[:2]
     fw, fh = x2 - x1, y2 - y1
@@ -548,7 +589,6 @@ def verify_identity(generated_path, reference_embedding, threshold, analyzer, lo
         key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])
     )[-1]
 
-    # Both embeddings are L2-normalised -> cosine similarity = dot product
     similarity = float(np.dot(reference_embedding, gen_face.normed_embedding))
     passed     = similarity >= threshold
 
@@ -595,21 +635,39 @@ def save_output_image(output, output_path, logger):
 # GENERATION -- InstantID via Replicate
 # ============================================================
 
-def call_instantid(face_crop_path, prompt, seed, logger, negative_prompt=None):
+def call_instantid(
+    face_crop_path, prompt, seed, logger,
+    negative_prompt=None,
+    ip_adapter_scale=None,
+    controlnet_scale=None,
+):
     """
-    v2.1.0: Added negative_prompt parameter.
-    Callers pass SCENE_NEGATIVE_PROMPT for scene pages to penalise
-    portrait/close-up composition. Canonical generation passes None
-    (falls back to NEGATIVE_PROMPT) to allow portrait output.
+    v2.2.0: Added ip_adapter_scale and controlnet_scale parameters.
+
+    Canonical portrait (Stage 2) passes IP_ADAPTER_SCALE_CANONICAL
+    and CONTROLNET_SCALE_CANONICAL (0.95 / 0.90) -- maximum identity
+    lock for the reference portrait.
+
+    Scene pages (Stage 3) pass IP_ADAPTER_SCALE_SCENE and
+    CONTROLNET_SCALE_SCENE (0.65 / 0.65) -- reduced conditioning
+    allows the text prompt to drive composition, environment framing,
+    and full-body layout. ArcFace (Stage 4 fallback) catches identity
+    failures that result from the lower lock.
+
+    When None, falls back to CANONICAL values (safe default).
     """
-    neg = negative_prompt if negative_prompt is not None else NEGATIVE_PROMPT
+    ips = ip_adapter_scale if ip_adapter_scale is not None else IP_ADAPTER_SCALE_CANONICAL
+    cns = controlnet_scale if controlnet_scale is not None else CONTROLNET_SCALE_CANONICAL
+    neg = negative_prompt  if negative_prompt  is not None else NEGATIVE_PROMPT
 
     logger.info("===================================================")
     logger.info("REPLICATE CALL")
     logger.info("===================================================")
-    logger.info(f"Model : {REPLICATE_MODEL}")
-    logger.info(f"Seed  : {seed}")
-    logger.info(f"Prompt: {prompt[:120]}...")
+    logger.info(f"Model              : {REPLICATE_MODEL}")
+    logger.info(f"Seed               : {seed}")
+    logger.info(f"ip_adapter_scale   : {ips}")
+    logger.info(f"controlnet_scale   : {cns}")
+    logger.info(f"Prompt             : {prompt[:120]}...")
 
     fh = open(face_crop_path, "rb")
     try:
@@ -620,8 +678,8 @@ def call_instantid(face_crop_path, prompt, seed, logger, negative_prompt=None):
                 "prompt"                        : prompt,
                 "negative_prompt"               : neg,
                 "sdxl_weights"                  : SDXL_WEIGHTS,
-                "ip_adapter_scale"              : IP_ADAPTER_SCALE,
-                "controlnet_conditioning_scale" : CONTROLNET_SCALE,
+                "ip_adapter_scale"              : ips,
+                "controlnet_conditioning_scale" : cns,
                 "width"                         : IMAGE_WIDTH,
                 "height"                        : IMAGE_HEIGHT,
                 "num_inference_steps"           : NUM_INFERENCE_STEPS,
@@ -643,17 +701,17 @@ def call_instantid(face_crop_path, prompt, seed, logger, negative_prompt=None):
 def generate_canonical_character(
     face_crop_path, reference_embedding, name, analyzer, logger,
     character_description="",
+    character_clothing="",
 ):
     """
-    v2.1.0: Added character_description parameter; passes to
-    _build_canonical_prompt() so identity anchors are included
-    in the portrait prompt text.
+    v2.2.0: Added character_clothing parameter; passes canonical
+    adapter scales (0.95 / 0.90) to call_instantid.
     """
     logger.info("===================================================")
     logger.info("STAGE 2 -- Canonical character generation")
     logger.info("===================================================")
 
-    canonical_prompt = _build_canonical_prompt(character_description)
+    canonical_prompt = _build_canonical_prompt(character_description, character_clothing)
 
     best_score = 0.0
     best_path  = None
@@ -664,7 +722,11 @@ def generate_canonical_character(
         seed        = BASE_SEED + attempt
         output_path = OUTPUT_DIR / f"{name}_canonical_attempt_{attempt}.png"
 
-        output = call_instantid(face_crop_path, canonical_prompt, seed, logger)
+        output = call_instantid(
+            face_crop_path, canonical_prompt, seed, logger,
+            ip_adapter_scale=IP_ADAPTER_SCALE_CANONICAL,
+            controlnet_scale=CONTROLNET_SCALE_CANONICAL,
+        )
         save_output_image(output, output_path, logger)
 
         score, passed = verify_identity(
@@ -767,18 +829,22 @@ def generate_page(
     analyzer,
     logger,
     character_description="",
+    character_clothing="",
 ):
     """
-    v2.1.0: Added character_description parameter; passes to
-    build_scene_prompt() and uses SCENE_NEGATIVE_PROMPT (not
-    NEGATIVE_PROMPT) to penalise portrait/close-up composition.
+    v2.2.0: Added character_clothing parameter; passes scene adapter
+    scales (IP=0.65, CN=0.65) to call_instantid so the text prompt
+    can drive scene composition instead of being overwhelmed by face
+    conditioning at 0.95. SCENE_NEGATIVE_PROMPT still applied.
     """
     logger.info("===================================================")
     logger.info(f"STAGE 3 -- Page {page_idx}")
     logger.info("===================================================")
 
     page_prompt  = page.get("prompt", "")
-    scene_prompt = build_scene_prompt(page_prompt, character_description)
+    scene_prompt = build_scene_prompt(page_prompt, character_description, character_clothing)
+
+    logger.info(f"Scene prompt: {scene_prompt[:160]}...")
 
     best_score = 0.0
     best_path  = None
@@ -792,6 +858,8 @@ def generate_page(
         output = call_instantid(
             face_crop_path, scene_prompt, seed, logger,
             negative_prompt=SCENE_NEGATIVE_PROMPT,
+            ip_adapter_scale=IP_ADAPTER_SCALE_SCENE,
+            controlnet_scale=CONTROLNET_SCALE_SCENE,
         )
         save_output_image(output, output_path, logger)
 
@@ -867,7 +935,9 @@ def main():
         ensure_inswapper_model(logger)
 
         # -- Input --------------------------------------------
-        pages, original_image, character_description = load_story_input(args.name, logger)
+        pages, original_image, character_description, character_clothing = (
+            load_story_input(args.name, logger)
+        )
 
         # -- InsightFace analyzer -----------------------------
         analyzer = build_analyzer(logger)
@@ -881,6 +951,7 @@ def main():
         generate_canonical_character(
             face_crop_path, reference_embedding, args.name, analyzer, logger,
             character_description=character_description,
+            character_clothing=character_clothing,
         )
 
         # -- Stages 3-5: Per-page generation ------------------
@@ -894,6 +965,7 @@ def main():
                 analyzer,
                 logger,
                 character_description=character_description,
+                character_clothing=character_clothing,
             )
 
         logger.info("===================================================")
