@@ -6,10 +6,105 @@
 # tests/playground/scripts/ai/notes/ai_identity_scene_consistency_v2.pdf
 #
 # Stage 1 — Identity extraction     (InsightFace buffalo_l)
-# Stage 2 — Canonical generation    (zsxkib/instant-id:latest)
+# Stage 2 — Canonical generation    (zsxkib/instant-id)
 # Stage 3 — Per-page scene gen      (InstantID + ArcFace verify)
 # Stage 4 — Face swap fallback      (InsightFace inswapper_128)
 # Stage 5 — Final verification      (ArcFace score commit)
+#
+# ============================================================
+# VERSION HISTORY
+# ============================================================
+#
+# v1.0.0  2026-05-14  ai_identity_scene_consistency.py (original)
+#   - Placeholder model "google/nano-banana" (non-functional)
+#   - compute_identity_similarity() returned np.random.uniform()
+#     -- no real identity measurement ever performed
+#   - create_face_crop() used fixed rectangle (20-80% width,
+#     10-75% height) -- not face detection
+#   - reference images passed via CLIP (wrong architecture for
+#     biometric identity; ~80% sim between different people)
+#   - Fixed seed=12345 for all generations (retries identical)
+#   - previous_page fed back as reference (drift compounding)
+#   - No fallback when generation fails
+#
+# v2.0.0  2026-05-14  ai_identity_scene_consistency_v2.py
+#   - Complete redesign per design reference PDF
+#   - Stage 1: InsightFace buffalo_l -- real face detection,
+#     ArcFace 512-dim embedding, aligned 112x112 crop,
+#     padded crop for InstantID reference
+#   - Stage 2: zsxkib/instant-id canonical generation with
+#     real ArcFace cosine similarity verification (threshold 0.40)
+#   - Stage 3: Per-page scene generation -- real ArcFace gating
+#     replaces np.random.uniform(); seed formula
+#     BASE_SEED + (page*100) + (attempt*10); previous_page
+#     removed from generation references
+#   - Stage 4: InsightFace inswapper_128 CPU fallback --
+#     triggers only after all 3 attempts fail threshold
+#   - Stage 5: Real ArcFace score logged per page before commit
+#   - inswapper_128.onnx: auto-download from HuggingFace with
+#     SHA256 verification on every startup
+#   - buffalo_l: auto-downloads via InsightFace on first run
+#
+# v2.0.1  2026-05-14  Bug fix
+#   - REPLICATE_MODEL: replaced ":latest" suffix with explicit
+#     version hash c98b2e7a... -- Python SDK does not resolve
+#     ":latest"; returns 422 from Replicate predictions API
+#
+# v2.0.2  2026-05-14  Bug fix
+#   - SDXL_WEIGHTS: "dreamshaper-xl-turbov2" -> "dreamshaper-xl"
+#     Model version c98b2e7a rejects the turbov2 variant name;
+#     valid enum returned in 422 response
+#
+# v2.1.0  2026-05-15  Quality fix -- identity fidelity + scene composition
+#   Issues fixed:
+#     1. Hairstyle inconsistent across pages vs reference photo
+#     2. Eye colour drifting from reference (dark brown -> hazel)
+#     3. Cartoonization too heavy; character not recognisable
+#        enough as the real child
+#     4. Scene content absent; images are portrait close-ups
+#        instead of wide storybook scenes
+#   Changes:
+#   - SDXL_WEIGHTS: "dreamshaper-xl" -> "protovision-xl-high-fidel"
+#     Higher fidelity base model; semi-realistic illustrated output;
+#     reduces cartoon drift while keeping illustrated quality
+#   - IP_ADAPTER_SCALE: 0.85 -> 0.95
+#     Stronger face identity conditioning into diffusion process;
+#     reduces hair-style and eye-colour drift
+#   - CONTROLNET_SCALE: 0.80 -> 0.90
+#     Stronger facial keypoint (landmark) conditioning;
+#     improves structural face consistency across pages
+#   - NUM_INFERENCE_STEPS: 30 -> 40
+#     Better detail quality; reduces feature drift at low step count
+#   - _STYLE_BLOCK: removed "Pixar animated movie style" -- primary
+#     driver of over-cartoonization; replaced with
+#     "children's storybook illustration, semi-realistic digital
+#     painting" -- keeps illustrated aesthetic without cartoon excess
+#   - _build_character_block(description): replaces static
+#     _CHARACTER_BLOCK constant; accepts optional character_description
+#     from story.json to anchor hair, eye, skin tone in prompt text
+#   - _build_canonical_prompt(description): replaces static
+#     CANONICAL_PROMPT constant; built per-run from style +
+#     character blocks with description threading
+#   - _SCENE_FRAMING_BLOCK: new constant -- "wide establishing shot,
+#     full body, child visible in large environment" -- forces scene
+#     composition instead of portrait close-up
+#   - SCENE_NEGATIVE_PROMPT: new constant -- extends base negative
+#     prompt with portrait/close-up penalties for scene pages only;
+#     canonical generation retains original negative prompt
+#   - build_scene_prompt(page_prompt, character_description): updated
+#     to incorporate _SCENE_FRAMING_BLOCK and character_description
+#   - call_instantid(): added negative_prompt parameter (default None
+#     falls back to NEGATIVE_PROMPT); scene pages pass
+#     SCENE_NEGATIVE_PROMPT; canonical passes NEGATIVE_PROMPT
+#   - load_story_input(): reads optional character_description field
+#     from story.json; returned as third element of tuple
+#   - generate_canonical_character(): accepts character_description;
+#     passes to _build_canonical_prompt()
+#   - generate_page(): accepts character_description; passes to
+#     build_scene_prompt() and SCENE_NEGATIVE_PROMPT to call_instantid
+#   - main(): unpacks character_description from load_story_input;
+#     threads through to generate_canonical_character and generate_page
+#
 # ============================================================
 
 import argparse
@@ -48,18 +143,18 @@ except Exception:
 # ============================================================
 
 REPLICATE_MODEL     = "zsxkib/instant-id:c98b2e7a196828d00955767813b81fc05c5c9b294c670c6d147d545fed4ceecf"
-SDXL_WEIGHTS        = "dreamshaper-xl"
+SDXL_WEIGHTS        = "protovision-xl-high-fidel"      # v2.1.0: raised from dreamshaper-xl
 
 SIMILARITY_THRESHOLD_CANONICAL = 0.40
 SIMILARITY_THRESHOLD_PAGE      = 0.35
 
 MAX_RETRIES          = 3
 BASE_SEED            = 42
-IP_ADAPTER_SCALE     = 0.85
-CONTROLNET_SCALE     = 0.80
+IP_ADAPTER_SCALE     = 0.95                            # v2.1.0: raised from 0.85
+CONTROLNET_SCALE     = 0.90                            # v2.1.0: raised from 0.80
 IMAGE_WIDTH          = 768
 IMAGE_HEIGHT         = 768
-NUM_INFERENCE_STEPS  = 30
+NUM_INFERENCE_STEPS  = 40                              # v2.1.0: raised from 30
 GUIDANCE_SCALE       = 5.0
 
 INSWAPPER_HF_URL = (
@@ -72,7 +167,7 @@ INSWAPPER_SHA256  = (
 )
 INSWAPPER_SIZE_MB = 554
 
-# ── Paths ────────────────────────────────────────────────────
+# ---- Paths --------------------------------------------------
 
 PLAYGROUND_DIR = Path(__file__).resolve().parents[2]
 
@@ -82,8 +177,8 @@ LOG_DIR    = PLAYGROUND_DIR / "output" / "logs" / "identity_scene_consistency"
 ENV_FILE   = PLAYGROUND_DIR / "env"
 
 # InsightFace root: models land at PLAYGROUND_DIR/models/{model_name}/
-# FaceAnalysis(root=INSIGHTFACE_ROOT) → INSIGHTFACE_ROOT/models/buffalo_l/
-# get_model('inswapper_128', root=INSIGHTFACE_ROOT) → INSIGHTFACE_ROOT/models/inswapper_128/
+# FaceAnalysis(root=INSIGHTFACE_ROOT) -> INSIGHTFACE_ROOT/models/buffalo_l/
+# get_model('inswapper_128', root=INSIGHTFACE_ROOT) -> INSIGHTFACE_ROOT/models/inswapper_128/
 INSIGHTFACE_ROOT     = str(PLAYGROUND_DIR)
 INSWAPPER_MODEL_PATH = PLAYGROUND_DIR / "models" / "inswapper_128" / "inswapper_128.onnx"
 
@@ -95,31 +190,82 @@ for _d in [OUTPUT_DIR, LOG_DIR, INSWAPPER_MODEL_PATH.parent]:
 # PROMPTS
 # ============================================================
 
+# v2.1.0: "Pixar animated movie style" removed -- primary driver of
+# over-cartoonization. Replaced with semi-realistic illustration language.
 _STYLE_BLOCK = (
-    "Pixar animated movie style, soft warm lighting, pastel storybook colors, "
-    "gentle cinematic composition, children's illustrated book art style, "
-    "high quality, detailed, vibrant but gentle"
+    "children's storybook illustration, semi-realistic digital painting, "
+    "warm soft cinematic lighting, vibrant yet gentle colors, "
+    "high quality detailed art, cinematic composition"
 )
 
-_CHARACTER_BLOCK = (
-    "same child character, same face, same eyes, same hair, same skin tone"
+# v2.1.0: scene framing block -- forces wide establishing shot composition
+# instead of portrait close-up for story page images.
+_SCENE_FRAMING_BLOCK = (
+    "wide establishing shot, full body character, child is a small clear figure "
+    "in a large detailed environment, expansive scene background, "
+    "environment fills most of the frame, cinematic wide angle storybook scene"
 )
 
+# Base negative prompt -- used for canonical portrait generation.
 NEGATIVE_PROMPT = (
     "realistic photography, photorealistic, ugly, deformed, distorted face, "
     "extra limbs, adult, elderly, scary, dark, violent, blurry, low quality, "
     "watermark, text, logo"
 )
 
-CANONICAL_PROMPT = (
-    f"{_STYLE_BLOCK}, {_CHARACTER_BLOCK}, "
-    "front-facing portrait, gentle smile, face clearly visible, "
-    "looking at camera, full upper body"
+# v2.1.0: scene-specific negative prompt -- extends base with close-up
+# penalties; used only for scene page generation (Stage 3), not canonical.
+SCENE_NEGATIVE_PROMPT = (
+    NEGATIVE_PROMPT + ", "
+    "portrait, close-up, headshot, face only, cropped face, "
+    "shallow depth of field, bokeh, plain background, no environment, "
+    "empty background, white background"
 )
 
 
-def build_scene_prompt(page_prompt):
-    return f"{_STYLE_BLOCK}, {_CHARACTER_BLOCK}, {page_prompt}"
+def _build_character_block(character_description=""):
+    """
+    v2.1.0: Replaces static _CHARACTER_BLOCK constant.
+    Builds the character identity anchor string for prompts.
+    character_description -- optional free-text from story.json
+    field 'character_description' (e.g. "young boy, dark straight
+    hair, dark brown eyes, warm olive skin tone"). When provided,
+    it anchors hair, eye colour, and skin tone in the text prompt,
+    reducing generative drift on those features.
+    """
+    base = (
+        "same child, same face, same facial features, "
+        "same hairstyle and hair color, same eye color, same skin tone"
+    )
+    desc = character_description.strip()
+    if desc:
+        return f"{base}, {desc}"
+    return base
+
+
+def _build_canonical_prompt(character_description=""):
+    """
+    v2.1.0: Replaces static CANONICAL_PROMPT constant.
+    Built per-run so character_description is incorporated.
+    """
+    char_block = _build_character_block(character_description)
+    return (
+        f"{_STYLE_BLOCK}, {char_block}, "
+        "front-facing portrait, gentle smile, face clearly visible, "
+        "looking at camera, full upper body, soft even lighting on face"
+    )
+
+
+def build_scene_prompt(page_prompt, character_description=""):
+    """
+    v2.1.0: Added character_description parameter and
+    _SCENE_FRAMING_BLOCK to force wide scene composition.
+    """
+    char_block = _build_character_block(character_description)
+    return (
+        f"{_STYLE_BLOCK}, {char_block}, "
+        f"{_SCENE_FRAMING_BLOCK}, {page_prompt}"
+    )
 
 
 # ============================================================
@@ -184,6 +330,17 @@ def load_env(logger):
 # ============================================================
 
 def load_story_input(name, logger):
+    """
+    v2.1.0: Also reads optional 'character_description' field from
+    story.json. Example story.json with description:
+      {
+        "character_description": "young boy, dark straight hair,
+          dark brown eyes, warm olive skin tone",
+        "pages": [...]
+      }
+    Returns (pages, original_image, character_description).
+    character_description is an empty string when not present.
+    """
     logger.info(f"Loading input: {name}")
 
     person_dir = INPUT_DIR / name
@@ -206,17 +363,19 @@ def load_story_input(name, logger):
     if not image_files:
         raise RuntimeError(f"No reference image found in {images_dir}")
 
-    original_image = image_files[0]
-    pages = story_data.get("pages", [])
+    original_image        = image_files[0]
+    pages                 = story_data.get("pages", [])
+    character_description = story_data.get("character_description", "")
 
-    logger.info(f"Reference image : {original_image.name}")
-    logger.info(f"Total pages     : {len(pages)}")
+    logger.info(f"Reference image       : {original_image.name}")
+    logger.info(f"Total pages           : {len(pages)}")
+    logger.info(f"Character description : {character_description or '(none -- using generic anchor)'}")
 
-    return pages, original_image
+    return pages, original_image, character_description
 
 
 # ============================================================
-# MODEL DOWNLOAD — inswapper_128.onnx
+# MODEL DOWNLOAD -- inswapper_128.onnx
 # ============================================================
 
 def _sha256_file(path):
@@ -233,13 +392,13 @@ def ensure_inswapper_model(logger):
     logger.info("---------------------------------------------------")
 
     if INSWAPPER_MODEL_PATH.exists():
-        logger.info("File found — verifying SHA256...")
+        logger.info("File found -- verifying SHA256...")
         sha256 = _sha256_file(INSWAPPER_MODEL_PATH)
         if sha256 == INSWAPPER_SHA256:
-            logger.info("SHA256 OK — inswapper_128.onnx is valid")
+            logger.info("SHA256 OK -- inswapper_128.onnx is valid")
             return
         logger.warning(
-            f"SHA256 mismatch (got {sha256[:16]}...) — deleting and re-downloading"
+            f"SHA256 mismatch (got {sha256[:16]}...) -- deleting and re-downloading"
         )
         INSWAPPER_MODEL_PATH.unlink()
 
@@ -269,7 +428,7 @@ def ensure_inswapper_model(logger):
                         )
                         last_pct = pct
 
-        logger.info("Download complete — verifying SHA256...")
+        logger.info("Download complete -- verifying SHA256...")
         sha256 = _sha256_file(tmp_path)
         if sha256 != INSWAPPER_SHA256:
             tmp_path.unlink(missing_ok=True)
@@ -315,12 +474,12 @@ def build_analyzer(logger):
 
 
 # ============================================================
-# STAGE 1 — IDENTITY EXTRACTION
+# STAGE 1 -- IDENTITY EXTRACTION
 # ============================================================
 
 def extract_face_identity(image_path, name, analyzer, logger):
     logger.info("===================================================")
-    logger.info("STAGE 1 — Identity extraction")
+    logger.info("STAGE 1 -- Identity extraction")
     logger.info("===================================================")
 
     img = cv2.imread(str(image_path))
@@ -340,7 +499,7 @@ def extract_face_identity(image_path, name, analyzer, logger):
         key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])
     )[-1]
 
-    logger.info(f"Face detected — bbox: {[int(v) for v in face.bbox]}")
+    logger.info(f"Face detected -- bbox: {[int(v) for v in face.bbox]}")
 
     # ArcFace embedding (512-dim, already L2-normalised by InsightFace)
     reference_embedding = face.normed_embedding.copy()
@@ -381,7 +540,7 @@ def verify_identity(generated_path, reference_embedding, threshold, analyzer, lo
 
     faces = analyzer.get(img)
     if not faces:
-        logger.warning("No face detected in generated image — hard fail")
+        logger.warning("No face detected in generated image -- hard fail")
         return 0.0, False
 
     gen_face = sorted(
@@ -389,7 +548,7 @@ def verify_identity(generated_path, reference_embedding, threshold, analyzer, lo
         key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])
     )[-1]
 
-    # Both embeddings are L2-normalised → cosine similarity = dot product
+    # Both embeddings are L2-normalised -> cosine similarity = dot product
     similarity = float(np.dot(reference_embedding, gen_face.normed_embedding))
     passed     = similarity >= threshold
 
@@ -433,10 +592,18 @@ def save_output_image(output, output_path, logger):
 
 
 # ============================================================
-# GENERATION — InstantID via Replicate
+# GENERATION -- InstantID via Replicate
 # ============================================================
 
-def call_instantid(face_crop_path, prompt, seed, logger):
+def call_instantid(face_crop_path, prompt, seed, logger, negative_prompt=None):
+    """
+    v2.1.0: Added negative_prompt parameter.
+    Callers pass SCENE_NEGATIVE_PROMPT for scene pages to penalise
+    portrait/close-up composition. Canonical generation passes None
+    (falls back to NEGATIVE_PROMPT) to allow portrait output.
+    """
+    neg = negative_prompt if negative_prompt is not None else NEGATIVE_PROMPT
+
     logger.info("===================================================")
     logger.info("REPLICATE CALL")
     logger.info("===================================================")
@@ -451,7 +618,7 @@ def call_instantid(face_crop_path, prompt, seed, logger):
             input={
                 "image"                         : fh,
                 "prompt"                        : prompt,
-                "negative_prompt"               : NEGATIVE_PROMPT,
+                "negative_prompt"               : neg,
                 "sdxl_weights"                  : SDXL_WEIGHTS,
                 "ip_adapter_scale"              : IP_ADAPTER_SCALE,
                 "controlnet_conditioning_scale" : CONTROLNET_SCALE,
@@ -470,13 +637,23 @@ def call_instantid(face_crop_path, prompt, seed, logger):
 
 
 # ============================================================
-# STAGE 2 — CANONICAL CHARACTER GENERATION
+# STAGE 2 -- CANONICAL CHARACTER GENERATION
 # ============================================================
 
-def generate_canonical_character(face_crop_path, reference_embedding, name, analyzer, logger):
+def generate_canonical_character(
+    face_crop_path, reference_embedding, name, analyzer, logger,
+    character_description="",
+):
+    """
+    v2.1.0: Added character_description parameter; passes to
+    _build_canonical_prompt() so identity anchors are included
+    in the portrait prompt text.
+    """
     logger.info("===================================================")
-    logger.info("STAGE 2 — Canonical character generation")
+    logger.info("STAGE 2 -- Canonical character generation")
     logger.info("===================================================")
+
+    canonical_prompt = _build_canonical_prompt(character_description)
 
     best_score = 0.0
     best_path  = None
@@ -487,7 +664,7 @@ def generate_canonical_character(face_crop_path, reference_embedding, name, anal
         seed        = BASE_SEED + attempt
         output_path = OUTPUT_DIR / f"{name}_canonical_attempt_{attempt}.png"
 
-        output = call_instantid(face_crop_path, CANONICAL_PROMPT, seed, logger)
+        output = call_instantid(face_crop_path, canonical_prompt, seed, logger)
         save_output_image(output, output_path, logger)
 
         score, passed = verify_identity(
@@ -517,16 +694,16 @@ def generate_canonical_character(face_crop_path, reference_embedding, name, anal
 
 
 # ============================================================
-# STAGE 4 — FACE SWAP FALLBACK
+# STAGE 4 -- FACE SWAP FALLBACK
 # ============================================================
 
 def face_swap_fallback(scene_path, face_crop_path, name, page_idx, analyzer, logger):
     logger.info("---------------------------------------------------")
-    logger.info(f"STAGE 4 — Face swap fallback  (page {page_idx})")
+    logger.info(f"STAGE 4 -- Face swap fallback  (page {page_idx})")
     logger.info("---------------------------------------------------")
 
     if not _INSIGHTFACE_OK:
-        logger.error("insightface not available — fallback skipped, returning best attempt")
+        logger.error("insightface not available -- fallback skipped, returning best attempt")
         return scene_path
 
     try:
@@ -544,18 +721,18 @@ def face_swap_fallback(scene_path, face_crop_path, name, page_idx, analyzer, log
     src_img   = cv2.imread(str(face_crop_path))
 
     if scene_img is None or src_img is None:
-        logger.error("Failed to load images for face swap — returning best attempt")
+        logger.error("Failed to load images for face swap -- returning best attempt")
         return scene_path
 
     scene_faces = analyzer.get(scene_img)
     src_faces   = analyzer.get(src_img)
 
     if not scene_faces:
-        logger.warning("No face detected in scene image — skipping swap")
+        logger.warning("No face detected in scene image -- skipping swap")
         return scene_path
 
     if not src_faces:
-        logger.warning("No face detected in source crop — skipping swap")
+        logger.warning("No face detected in source crop -- skipping swap")
         return scene_path
 
     target_face = sorted(
@@ -578,7 +755,7 @@ def face_swap_fallback(scene_path, face_crop_path, name, page_idx, analyzer, log
 
 
 # ============================================================
-# STAGE 3 — PER-PAGE SCENE GENERATION
+# STAGE 3 -- PER-PAGE SCENE GENERATION
 # ============================================================
 
 def generate_page(
@@ -589,13 +766,19 @@ def generate_page(
     name,
     analyzer,
     logger,
+    character_description="",
 ):
+    """
+    v2.1.0: Added character_description parameter; passes to
+    build_scene_prompt() and uses SCENE_NEGATIVE_PROMPT (not
+    NEGATIVE_PROMPT) to penalise portrait/close-up composition.
+    """
     logger.info("===================================================")
-    logger.info(f"STAGE 3 — Page {page_idx}")
+    logger.info(f"STAGE 3 -- Page {page_idx}")
     logger.info("===================================================")
 
-    page_prompt = page.get("prompt", "")
-    scene_prompt = build_scene_prompt(page_prompt)
+    page_prompt  = page.get("prompt", "")
+    scene_prompt = build_scene_prompt(page_prompt, character_description)
 
     best_score = 0.0
     best_path  = None
@@ -606,7 +789,10 @@ def generate_page(
         seed        = BASE_SEED + (page_idx * 100) + (attempt * 10)
         output_path = OUTPUT_DIR / f"{name}_page_{page_idx}_attempt_{attempt}.png"
 
-        output = call_instantid(face_crop_path, scene_prompt, seed, logger)
+        output = call_instantid(
+            face_crop_path, scene_prompt, seed, logger,
+            negative_prompt=SCENE_NEGATIVE_PROMPT,
+        )
         save_output_image(output, output_path, logger)
 
         score, passed = verify_identity(
@@ -624,16 +810,16 @@ def generate_page(
     else:
         logger.warning(
             f"Page {page_idx}: all {MAX_RETRIES} attempts below threshold "
-            f"{SIMILARITY_THRESHOLD_PAGE:.2f} (best={best_score:.4f}) — "
+            f"{SIMILARITY_THRESHOLD_PAGE:.2f} (best={best_score:.4f}) -- "
             "triggering face swap fallback"
         )
         best_path = face_swap_fallback(
             best_path, face_crop_path, name, page_idx, analyzer, logger
         )
 
-    # Stage 5 — final verification and commit
+    # Stage 5 -- final verification and commit
     logger.info("---------------------------------------------------")
-    logger.info(f"STAGE 5 — Final verification  (page {page_idx})")
+    logger.info(f"STAGE 5 -- Final verification  (page {page_idx})")
     logger.info("---------------------------------------------------")
 
     final_score, _ = verify_identity(
@@ -662,10 +848,10 @@ def main():
     logger = setup_logger(args.name)
 
     try:
-        # ── Environment ───────────────────────────────────────
+        # -- Environment --------------------------------------
         load_env(logger)
 
-        # ── Dependency check ──────────────────────────────────
+        # -- Dependency check ---------------------------------
         if cv2 is None:
             raise RuntimeError(
                 "opencv-python not installed.\n"
@@ -677,26 +863,27 @@ def main():
                 "Run: pip install insightface onnxruntime"
             )
 
-        # ── Model download ────────────────────────────────────
+        # -- Model download -----------------------------------
         ensure_inswapper_model(logger)
 
-        # ── Input ─────────────────────────────────────────────
-        pages, original_image = load_story_input(args.name, logger)
+        # -- Input --------------------------------------------
+        pages, original_image, character_description = load_story_input(args.name, logger)
 
-        # ── InsightFace analyzer ──────────────────────────────
+        # -- InsightFace analyzer -----------------------------
         analyzer = build_analyzer(logger)
 
-        # ── Stage 1: Identity extraction ──────────────────────
+        # -- Stage 1: Identity extraction ---------------------
         reference_embedding, face_crop_path = extract_face_identity(
             original_image, args.name, analyzer, logger
         )
 
-        # ── Stage 2: Canonical character ──────────────────────
+        # -- Stage 2: Canonical character ---------------------
         generate_canonical_character(
-            face_crop_path, reference_embedding, args.name, analyzer, logger
+            face_crop_path, reference_embedding, args.name, analyzer, logger,
+            character_description=character_description,
         )
 
-        # ── Stages 3-5: Per-page generation ───────────────────
+        # -- Stages 3-5: Per-page generation ------------------
         for page_idx, page in enumerate(pages, start=1):
             generate_page(
                 page_idx,
@@ -706,6 +893,7 @@ def main():
                 args.name,
                 analyzer,
                 logger,
+                character_description=character_description,
             )
 
         logger.info("===================================================")
